@@ -251,7 +251,7 @@ create_bulk_exp <- function(expression.matrix,
   print(colnames(matched_peaks))
   annotation_table = matched_peaks[,c(1,6,8,9)]
   colnames(annotation_table)=c('m_z','adduct','kegg_id','name')
-  annotation_table$m_z = paste0('X',annotation_table$m_z)
+#  annotation_table$m_z = paste0('X',annotation_table$m_z)
   full_table = data.frame('m_z'=rownames(expression.matrix.mean))
   annotation_table = merge(full_table,annotation_table,all.x=T)
   annotation_table = unique(annotation_table)

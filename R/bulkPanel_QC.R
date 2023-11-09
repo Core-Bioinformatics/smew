@@ -12,7 +12,7 @@ NULL
 #' @export
 BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
   ns <- NS(id)
-
+  
   if(show){
     tabPanel(
       'Quality checks',
@@ -25,13 +25,13 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
         checkboxInput(ns('pca.show.confidence.ellipses'),label = "Show 95% confidence ellipses around groups",value=FALSE),
         textInput(ns('plotPCAFileName'), 'File name for PCA plot download', value ='PCAPlot.png'),
         downloadButton(ns('downloadPCAPlot'), 'Download PCA Plot'),
-
+        
         status = "info",
         icon = icon("gear", verify_fa = FALSE),
         tooltip = shinyWidgets::tooltipOptions(title = "Click to see inputs!")
       ),
       plotOutput(ns('pca')),
-
+      
       tags$h1("Partial Least Squares Discriminant Analysis (PLS-DA)"),
       shinyWidgets::dropdownButton(
         radioButtons(ns('plsda.separator'), label = "Discriminating bulk.metadata",
@@ -44,20 +44,22 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
         numericInput(ns('plsda.comp'),label = "PLS-DA component's contributions to show",min=1,max=2,step = 1,value = 1),
         textInput(ns('plotPLSDAFileName'), 'File name for PLS-DA plot download', value ='PLSDAPlot.png'),
         downloadButton(ns('downloadPLSDAPlot'), 'Download PLS-DA Plot'),
-
+        
         status = "info",
         icon = icon("gear", verify_fa = FALSE),
         tooltip = shinyWidgets::tooltipOptions(title = "Click to see inputs!")
       ),
       plotOutput(ns('plsda')),
       plotOutput(ns('plsda_contrib')),
-
+      
       tags$h1("Individual peak intensity barplots"),
       selectInput(ns("barPeakName"), "Peaks to include:", multiple = TRUE, choices = character(0)),
+      radioButtons(ns('peak.barplot.colour'), label = "Group by",
+                   choices = colnames(bulk.metadata), selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
       shinyWidgets::dropdownButton(
         textInput(ns('plotBarFileName'), 'File name for bar plot download', value ='BarPlot.png'),
         downloadButton(ns('downloadBarPlot'), 'Download Bar Plot'),
-
+        
         status = "info",
         icon = icon("gear", verify_fa = FALSE),
         tooltip = shinyWidgets::tooltipOptions(title = "Click to see inputs!")
@@ -70,13 +72,13 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
       shinyWidgets::dropdownButton(
         textInput(ns('plotBoxFileName'), 'File name for box plot download', value ='BoxPlot.png'),
         downloadButton(ns('downloadBoxPlot'), 'Download Box Plot'),
-
+        
         status = "info",
         icon = icon("gear", verify_fa = FALSE),
         tooltip = shinyWidgets::tooltipOptions(title = "Click to see inputs!")
       ),
-      plotOutput(ns('boxplot'))
-
+      plotOutput(ns('boxplot'),click = ns('boxplot_click')),
+#      verbatimTextOutput(ns("data"))
     )
   }else{
     NULL
@@ -88,16 +90,16 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
 BulkQCpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
   ns <- NS(id)
   # check whether inputs (other than id) are reactive or not
-
+  
   moduleServer(id, function(input, output, session){
-
-    #Set up server-side search for gene names
+    
+    #Set up server-side search for peak names
     updateSelectizeInput(session, "barPeakName", choices = anno$display_name, server = TRUE, selected = anno$display_name[1:2])
     updateSelectizeInput(session, "boxPeakName", choices = anno$display_name, server = TRUE, selected = anno$display_name[1:2])
-
-    #Set up server-side search for gene names
-    updateSelectizeInput(session, "geneName", choices = anno$display_name, server = TRUE)
-
+    
+    #Set up server-side search for peak names
+    updateSelectizeInput(session, "peakName", choices = anno$display_name, server = TRUE)
+    
     pca.plot <- reactive({
       myplot <- plot_pca(
         expression.matrix = bulk.expression.matrix,
@@ -111,7 +113,7 @@ BulkQCpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
       myplot
     })
     output[['pca']] <- renderPlot(pca.plot())
-
+    
     plsda.plot <- reactive({
       myplot <- plot_plsda(
         expression.matrix = bulk.expression.matrix,
@@ -125,7 +127,7 @@ BulkQCpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
       myplot
     })
     output[['plsda']] <- renderPlot(plsda.plot())
-
+    
     plsda.contrib <- reactive({
       print(input[['plsda.comp']])
       myplot <- plsda_contrib(expression.matrix=bulk.expression.matrix,
@@ -139,19 +141,22 @@ BulkQCpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
     bar.plot <- reactive({
       peak.ids <- anno$m_z[match(input[["barPeakName"]],anno$display_name)]
       if (length(peak.ids)==1){
-        sub.expression.matrix <- data.frame(bulk.expression.matrix[peak.ids,,drop=F],)
+        sub.expression.matrix <- data.frame(bulk.expression.matrix[peak.ids,,drop=F])
       } else {
         sub.expression.matrix <- data.frame(bulk.expression.matrix[peak.ids,,drop=F])
       }
       rownames(sub.expression.matrix) <- input[["barPeakName"]]
+      print(bulk.metadata[,input[['peak.barplot.colour']]])
       myplot <- peaks_barplot(
         sub.expression.matrix = sub.expression.matrix,
-        log.transformation = F)
+        log.transformation = F,
+        condition.vector = bulk.metadata[,input[['peak.barplot.colour']]])
       myplot
     })
     output[['barplot']] <- renderPlot(bar.plot())
-
+    
     box.plot <- reactive({
+      print(input$barplot_click)
       peak.ids <- anno$m_z[match(input[["boxPeakName"]],anno$display_name)]
       if (length(peak.ids)==1){
         sub.expression.matrix <- data.frame(bulk.expression.matrix[peak.ids,,drop=F])
@@ -164,33 +169,37 @@ BulkQCpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
         log.transformation = F,
         metadata = bulk.metadata,
         metadata.column = input[['boxplot.metadata']])
-      myplot
+      print(myplot$table)
+      return(myplot)
     })
-    output[['boxplot']] <- renderPlot(box.plot())
-
-
+    output[['boxplot']] <- renderPlot(box.plot()$plot)
+    
+    # output$data <- renderTable({
+    #   nearPoints(box.plot()$table, input$boxplot_click)
+    # })
+    
     output[['downloadPCAPlot']] <- downloadHandler(
       filename = function() { input[['plotPCAFileName']] },
       content = function(file) {
         ggsave(file, plot = pca.plot(), dpi = 300)
       }
     )
-
+    
     output[['downloadBarPlot']] <- downloadHandler(
       filename = function() { input[['plotBarFileName']] },
       content = function(file) {
         ggsave(file, plot = bar.plot(), dpi = 300)
       }
     )
-
+    
     output[['downloadBoxPlot']] <- downloadHandler(
       filename = function() { input[['plotBoxFileName']] },
       content = function(file) {
         ggsave(file, plot = box.plot(), dpi = 300)
       }
     )
-
-
+    
+    
   })
 }
 

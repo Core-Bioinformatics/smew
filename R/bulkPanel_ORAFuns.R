@@ -10,13 +10,13 @@ get_ORA = function (pathways, metabolites, universe, minSize = 1, maxSize = leng
   }
   
   empty_ora_result = data.frame(
-    pathway = character(), 
+    pathway = character(),
     total = numeric(),
     expected = numeric(),
     hits = numeric(),
-    Raw.p = numeric(), 
-    Holm.p = numeric(), 
-    FDR = numeric(), 
+    Raw.p = numeric(),
+    Holm.p = numeric(),
+    FDR = numeric(),
     metabolites = character(),
     direction = character()
   )
@@ -54,9 +54,9 @@ get_ORA = function (pathways, metabolites, universe, minSize = 1, maxSize = leng
   overlap_metabolites = lapply(overlaps, function(x) paste0(x, collapse = '; '))
   print(str(overlap_metabolites))
   overlapsT = data.frame(
-    q = sapply(overlaps, length), 
+    q = sapply(overlaps, length),
     m = sapply(pathwaysFiltered, length), # set.num
-    n = length(universe) - sapply(pathwaysFiltered, length), 
+    n = length(universe) - sapply(pathwaysFiltered, length),
     k = length(metabolitesFiltered)) # q.size
   print(head(overlapsT))
   pathways_pvals = with(overlapsT, phyper(q - 1, m, n, k, lower.tail = FALSE))
@@ -65,11 +65,11 @@ get_ORA = function (pathways, metabolites, universe, minSize = 1, maxSize = leng
   print(names(pathwaysFiltered))
   print(overlap_metabolites)
   res = data.frame(
-    pathway = names(pathwaysFiltered), 
+    pathway = names(pathwaysFiltered),
     total = overlapsT$m,
     expected = expected,
-    hits = overlapsT$q, 
-    Raw.p = pathways_pvals, 
+    hits = overlapsT$q,
+    Raw.p = pathways_pvals,
     Holm.p = p.adjust(pathways_pvals, method = "holm"),
     FDR = p.adjust(pathways_pvals, method = "BH") ,
     metabolites = unlist(overlap_metabolites,use.names = F),
@@ -86,18 +86,24 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
   #   background_peaks = unique(unlist(path_dict))
   # } else if (background == 'Detected metabolome') {
   #   background_peaks = unique(de_peaks$theoretical_mass)
-  # } 
+  # }
   # get up and down regulated peaks
-  if (peak_direction == 'Up'){
-    my_peaks = unique(strsplit(paste(de_peaks[de_peaks$lfc>0,]$kegg_id,collapse=', '),split = ', ')[[1]]) 
-  } else if (peak_direction == 'Down') {
-    my_peaks = unique(strsplit(paste(de_peaks[de_peaks$lfc<0,]$kegg_id,collapse=', '),split = ', ')[[1]]) 
-  } else {
-    my_peaks = unique(strsplit(paste(de_peaks$kegg_id,collapse=', '),split = ', ')[[1]])
-  }
-
+  # if (peak_direction == 'Up'){
+  #   my_peaks = unique(strsplit(paste(de_peaks[de_peaks$lfc>0,]$kegg_id,collapse=', '),split = ', ')[[1]])
+  # } else if (peak_direction == 'Down') {
+  #   my_peaks = unique(strsplit(paste(de_peaks[de_peaks$lfc<0,]$kegg_id,collapse=', '),split = ', ')[[1]])
+  # } else {
+  #   my_peaks = unique(strsplit(paste(de_peaks$kegg_id,collapse=', '),split = ', ')[[1]])
+  # }
+  
+  # get up and down regulated peaks
+  up_peaks = unique(strsplit(paste(de_peaks[de_peaks$lfc>0,]$kegg_id,collapse=', '),split = ', ')[[1]])
+  down_peaks = unique(strsplit(paste(de_peaks[de_peaks$lfc<0,]$kegg_id,collapse=', '),split = ', ')[[1]])
+  print(up_peaks)
+  print(down_peaks)
+  
   # if no peaks are up AND down regulated, return NULL and display message
-  if (length(my_peaks) == 0) {
+  if (length(c(up_peaks,down_peaks)) == 0) {
     return(NULL)
   }
   if (organism == 'Human'){
@@ -122,19 +128,32 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
   # keep only pathways with < 500 and > 1 entries
   pathway2peaks = pathway2peaks[which(lapply(pathway2peaks, length) < 500 & lapply(pathway2peaks, length) > 1)]
   
-  ora_combined = get_ORA(
-    pathways = pathway2peaks, 
-    metabolites = my_peaks, 
+  ora_up = get_ORA(
+    pathways = pathway2peaks,
+    metabolites = up_peaks,
     universe = unique(strsplit(paste(anno$kegg_id,collapse=', '),split = ', ')[[1]]),
-    minSize = min_path_size, 
+    minSize = min_path_size,
     maxSize = 500,
-    direction = peak_direction
+    direction = 'up'
   ) %>% as.data.frame()
-  print(str(ora_combined))
+  
+  ora_down = get_ORA(
+    pathways = pathway2peaks,
+    metabolites = down_peaks,
+    universe = unique(strsplit(paste(anno$kegg_id,collapse=', '),split = ', ')[[1]]),
+    minSize = min_path_size,
+    maxSize = 500,
+    direction = 'down'
+  ) %>% as.data.frame()
+  
+  ora_combined = rbind(ora_up,ora_down)
+  print(ora_up)
+  print(ora_down)
+  print(ora_combined)
   # calculate fc, log2fc
   # ora_combined$FC = ora_combined$hits/ora_combined$expected
   # ora_combined$log2FC = log2(ora_combined$FC)
-  # 
+  #
   # # change the sign of the fc and log2fc for downregulated pathways
   # ora_combined$FC[ora_combined$direction == 'down'] = -ora_combined$FC[ora_combined$direction == 'down']
   # ora_combined$log2FC[ora_combined$direction == 'down'] = -ora_combined$log2FC[ora_combined$direction == 'down']
@@ -143,7 +162,30 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
     ora_combined = ora_combined[ora_combined$hits >= min_pathway_hits,]
   }
   print(nrow(ora_combined))
-  ora_combined = ora_combined[ora_combined$FDR<ora_pvalue_cutoff,]
+  #  ora_combined = ora_combined[ora_combined$FDR<ora_pvalue_cutoff,]
   print(nrow(ora_combined))
   return(ora_combined)
 }
+
+ora_volcano_plot <- function(
+    ORA_results,
+    pval.threshold = 0.05
+){
+  df = ORA_results %>%
+    dplyr::mutate(log10pval = log10(.data$FDR),
+                  lfc = log2(.data$hits/.data$expected)) %>%
+    dplyr::filter(!is.na(.data$log10pval))
+  df$lfc = ifelse(df$direction=='up',df$lfc,-df$lfc)
+  df$significance <- ifelse(df$FDR<pval.threshold,'Significant','Non-significant')
+  lfc <- NULL; log10pval <- NULL; significance <- NULL
+  vp <- ggplot(data = df, mapping = aes(x = lfc, y = -log10pval,color=significance)) +
+    geom_point() +
+    theme_minimal() +
+    xlab("log2(FC)") +
+    ylab("-log10(pval)") +
+    scale_color_manual(values=c("Non-significant"="#999999", "Significant"="#FF0000"))
+  
+  
+  return(vp)
+}
+
