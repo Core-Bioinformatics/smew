@@ -18,13 +18,27 @@ RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
             selected = unique(bulk.metadata[,1]),
             multiple = TRUE
           ),
-          
-          numericInput(inputId = ns("numClusters"),
-                       label = "Select number of clusters",
-                       min = 2,
-                       max = 10,
-                       value = 3,
-                       step = 1),
+          selectInput(inputId = ns("clusteringApproach"),
+                      "Clustering method",
+                      choices = c("k-means","Intensity thresholding")),
+          conditionalPanel(
+            id = ns('thresholdingOptions'),
+            ns=ns,
+            condition = "input.clusteringApproach == 'Intensity thresholding'",
+            selectInput(ns('peakToThreshold'), 'Peak to use for intensity thresholding', , multiple = FALSE, choices = character(0)),
+            sliderInput(ns('thresholdHigh'),label = 'Percentage of data to categorise as high intensity',value = 25,min = 1,max = 49,step = 1),
+            sliderInput(ns('thresholdLow'),label = 'Percentage of data to categorise as low intensity',value = 25,min = 1,max = 49,step = 1)
+          ),
+          conditionalPanel(
+            id = ns('kmeansOptions'),
+            ns=ns,
+            condition = "input.clusteringApproach == 'k-means'",
+            numericInput(inputId = ns("numClusters"),
+                         label = "Select number of clusters",
+                         min = 2,
+                         max = 10,
+                         value = 3,
+                         step = 1)),
           
           # button to start clustering
           actionButton(
@@ -65,34 +79,29 @@ RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
 RegionClusterPanelServer <- function(id, full.expression.matrix, full.metadata, bulk.metadata, anno){
   
   moduleServer(id, function(input, output, session){
+    updateSelectizeInput(session, "peakToThreshold", choices = anno$display_name, server = TRUE, selected = anno$display_name[1])
     
     get_clusters <- reactive({
-      print(full.expression.matrix[1:5,1:5])
-      print(summary(full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToCluster']]))
-      print(length(full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToCluster']]))
-      print(head(full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToCluster']]))
-      print(ncol(full.expression.matrix))
       current.expression.matrix <- full.expression.matrix[,full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToCluster']]]
-      print(dim(current.expression.matrix))
-      current.expression.matrix <- scale(x = current.expression.matrix,center = T,scale = T)
-      print(dim(current.expression.matrix))
-      print(current.expression.matrix[1:5,1:5])
-      print(current.expression.matrix[(nrow(current.expression.matrix)-5):(nrow(current.expression.matrix)),(ncol(current.expression.matrix)-5):(ncol(current.expression.matrix))])
-      print(colnames(current.expression.matrix)[colSums(is.na(current.expression.matrix)) > 0])
-      print(head(current.expression.matrix[224,]))
-      current.expression.matrix <- current.expression.matrix[complete.cases(current.expression.matrix),]
-      print(which(rowSums(is.na(current.expression.matrix)) > 0))
+      current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToCluster']],]
+      current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
+      if (input[['clusteringApproach']]=='Intensity thresholding'){
+      my_peak = anno[anno$display_name==input[['peakToThreshold']],]
+      my_peak_expression <- t(current.expression.matrix[my_peak$m_z,])
+      quantiles = quantile(my_peak_expression, prob=c(input[['thresholdLow']]/100,(100-input[['thresholdHigh']])/100), type=1)
+      current.metadata$cluster = factor(ifelse(my_peak_expression<=quantiles[1],'Low',
+                                        ifelse(my_peak_expression>=quantiles[2],'High','Medium')),levels=c('Low','Medium','High'))
+      }
+      if (input[['clusteringApproach']]=='k-means'){
+        
  #     set.seed(23)
+      current.expression.matrix <- scale(x = current.expression.matrix,center = T,scale = T)
+      current.expression.matrix <- current.expression.matrix[complete.cases(current.expression.matrix),]
       clusters <- kmeans(t(current.expression.matrix),
                          centers = input[['numClusters']],
                          nstart = 1)
-      print(str(clusters))
-      current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToCluster']],]
-      print(head(current.metadata))
-      print(input[['groupingMetadataBarPlot']])
-      print(head(current.metadata))
-      current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
       current.metadata$cluster = factor(clusters$cluster,levels=1:input[['numClusters']])
+      }
       return(current.metadata)
     })  %>% bindEvent(input[["run_clustering"]])
     
@@ -132,7 +141,6 @@ RegionClusterPanelServer <- function(id, full.expression.matrix, full.metadata, 
         summarise(n = n()) %>%
         mutate(freq = n / sum(n))
       current.metadata.count = merge(data.frame(current.metadata.count),unique(current.metadata[,c('Sample','SelectedMetadata')]))
-      print(head(current.metadata.count))
       ggplot(current.metadata.count,aes(fill=SelectedMetadata,y=freq,x=cluster)) +
         geom_boxplot() +
         scale_fill_discrete(name=input[['groupingMetadataBox']]) +
@@ -140,7 +148,15 @@ RegionClusterPanelServer <- function(id, full.expression.matrix, full.metadata, 
         theme_classic()
     })
     
-    
+    return_object <- reactive({
+      rownames(full.metadata)<-full.metadata$spot_id
+      merged.metadata = merge(full.metadata,get_clusters(),all.x=T,sort=F)
+      rownames(merged.metadata)=merged.metadata$spot_id
+      merged.metadata = merged.metadata[rownames(full.metadata),]
+      merged.metadata$cluster = as.character(merged.metadata$cluster)
+      merged.metadata <- tidyr::replace_na(merged.metadata, list(cluster = 'None'))
+      return(merged.metadata)
+    })
     
     output[['plotClusters']] <- renderPlot({
       cluster_plot()
@@ -154,7 +170,8 @@ RegionClusterPanelServer <- function(id, full.expression.matrix, full.metadata, 
       cluster_props_persample()
     })
     
-    return(reactive(get_clusters()[,c('spot_id','cluster')]))
+    return(reactive(return_object()))
+           
   })
 }
 

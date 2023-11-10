@@ -6,11 +6,13 @@ IntroSpatialVisPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE
       'Spatial visualisation',
       selectInput(
             inputId = ns("samplesToShow"),
-            label = "Select samples for clustering",
+            label = "Select samples to show",
             choices = unique(bulk.metadata[,1]),
             selected = unique(bulk.metadata[,1])[1],
             multiple = TRUE
           ),
+        # actionButton(inputId = ns("pickShownSamples"),
+        #              label = "Choose these samples to display on all tabs"),
         selectInput(ns("peakName"), "Peaks to include:", multiple = FALSE, choices = character(0)),
         checkboxInput(ns("log2_intensity"),label = 'Show log2 intensity',value = FALSE),
         plotOutput(ns('plotPeak')),
@@ -18,6 +20,7 @@ IntroSpatialVisPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE
         selectInput(ns("metadataName"), "Metadata to display:", multiple = FALSE, choices = colnames(full.metadata),selected=colnames(full.metadata)[length(colnames(full.metadata))]),
       
         plotOutput(ns('plotMetadata')),
+        
       )
   }else{
     NULL
@@ -32,22 +35,16 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.ex
     updateSelectizeInput(session, "peakName", choices = anno$display_name, server = TRUE, selected = anno$display_name[1])
 
     show_peak <- reactive({
-      print(input[['log2_intensity']])
       my_peak = anno[anno$display_name==input[['peakName']],]
       current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToShow']],]
       current.expression.matrix <- t(full.expression.matrix)[,full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToShow']]]
-      print(str(current.metadata))
-#      current.metadata$peak = log2(current.expression.matrix[my_peak$m_z,]+1)
       if (input[['log2_intensity']]){
         current.metadata$peak = log2(current.expression.matrix[my_peak$m_z,]+1)
       } else {
         current.metadata$peak = current.expression.matrix[my_peak$m_z,]
       }
-      print(str(current.metadata))
-      print(summary(current.metadata))
       current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
       legend_title = ifelse(input[['log2_intensity']],paste0('log2 ',my_peak$m_z,'\n intensity'),paste0(my_peak$m_z,'\n intensity'))
-      print(legend_title)
       return(ggplot(current.metadata,aes(x=x,y=y,color=peak,fill=peak))+geom_tile()+
                facet_wrap(~current.metadata$Sample, nrow = floor(sqrt(length(input[['samplesToShow']]))), scales = 'free')  +                  
                theme_classic() +
@@ -90,5 +87,11 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.ex
     output[['plotMetadata']] <- renderPlot({
       show_metadata()
     })
+    
+    # if (input[["pickShownSamples"]]){
+    #   return(input[["samplesToShow"]])
+    # } else {
+      return(unique(bulk.metadata[,1]))
+ #   }
   })
 }

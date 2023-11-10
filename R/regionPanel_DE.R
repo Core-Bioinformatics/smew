@@ -13,8 +13,8 @@ RegionDEpanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
           selectInput(
             inputId = ns("regionToGroupOn"),
             label = "Select region to group on",
-            choices = c(colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata)))]),
-            selected = c(colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata)))])[1]
+            choices = c(colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y','Sample',colnames(bulk.metadata)))]),
+            selected = c(colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y','Sample',colnames(bulk.metadata)))])[1]
           ),
           numericInput(inputId = ns('minimumPixelsPerSample'),
                        label = 'Minimum number of pixels per region per sample to be considered',
@@ -26,9 +26,9 @@ RegionDEpanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
           actionButton(ns('pseudoBulk'), label = 'Start Pseudobulking'),
           
           # Input: Selector variables to compare
-          selectInput(ns('variable1'), 'Condition 1:', unique(bulk.metadata[[ncol(bulk.metadata)]])),
-          selectInput(ns('variable2'), 'Condition 2:', unique(bulk.metadata[[ncol(bulk.metadata)]]),
-                      selected = unique(bulk.metadata[[ncol(bulk.metadata)]])[2]),
+          selectInput(ns('variable1'), 'Condition 1:', c()),
+          selectInput(ns('variable2'), 'Condition 2:', c(),
+                      selected = c()),
           
           selectInput(ns('pipeline'), 'DE pipeline:', c("t-test", "Wilcox rank sum")),
           
@@ -57,6 +57,7 @@ RegionDEpanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
         
         #Main panel for displaying table of DE peaks
         mainPanel(
+          textOutput(ns('print_pseudobulk')),
           DT::DTOutput(ns('data'))
         )
       )
@@ -77,74 +78,73 @@ RegionDEpanelServer <- function(id, full.expression.matrix, full.metadata, bulk.
   })
   
   moduleServer(id, function(input, output, session){
+    observe(updateSelectInput(
+      session,
+      'regionToGroupOn',
+      choices = colnames(region.clusters())[!(colnames(region.clusters())%in%c('spot_id','x','y','Sample',colnames(bulk.metadata)))],
+      selected=colnames(region.clusters())[!(colnames(region.clusters())%in%c('spot_id','x','y','Sample',colnames(bulk.metadata)))][1])
+    )
     
     pseudobulk_samples <- reactive({
-#      if (!is.null(region.clusters())){full.metadata = merge(full.metadata,region.clusters,all.x=T)}
-      print("I'm about to create the bulk expression matrix")
-      print(input[['regionToGroupOn']])
       pseudobulked <- create_bulk_exp_regions(full.expression.matrix,
-                              full.metadata,
+                              region.clusters(),
                               bulk.metadata,
                               colnames(bulk.metadata)[1],
-                              full.metadata[,input[['regionToGroupOn']]],
+                              region.clusters()[,input[['regionToGroupOn']]],
                               minimum.pixels = input[['minimumPixelsPerSample']])
 #      if (is.null(region.clusters())){
-        choices = colnames(full.metadata)[colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata))]
-        selected = colnames(full.metadata)[colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata))][1]
+        # choices = 
+        # selected = colnames(full.metadata)[colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata))][1]
 #      } else {
 #        choices = c('cluster',colnames(full.metadata)[colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata))])
 #        selected = 'cluster'
 #      }
-      print(choices)
-      updateSelectInput(session, 'regionToGroupOn', choices = choices,
-                        selected=selected)
       updateSelectInput(session, 'variable1', choices = unique(pseudobulked$metadata[[input[["condition"]]]]))
       updateSelectInput(session, 'variable2', choices = unique(pseudobulked$metadata[[input[["condition"]]]]),
                         selected = unique(pseudobulked$metadata[[input[["condition"]]]])[2])
       
       return(pseudobulked)
     }) %>% bindEvent(input[["pseudoBulk"]])
+    
+    output[['print_pseudobulk']]<-renderText(paste0('Conditions extracted: ',paste(unique(pseudobulk_samples()$metadata[[input[["condition"]]]]),collapse = ', ')))
+
+    # observe({
+    # # updateSelectInput(session, 'condition', choices = ifelse(is.null(region.clusters),
+    # #                                                          colnames(full.metadata)[!(colnames(full.metadata) %in% c('spot_id','x','y'))],
+    # #                                                          c('cluster',colnames(full.metadata)[!(colnames(full.metadata) %in% c('spot_id','x','y'))])),
+    # #                   selected=ifelse(is.null(region.clusters),colnames(full.metadata)[ncol(full.metadata)],'cluster'))
+    # # updateSelectInput(session, 'variable1', choices = ifelse(input[["condition"]]=='cluster',unique(region.clusters$cluster),unique(full.metadata[[input[["condition"]]]])))
+    # # updateSelectInput(session, 'variable2', choices = ifelse(input[["condition"]]=='cluster',unique(region.clusters$cluster),unique(full.metadata[[input[["condition"]]]])),
+    # #                   selected = ifelse(input[["condition"]]=='cluster',unique(region.clusters$cluster)[2],unique(full.metadata[[input[["condition"]]]])[2]))
+    # # if (is.null(region.clusters())){
+    # #   choices = colnames(full.metadata)[colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata))]
+    # #   selected = colnames(full.metadata)[colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata))][1]
+    # # } else {
+    # #   choices = c('cluster',colnames(full.metadata)[colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata))])
+    # #   selected = 'cluster'
+    # # }
+    # # print(choices)
+    # # updateSelectInput(session, 'regionToGroupOn', choices = choices,
+    # #                   selected=selected)
+    # # updateSelectInput(session, 'variable1', choices = unique(pseudobulk_samples()$metadata[[input[["condition"]]]]))
+    # # updateSelectInput(session, 'variable2', choices = unique(pseudobulk_samples()$metadata[[input[["condition"]]]]),
+    # #                   selected = unique(pseudobulk_samples()$metadata[[input[["condition"]]]])[2])
+    # 
+    # })
 
     observe({
-    # updateSelectInput(session, 'condition', choices = ifelse(is.null(region.clusters),
-    #                                                          colnames(full.metadata)[!(colnames(full.metadata) %in% c('spot_id','x','y'))],
-    #                                                          c('cluster',colnames(full.metadata)[!(colnames(full.metadata) %in% c('spot_id','x','y'))])),
-    #                   selected=ifelse(is.null(region.clusters),colnames(full.metadata)[ncol(full.metadata)],'cluster'))
-    # updateSelectInput(session, 'variable1', choices = ifelse(input[["condition"]]=='cluster',unique(region.clusters$cluster),unique(full.metadata[[input[["condition"]]]])))
-    # updateSelectInput(session, 'variable2', choices = ifelse(input[["condition"]]=='cluster',unique(region.clusters$cluster),unique(full.metadata[[input[["condition"]]]])),
-    #                   selected = ifelse(input[["condition"]]=='cluster',unique(region.clusters$cluster)[2],unique(full.metadata[[input[["condition"]]]])[2]))
-    # if (is.null(region.clusters())){
-    #   choices = colnames(full.metadata)[colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata))]
-    #   selected = colnames(full.metadata)[colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata))][1]
-    # } else {
-    #   choices = c('cluster',colnames(full.metadata)[colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata))])
-    #   selected = 'cluster'
-    # }
-    # print(choices)
-    # updateSelectInput(session, 'regionToGroupOn', choices = choices,
-    #                   selected=selected)
-    # updateSelectInput(session, 'variable1', choices = unique(pseudobulk_samples()$metadata[[input[["condition"]]]]))
-    # updateSelectInput(session, 'variable2', choices = unique(pseudobulk_samples()$metadata[[input[["condition"]]]]),
-    #                   selected = unique(pseudobulk_samples()$metadata[[input[["condition"]]]])[2])
-
-    })
-
-    observe({
-      condition.indices <- full.metadata[[input[["condition"]]]] %in% c(input[['variable1']], input[['variable2']])
+      condition.indices <- region.clusters()[[input[["condition"]]]] %in% c(input[['variable1']], input[['variable2']])
       choices <- c("t-test", "Wilcox rank sum")
       updateSelectInput(session, 'pipeline', choices = choices)
     })
 
 
     DEresults <- reactive({
-      print('hi')
       shinyjs::disable("goDE")
       pseudobulk.metadata = pseudobulk_samples()$metadata
-      print(pseudobulk.metadata)
-      pseudobulk.expression.matrix = pseudobulk_samples()$expression_matrix
-      print(pseudobulk.expression.matrix)
+      pseudobulk.expression.matrix = pseudobulk_samples()$expression.matrix
+      pseudobulk.expression.matrix = pseudobulk.expression.matrix[,pseudobulk.metadata[,1]]
       condition.indices <- pseudobulk.metadata[[input[["condition"]]]] %in% c(input[['variable1']], input[['variable2']])
-      print(condition.indices)
       # Need to add error if any group has <2 samples
       DEtable <- DEanalysis(
         expression.matrix = pseudobulk.expression.matrix[, condition.indices],
@@ -166,7 +166,7 @@ RegionDEpanelServer <- function(id, full.expression.matrix, full.metadata, bulk.
                   'pvalThreshold' = input[["pvalThreshold"]],
                   'lfcThreshold' = input[['lfcThreshold']]))
     }) %>%
-      bindCache(utils::head(full.expression.matrix), full.metadata, input[["condition"]],
+      bindCache(region.clusters, input[["condition"]],
                 input[['variable1']], input[['variable2']], input[["pipeline"]],
                 input[["pvalThreshold"]],input[['lfcThreshold']]) %>%
       bindEvent(input[["goDE"]])
@@ -192,7 +192,6 @@ RegionDEpanelServer <- function(id, full.expression.matrix, full.metadata, bulk.
 
     #Output selected peaks
     selectedPeaks <- reactive({
-      print(DEresults()$DEtableSubset$m_z[input$data_rows_selected])
       DEresults()$DEtableSubset$m_z[input$data_rows_selected]
     })
 
