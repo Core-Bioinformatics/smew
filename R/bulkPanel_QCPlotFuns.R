@@ -1,26 +1,3 @@
-#' Create a principal component analysis (PCA) plot the samples of an experiment
-#' @description This function creates a PCA plot between all samples in the
-#' expression matrix using the specified number of most abundant peaks as
-#' input. A metadata column is used as annotation.
-#' @inheritParams jaccard_heatmap
-#' @inheritParams volcano_enhance
-#' @param annotation.id a column index denoting which column of the metadata
-#' should be used to colour the points and draw confidence ellipses
-#' @param show.labels whether to label the points with the sample names
-#' @param show.ellipses whether to draw confidence ellipses
-#' @return The PCA plot as a ggplot object.
-#' @export
-#' @examples
-#' expression.matrix.preproc <- as.matrix(read.csv(
-#'   system.file("extdata", "expression_matrix_preprocessed.csv", package = "bulkAnalyseR"),
-#'   row.names = 1
-#' ))[1:500,]
-#'
-#' metadata <- data.frame(
-#'   srr = colnames(expression.matrix.preproc),
-#'   timepoint = rep(c("0h", "12h", "36h"), each = 2)
-#' )
-#' plot_pca(expression.matrix.preproc, metadata, 2)
 plot_pca <- function(
     expression.matrix,
     metadata,
@@ -34,20 +11,21 @@ plot_pca <- function(
   annotation.name <- colnames(metadata)[annotation.id]
   n.abundant <- min(n.abundant, nrow(expression.matrix))
   
-  expr.PCA.list <- expression.matrix %>%
-    as.data.frame() %>%
+  expr.PCA.list <- expression.matrix |>
+    as.data.frame() |>
     dplyr::filter(seq_len(nrow(expression.matrix)) %in%
-                    utils::tail(order(rowSums(expression.matrix)), n.abundant)) %>%
+                    utils::tail(order(rowSums(expression.matrix)), n.abundant)) |>
     t()
   expr.PCA.list <- expr.PCA.list[, apply(expr.PCA.list, 2, function(x) max(x) != min(x))] %>%
     stats::prcomp(center = TRUE, scale = TRUE)
   
   expr.PCA <- dplyr::mutate(
-    as.data.frame(expr.PCA.list$x),
-    name = factor(metadata[, 1], levels = metadata[, 1]),
-    condition = if(!is.factor(metadata[,annotation.id])){
-      factor(metadata[, annotation.id], levels = unique(metadata[, annotation.id]))}else{metadata[,annotation.id]}
-    
+                  as.data.frame(expr.PCA.list$x),
+                  name = factor(metadata[, 1], levels = metadata[, 1]),
+                  condition = if(!is.factor(metadata[,annotation.id])){
+                    factor(metadata[, annotation.id], levels = unique(metadata[, annotation.id]))
+                    }else{metadata[,annotation.id]}
+                  
   )
   if(min(table(metadata[, annotation.id])) <= 2){
     expr.PCA.2 <- expr.PCA
@@ -56,10 +34,10 @@ plot_pca <- function(
     expr.PCA.full <- rbind(expr.PCA, expr.PCA.2)
   }
   else {expr.PCA.full <- expr.PCA}
-  pca.plot <- ggplot(expr.PCA.full, aes(x = .data$PC1, y = .data$PC2, colour = .data$condition)) +
-    theme_minimal() +
-    geom_point() +
-    labs(x = paste0("PC1 (proportion of variance = ", summary(expr.PCA.list)$importance[2, 1] * 100, "%)"),
+  pca.plot <- ggplot2::ggplot(expr.PCA.full, ggplot2::aes(x = .data$PC1, y = .data$PC2, colour = .data$condition)) +
+    ggplot2::theme_minimal() +
+    ggplot2::geom_point() +
+    ggplot2::labs(x = paste0("PC1 (proportion of variance = ", summary(expr.PCA.list)$importance[2, 1] * 100, "%)"),
          y = paste0("PC2 (proportion of variance = ", summary(expr.PCA.list)$importance[2, 2] * 100, "%)"),
          colour = annotation.name)
   if(show.confidence.ellipses){
@@ -112,15 +90,15 @@ plot_plsda <- function(
       factor(metadata[, annotation.id], levels = unique(metadata[, annotation.id]))}else{metadata[,annotation.id]}
     
   )
-  plsda.plot <- ggplot(expr.plsda, aes(x = .data$comp1, y = .data$comp2, colour = .data$condition)) +
-    theme_minimal() +
-    geom_point() +
-    labs(x = paste0("PLS-DA Comp1 (proportion of variance = ", round(my.plsda$prop_expl_var$X[1] * 100,digits = 1), "%)"),
+  plsda.plot <- ggplot2::ggplot(expr.plsda, ggplot2::aes(x = .data$comp1, y = .data$comp2, colour = .data$condition)) +
+    ggplot2::theme_minimal() +
+    ggplot2::geom_point() +
+    ggplot2::labs(x = paste0("PLS-DA Comp1 (proportion of variance = ", round(my.plsda$prop_expl_var$X[1] * 100,digits = 1), "%)"),
          y = paste0("PLS-DA Comp2 (proportion of variance = ", round(my.plsda$prop_expl_var$X[2] * 100,digits=1), "%)"),
          colour = annotation.name)
   if(show.confidence.ellipses){
     plsda.plot <- plsda.plot +
-      stat_ellipse(geom='polygon',alpha=0.3,aes(fill = .data$condition, colour = .data$condition), show.legend = FALSE)
+      ggplot2::stat_ellipse(geom='polygon',alpha=0.3,aes(fill = .data$condition, colour = .data$condition), show.legend = FALSE)
     
   } else if(show.ellipses){
     plsda.plot <- plsda.plot +
@@ -145,7 +123,6 @@ plsda_contrib <- function(expression.matrix,
                           separator.id,
                           comp=1,
                           anno){
-  print(comp)
   my.plsda <- perform_plsda(expression.matrix,metadata,separator.id)
   contrib = data.frame(my.plsda$loadings$X)
   contrib$metab = rownames(contrib)
@@ -153,36 +130,16 @@ plsda_contrib <- function(expression.matrix,
   contrib = contrib[order(-abs(contrib$PLSDAComp)),]
   contrib = data.frame(contrib)
   contrib$display_metab = anno$display_name[match(contrib$metab,anno$m_z)]
-  print(head(rev(contrib$display_metab)))
-  print(length(rev(contrib$display_metab)))
-  contrib$display_metab = factor(contrib$display_metab,levels=rev(contrib$display_metab))
-  print(head(contrib))
-  contrib.plot = ggplot(head(contrib,30),aes(x=PLSDAComp,y=metab,fill=PLSDAComp>0))+
-    geom_bar(stat='identity') +
-    theme_minimal()+
-    theme(legend.position = "none") +
-    xlab('Contribution')+
-    ylab('')
+  contrib$metab = factor(contrib$metab,levels=rev(contrib$metab))
+  contrib.plot = ggplot2::ggplot(head(contrib,30),ggplot2::aes(x=PLSDAComp,y=metab,fill=PLSDAComp>0))+
+    ggplot2::geom_bar(stat='identity') +
+    ggplot2::theme_minimal()+
+    ggplot2::theme(legend.position = "none") +
+    ggplot2::xlab('Contribution')+
+    ggplot2::ylab('')
   return(contrib.plot)
 }
 
-#' Create a bar plot of expression for selected peaks across samples in an experiment
-#' @description This function creates a clustered bar plot between all samples in the
-#' expression matrix for the selection of peaks.
-#' @param sub.expression.matrix subset of the expression matrix containing only selected
-#' peaks
-#' @param log.transformation whether expression should be shown on log (default) or
-#' linear scale
-#' @return The bar plot as a ggplot object.
-#' @export
-#' @examples
-#' expression.matrix.preproc <- as.matrix(read.csv(
-#'   system.file("extdata", "expression_matrix_preprocessed.csv", package = "bulkAnalyseR"),
-#'   row.names = 1
-#' ))[1:500,]
-#'
-#' print(peaks_barplot(head(expression.matrix.preproc,5)))
-#'
 peaks_barplot <- function(sub.expression.matrix,
                           log.transformation = TRUE,
                           condition.vector){
@@ -195,14 +152,14 @@ peaks_barplot <- function(sub.expression.matrix,
   melted.expression.matrix <- tidyr::pivot_longer(log.expression.matrix,
                                                   cols = colnames(log.expression.matrix)[1:(ncol(log.expression.matrix)-1)])
   melted.expression.matrix$condition <- rep(condition.vector,nrow(sub.expression.matrix))
-  p <- ggplot(melted.expression.matrix, aes(x = .data$name,
+  p <- ggplot2::ggplot(melted.expression.matrix, ggplot2::aes(x = .data$name,
                                             y = .data$value,
                                             fill = .data$condition)) +
-    geom_bar(stat='identity',position='dodge') +
-    theme_minimal() +
-    ylab(ifelse(log.transformation,'log2 intensity','intensity')) +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),legend.position = "bottom") +
-    facet_wrap(~melted.expression.matrix$peak,scales='free')
+    ggplot2::geom_bar(stat='identity',position='dodge') +
+    ggplot2::theme_minimal() +
+    ggplot2::ylab(ifelse(log.transformation,'log2 intensity','intensity')) +
+    ggplot2::theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),legend.position = "bottom") +
+    ggplot2::facet_wrap(~melted.expression.matrix$peak,scales='free')
   p
 }
 
@@ -220,17 +177,16 @@ peaks_boxplot <- function(sub.expression.matrix,
                                                   cols = colnames(log.expression.matrix)[1:(ncol(log.expression.matrix)-1)])
   melted.expression.matrix$metadata = rep(metadata[,metadata.column],nrow(sub.expression.matrix))
   melted.expression.matrix$sample = rep(metadata[,1],nrow(sub.expression.matrix))
-  print(head(melted.expression.matrix))
-  p <- ggplot(melted.expression.matrix, aes(fill = metadata,
+  p <- ggplot2::ggplot(melted.expression.matrix, ggplot2::aes(fill = metadata,
                                             x = metadata,
                                             y = value)) +
-          geom_boxplot() + 
-          geom_jitter(width=0.1) +
-          theme_minimal() +
-          ylab(ifelse(log.transformation,'log2 intensity','intensity')) +
-          theme(legend.position = "bottom") +
-          scale_x_discrete(labels = function(x) str_wrap(x, width = 20)) + 
-          facet_wrap(~melted.expression.matrix$peak,scales = 'free')
+    ggplot2::geom_boxplot() + 
+    ggplot2::geom_jitter(width=0.1) +
+    ggplot2::theme_minimal() +
+    ggplot2::ylab(ifelse(log.transformation,'log2 intensity','intensity')) +
+    ggplot2::theme(legend.position = "bottom") +
+    ggplot2::scale_x_discrete(labels = function(x) str_wrap(x, width = 20)) + 
+    ggplot2::facet_wrap(~melted.expression.matrix$peak,scales = 'free')
   p
   return.list = list('plot'=p,'table'=melted.expression.matrix)
 }

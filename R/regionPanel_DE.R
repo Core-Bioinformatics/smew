@@ -108,30 +108,6 @@ RegionDEpanelServer <- function(id, full.expression.matrix, full.metadata, bulk.
     
     output[['print_pseudobulk']]<-renderText(paste0('Conditions extracted: ',paste(unique(pseudobulk_samples()$metadata[[input[["condition"]]]]),collapse = ', ')))
 
-    # observe({
-    # # updateSelectInput(session, 'condition', choices = ifelse(is.null(region.clusters),
-    # #                                                          colnames(full.metadata)[!(colnames(full.metadata) %in% c('spot_id','x','y'))],
-    # #                                                          c('cluster',colnames(full.metadata)[!(colnames(full.metadata) %in% c('spot_id','x','y'))])),
-    # #                   selected=ifelse(is.null(region.clusters),colnames(full.metadata)[ncol(full.metadata)],'cluster'))
-    # # updateSelectInput(session, 'variable1', choices = ifelse(input[["condition"]]=='cluster',unique(region.clusters$cluster),unique(full.metadata[[input[["condition"]]]])))
-    # # updateSelectInput(session, 'variable2', choices = ifelse(input[["condition"]]=='cluster',unique(region.clusters$cluster),unique(full.metadata[[input[["condition"]]]])),
-    # #                   selected = ifelse(input[["condition"]]=='cluster',unique(region.clusters$cluster)[2],unique(full.metadata[[input[["condition"]]]])[2]))
-    # # if (is.null(region.clusters())){
-    # #   choices = colnames(full.metadata)[colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata))]
-    # #   selected = colnames(full.metadata)[colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata))][1]
-    # # } else {
-    # #   choices = c('cluster',colnames(full.metadata)[colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata))])
-    # #   selected = 'cluster'
-    # # }
-    # # print(choices)
-    # # updateSelectInput(session, 'regionToGroupOn', choices = choices,
-    # #                   selected=selected)
-    # # updateSelectInput(session, 'variable1', choices = unique(pseudobulk_samples()$metadata[[input[["condition"]]]]))
-    # # updateSelectInput(session, 'variable2', choices = unique(pseudobulk_samples()$metadata[[input[["condition"]]]]),
-    # #                   selected = unique(pseudobulk_samples()$metadata[[input[["condition"]]]])[2])
-    # 
-    # })
-
     observe({
       condition.indices <- region.clusters()[[input[["condition"]]]] %in% c(input[['variable1']], input[['variable2']])
       choices <- c("t-test", "Wilcox rank sum")

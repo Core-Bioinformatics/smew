@@ -129,7 +129,6 @@ volcano_plot <- function(
     add.labels.custom = FALSE,
     ...
 ){
-  print(add.labels.custom)
   df = peaks.de.results %>%
     dplyr::mutate(peak = .data$m_z, log10pval = log10(.data$pvalAdj)) %>%
     dplyr::filter(!is.na(.data$log10pval))
@@ -318,7 +317,6 @@ volcano_enhance <- function(
     
     df.label <- tibble::tibble()
     if(add.labels.custom){
-      print(df)
       peaks.to.rename <- peaks.to.label[names(peaks.to.label) != ""]
       peaks.to.label <- df$name[(match(peaks.to.label, c(df$name, df$peak)) - 1) %% nrow(df) + 1]
       peaks.to.label <- unique(peaks.to.label[!is.na(peaks.to.label)])
@@ -601,4 +599,22 @@ ma_enhance <- function(
       )
   }
   return(p)
+}
+
+
+rescale_matrix <- function(
+    mat, 
+    type = c('Expression', 'Log2 Expression', 'Mean Scaled', 'Z-score')
+){
+  type <- type [1]
+  if(type == 'Expression'){
+    mat <- mat
+  }else if(type == 'Log2 Expression'){
+    mat <- log2(mat + 1)
+  }else if(type == 'Mean Scaled'){
+    mat <- mat / rowMeans(mat)
+  }else if(type == 'Z-score'){
+    mat <- t(scale(t(mat)))
+  }
+  mat
 }

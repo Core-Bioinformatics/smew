@@ -126,8 +126,8 @@ BulkDESummaryPanelServer <- function(id, bulk.expression.matrix, bulk.metadata, 
       peakIDs <- peakSet
       subsetExpression <- bulk.expression.matrix[peakIDs, , drop = FALSE]
       rownames(subsetExpression) <- peakSet
-      meta <- lapply(bulk.metadata, function(x)if(!is.factor(x)){factor(x, levels = unique(x))}else{x}) %>%
-        as.data.frame() %>%
+      meta <- lapply(bulk.metadata, function(x)if(!is.factor(x)){factor(x, levels = unique(x))}else{x}) |>
+        as.data.frame() |>
         dplyr::arrange(dplyr::across(input[['heatmap.annotations']]))
       myplot <- expression_heatmap_met(
         expression.matrix.subset = subsetExpression[, as.character(meta[, 1]), drop = FALSE],
@@ -146,10 +146,8 @@ BulkDESummaryPanelServer <- function(id, bulk.expression.matrix, bulk.metadata, 
     DEplot <- reactive({
       results = DEresults()$DE()
       selectedPeaks = DEresults()$selectedPeaks()
-      print(selectedPeaks)
       if(!(input[["highlightSelected"]]) & length(selectedPeaks)){
         selectedPeakNames <- selectedPeaks
-        print(input[["peakNameVolcano"]])
         highlightPeaks <- c(selectedPeakNames, input[["peakNameVolcano"]])
       }
       else{
@@ -196,7 +194,7 @@ BulkDESummaryPanelServer <- function(id, bulk.expression.matrix, bulk.metadata, 
       }else{
         data <- results$DEtableSubset
       }
-      data <- data %>% dplyr::mutate(`-log10pval` = -log10(.data$pvalAdj))
+      data <- data |> dplyr::mutate(`-log10pval` = -log10(.data$pvalAdj))
       nearPoints(df = data, coordinfo = input[['plot_click']], threshold = 20, maxpoints = 10)
     }, digits = 4)
 

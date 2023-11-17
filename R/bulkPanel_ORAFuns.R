@@ -22,7 +22,6 @@ get_ORA = function (pathways, metabolites, universe, minSize = 1, maxSize = leng
   )
   
   minSize = max(minSize, 1)
-  print(str(metabolites))
   pathwaysFiltered = lapply(pathways, function(p) {
     unique(p[p%in%universe])
   })
@@ -42,28 +41,20 @@ get_ORA = function (pathways, metabolites, universe, minSize = 1, maxSize = leng
   }
   
   metabolitesFiltered = unique(na.omit(metabolites[metabolites%in%universe]))
-  print(str(metabolitesFiltered))
-  print('Metabolites filtered')
   if (length(metabolitesFiltered) == 0) {
     warning("No metabolites from the input list belong to the universe")
     return(empty_ora_result)
   }
   
   overlaps = lapply(pathwaysFiltered, intersect, metabolitesFiltered)
-  print(str(overlaps))
   overlap_metabolites = lapply(overlaps, function(x) paste0(x, collapse = '; '))
-  print(str(overlap_metabolites))
   overlapsT = data.frame(
     q = sapply(overlaps, length),
     m = sapply(pathwaysFiltered, length), # set.num
     n = length(universe) - sapply(pathwaysFiltered, length),
     k = length(metabolitesFiltered)) # q.size
-  print(head(overlapsT))
   pathways_pvals = with(overlapsT, phyper(q - 1, m, n, k, lower.tail = FALSE))
-  print(summary(pathways_pvals))
   expected = with(overlapsT, k * (m/length(universe)))
-  print(names(pathwaysFiltered))
-  print(overlap_metabolites)
   res = data.frame(
     pathway = names(pathwaysFiltered),
     total = overlapsT$m,
@@ -99,8 +90,6 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
   # get up and down regulated peaks
   up_peaks = unique(strsplit(paste(de_peaks[de_peaks$lfc>0,]$kegg_id,collapse=', '),split = ', ')[[1]])
   down_peaks = unique(strsplit(paste(de_peaks[de_peaks$lfc<0,]$kegg_id,collapse=', '),split = ', ')[[1]])
-  print(up_peaks)
-  print(down_peaks)
   
   # if no peaks are up AND down regulated, return NULL and display message
   if (length(c(up_peaks,down_peaks)) == 0) {
@@ -147,9 +136,6 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
   ) %>% as.data.frame()
   
   ora_combined = rbind(ora_up,ora_down)
-  print(ora_up)
-  print(ora_down)
-  print(ora_combined)
   # calculate fc, log2fc
   # ora_combined$FC = ora_combined$hits/ora_combined$expected
   # ora_combined$log2FC = log2(ora_combined$FC)
@@ -157,13 +143,9 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
   # # change the sign of the fc and log2fc for downregulated pathways
   # ora_combined$FC[ora_combined$direction == 'down'] = -ora_combined$FC[ora_combined$direction == 'down']
   # ora_combined$log2FC[ora_combined$direction == 'down'] = -ora_combined$log2FC[ora_combined$direction == 'down']
-  print(min_pathway_hits)
   if (min_pathway_hits) {
     ora_combined = ora_combined[ora_combined$hits >= min_pathway_hits,]
   }
-  print(nrow(ora_combined))
-  #  ora_combined = ora_combined[ora_combined$FDR<ora_pvalue_cutoff,]
-  print(nrow(ora_combined))
   return(ora_combined)
 }
 
@@ -171,19 +153,19 @@ ora_volcano_plot <- function(
     ORA_results,
     pval.threshold = 0.05
 ){
-  df = ORA_results %>%
+  df = ORA_results |>
     dplyr::mutate(log10pval = log10(.data$FDR),
-                  lfc = log2(.data$hits/.data$expected)) %>%
+                  lfc = log2(.data$hits/.data$expected)) |>
     dplyr::filter(!is.na(.data$log10pval))
   df$lfc = ifelse(df$direction=='up',df$lfc,-df$lfc)
   df$significance <- ifelse(df$FDR<pval.threshold,'Significant','Non-significant')
   lfc <- NULL; log10pval <- NULL; significance <- NULL
-  vp <- ggplot(data = df, mapping = aes(x = lfc, y = -log10pval,color=significance)) +
-    geom_point() +
-    theme_minimal() +
-    xlab("log2(FC)") +
-    ylab("-log10(pval)") +
-    scale_color_manual(values=c("Non-significant"="#999999", "Significant"="#FF0000"))
+  vp <- ggplot2::ggplot(data = df, mapping = ggplot2::aes(x = lfc, y = -log10pval,color=significance)) +
+    ggplot2::geom_point() +
+    ggplot2::theme_minimal() +
+    ggplot2::xlab("log2(FC)") +
+    ggplot2::ylab("-log10(pval)") +
+    ggplot2::scale_color_manual(values=c("Non-significant"="#999999", "Significant"="#FF0000"))
   
   
   return(vp)

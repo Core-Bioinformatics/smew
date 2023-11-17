@@ -107,18 +107,18 @@ RegionClusterPanelServer <- function(id, full.expression.matrix, full.metadata, 
     
     cluster_plot <- reactive({
       current.metadata = get_clusters()
-      my_plot <- ggplot(current.metadata,aes(x = x, y = y, color = cluster, fill = cluster)) +
-                    geom_tile() +
-                    facet_wrap(~current.metadata$Sample, nrow = floor(sqrt(length(input[['samplesToCluster']]))), scales = 'free') +
-                    theme_classic() +
-                    theme(axis.title.x=element_blank(),
-                          axis.text.x=element_blank(),
-                          axis.ticks.x=element_blank(),
-                          axis.line.x = element_blank(),
-                          axis.title.y=element_blank(),
-                          axis.text.y=element_blank(),
-                          axis.ticks.y=element_blank(),
-                          axis.line.y = element_blank())
+      my_plot <- ggplot2::ggplot(current.metadata,ggplot2::aes(x = x, y = y, color = cluster, fill = cluster)) +
+        ggplot2::geom_tile() +
+        ggplot2::facet_wrap(~current.metadata$Sample, nrow = floor(sqrt(length(input[['samplesToCluster']]))), scales = 'free') +
+        ggplot2::theme_classic() +
+        ggplot2::theme(axis.title.x=ggplot2::element_blank(),
+                          axis.text.x=ggplot2::element_blank(),
+                          axis.ticks.x=ggplot2::element_blank(),
+                          axis.line.x = ggplot2::element_blank(),
+                          axis.title.y=ggplot2::element_blank(),
+                          axis.text.y=ggplot2::element_blank(),
+                          axis.ticks.y=ggplot2::element_blank(),
+                          axis.line.y = ggplot2::element_blank())
       
       return(my_plot)
     }) %>% bindEvent(input[["run_clustering"]])
@@ -126,26 +126,26 @@ RegionClusterPanelServer <- function(id, full.expression.matrix, full.metadata, 
     cluster_props <- reactive({
       current.metadata = get_clusters()
       current.metadata$SelectedMetadata = current.metadata[,input[['groupingMetadataBarPlot']]]
-      ggplot(current.metadata,aes(y=SelectedMetadata,fill=cluster)) +
-        geom_bar(position = 'fill') +
-        ylab(input[['groupingMetadataBarPlot']]) +
-        xlab('Proportion of spots')+
-        theme_classic()
+      ggplot2::ggplot(current.metadata,ggplot2::aes(y=SelectedMetadata,fill=cluster)) +
+        ggplot2::geom_bar(position = 'fill') +
+        ggplot2::ylab(input[['groupingMetadataBarPlot']]) +
+        ggplot2::xlab('Proportion of spots')+
+        ggplot2::theme_classic()
     })
     
     cluster_props_persample <- reactive({
       current.metadata = get_clusters()
       current.metadata$SelectedMetadata = current.metadata[,input[['groupingMetadataBox']]]
-      current.metadata.count = current.metadata %>%
-        group_by(Sample, cluster) %>%
-        summarise(n = n()) %>%
-        mutate(freq = n / sum(n))
+      current.metadata.count = current.metadata |>
+        dplyr::group_by(Sample, cluster) |>
+        dplyr::summarise(n = dplyr::n()) |>
+        dplyr::mutate(freq = n / sum(n))
       current.metadata.count = merge(data.frame(current.metadata.count),unique(current.metadata[,c('Sample','SelectedMetadata')]))
-      ggplot(current.metadata.count,aes(fill=SelectedMetadata,y=freq,x=cluster)) +
-        geom_boxplot() +
-        scale_fill_discrete(name=input[['groupingMetadataBox']]) +
-        ylab('Proportion of spots per sample') +
-        theme_classic()
+      ggplot2::ggplot(current.metadata.count,ggplot2::aes(fill=SelectedMetadata,y=freq,x=cluster)) +
+        ggplot2::geom_boxplot() +
+        ggplot2::scale_fill_discrete(name=input[['groupingMetadataBox']]) +
+        ggplot2::ylab('Proportion of spots per sample') +
+        ggplot2::theme_classic()
     })
     
     return_object <- reactive({

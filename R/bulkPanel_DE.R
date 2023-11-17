@@ -91,7 +91,7 @@ BulkDEpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
         anno = anno
       )
       DEtableSubset <- DEtable %>%
-        dplyr::filter(.data$pvalAdj < input[["pvalThreshold"]] & abs(.data$lfc) > input[['lfcThreshold']]) %>%
+        dplyr::filter(.data$pvalAdj < input[["pvalThreshold"]] & abs(.data$lfc) > input[['lfcThreshold']]) |>
         dplyr::arrange(.data$pvalAdj)
       
       #the thresholds are returned here so that MA/volcano and table display
@@ -104,7 +104,7 @@ BulkDEpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
     }) %>%
       bindCache(utils::head(bulk.expression.matrix), bulk.metadata, input[["condition"]],
                 input[['variable1']], input[['variable2']], input[["pipeline"]],
-                input[["pvalThreshold"]],input[['lfcThreshold']]) %>%
+                input[["pvalThreshold"]],input[['lfcThreshold']]) |>
       bindEvent(input[["goDE"]])
     
     #Define output table (only DE peaks)
@@ -128,7 +128,6 @@ BulkDEpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
     
     #Output selected peaks
     selectedPeaks <- reactive({
-      print(DEresults()$DEtableSubset$m_z[input$data_rows_selected])
       DEresults()$DEtableSubset$m_z[input$data_rows_selected]
     })
     

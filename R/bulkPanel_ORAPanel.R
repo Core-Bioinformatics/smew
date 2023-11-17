@@ -72,7 +72,6 @@ BulkORAPanelServer <- function(id, bulk.expression.matrix, bulk.metadata, DEresu
   moduleServer(id, function(input, output, session){
     
     get_ORA <- reactive({
-      print('running ORA')
       execute_ora(de_peaks = DEresults()$DE()$DEtableSubset,
                   path_dict = NULL,
                   background = input[['background_selector']],
@@ -83,8 +82,8 @@ BulkORAPanelServer <- function(id, bulk.expression.matrix, bulk.metadata, DEresu
     
     dataTable <- reactive({
       get_ORA() |>
-        filter(FDR<0.05) |>
-        select(-metabolites) |>
+        dplyr::filter(FDR<0.05) |>
+        dplyr::select(-metabolites) |>
         DT::datatable() %>%
         DT::formatSignif(columns = c('Raw.p', 'Holm.p','FDR'), digits = 3)
     })
@@ -109,15 +108,14 @@ BulkORAPanelServer <- function(id, bulk.expression.matrix, bulk.metadata, DEresu
       kegg_classification$category2 = factor(kegg_classification$category2)
       kegg_classification$pathway_id = paste0('map',kegg_classification$pathway_id)
       significant.pathways = merge(significant.pathways,kegg_classification)
-      print(table(significant.pathways$category1))
-      return(ggplot(significant.pathways,aes(x=category2,y=-log10(FDR),color=category2))+
-               geom_point()+
-               facet_wrap(~significant.pathways$category1,scales = 'free_x',ncol=2)+
-               theme_classic()+
-               xlab('Pathway sub-category')+
-               scale_size_binned(range=c(0,max(-log10(significant.pathways$FDR))),n.breaks=10)+
+      return(ggplot2::ggplot(significant.pathways,aes(x=category2,y=-log10(FDR),color=category2))+
+               ggplot2::geom_point()+
+               ggplot2::facet_wrap(~significant.pathways$category1,scales = 'free_x',ncol=2)+
+               ggplot2::theme_classic()+
+               ggplot2::xlab('Pathway sub-category')+
+               ggplot2::scale_size_binned(range=c(0,max(-log10(significant.pathways$FDR))),n.breaks=10)+
                ggrepel::geom_label_repel(aes(label = pathway))+
-               theme(legend.position="none")
+               ggplot2::theme(legend.position="none")
       )
     })
     

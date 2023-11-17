@@ -10,4 +10,20 @@ License: What license is it under?
 Encoding: UTF-8
 LazyData: true
 Depends: 
-    R (>= 2.10)
+    R (>= 2.10),
+    matrixStats,
+    tibble,
+    dplyr,
+    shinyWidgets,
+    ggplot2,
+    ggforce,
+    ggrepel,
+    stringr,
+    tidyr,
+    reshape2,
+    DT,
+    RColorBrewer,
+    ComplexHeatmap,
+    circlize,
+    shinyjqui,
+    RcppML

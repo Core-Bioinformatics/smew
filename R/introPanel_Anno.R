@@ -16,7 +16,6 @@ IntroAnnopanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno
   ns <- NS(id)
   # check whether inputs (other than id) are reactive or not
   moduleServer(id, function(input, output, session){
-    print(anno)
     output[['anno']] <- DT::renderDT(anno[,1:4])
   })
 }

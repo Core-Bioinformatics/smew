@@ -18,9 +18,9 @@ get_matched_comps = function(adducts_table, mz_list, allowed_dppm) {
   tolerance = mz_list*allowed_dppm*1e-06
 
   # get unique entries from KEGG peaks
-  adducts_dedup = distinct(adducts_table)
+  adducts_dedup = dplyr::distinct(adducts_table)
 
-  long_adducts_table = adducts_dedup %>% pivot_longer(cols = -c(mw), names_to = 'adduct', values_to = 'adduct_mass')
+  long_adducts_table = adducts_dedup |> pivot_longer(cols = -c(mw), names_to = 'adduct', values_to = 'adduct_mass')
 
   # get a subtraction matrix where rows are experimental peaks (mz_list) and columns are theoretical masses + adduct
   # values are the difference between the two
@@ -50,13 +50,13 @@ get_matched_comps = function(adducts_table, mz_list, allowed_dppm) {
   diff_df_long = diff_df_long[diff_df_long$match,]
 
   # separate the theoretical mass, adduct and adduct mass
-  diff_df_long = separate_wider_delim(diff_df_long, cols = mw_adduct_adductmass, names = c('theoretical_mass', 'adduct', 'theoretical_mass_w_adduct'), delim = '_')
+  diff_df_long = tidyr::separate_wider_delim(diff_df_long, cols = mw_adduct_adductmass, names = c('theoretical_mass', 'adduct', 'theoretical_mass_w_adduct'), delim = '_')
 
   # keep only the columns we need
   diff_df_long = diff_df_long[,c('exp_peak', 'allowed_tolerance', 'observed_difference', 'theoretical_mass', 'adduct', 'theoretical_mass_w_adduct')]
 
   # convert to numeric
-  diff_df_long = diff_df_long %>% mutate(
+  diff_df_long = diff_df_long |> dplyr::mutate(
     exp_peak = as.numeric(exp_peak),
     allowed_tolerance = signif(as.numeric(allowed_tolerance), 7),
     observed_difference = signif(as.numeric(observed_difference), 7),
@@ -115,7 +115,7 @@ get_matched_peaks = function(
 
   # drop rows without given mass
   nbefore = n_distinct(filt_kegg_db$compound_id)
-  filt_kegg_db = filt_kegg_db %>% tidyr::drop_na(complete_compound_mass)
+  filt_kegg_db = filt_kegg_db |> tidyr::drop_na(complete_compound_mass)
   nafter = n_distinct(filt_kegg_db$compound_id)
 
   print(paste('Dropped', nbefore - nafter, 'compounds without mass.'))
@@ -147,8 +147,8 @@ get_matched_peaks = function(
   ))
   print(paste(
     "Unique compounds in LIPIDMAPS:",
-    n_distinct(
-      matched_comps_annot %>% filter(is_lm == 'True') %>% pull(compound_id)
+    dplyr::n_distinct(
+      matched_comps_annot |> dplyr::filter(is_lm == 'True') |> dplyr::pull(compound_id)
     )
   ))
 
@@ -212,7 +212,6 @@ create_bulk_exp <- function(expression.matrix,
                             ) {
   # add extra checks
   expression.matrix$sample <- metadata[,sample.id.column]
-  print(head(expression.matrix$sample))
   expression.matrix.mean <- expression.matrix |>
           dplyr::group_by(sample) |>
           dplyr::summarise(across(everything(), mean))
@@ -227,7 +226,6 @@ create_bulk_exp <- function(expression.matrix,
   if (nrow(metadata.mean)!=ncol(expression.matrix.mean)){
     stop('Please check all your sample.wide.columns are indeed sample-wide.')
   }
-  print(metadata.mean)
 
   #finished current stuff
   matched_peaks = get_matched_peaks(kegg_db = kegg_db,
@@ -248,16 +246,15 @@ create_bulk_exp <- function(expression.matrix,
     print('Organism not supported')
     return(NULL)
   }
-  print(colnames(matched_peaks))
   annotation_table = matched_peaks[,c(1,6,8,9)]
   colnames(annotation_table)=c('m_z','adduct','kegg_id','name')
 #  annotation_table$m_z = paste0('X',annotation_table$m_z)
   full_table = data.frame('m_z'=rownames(expression.matrix.mean))
   annotation_table = merge(full_table,annotation_table,all.x=T)
   annotation_table = unique(annotation_table)
-  annotation_table = annotation_table %>%
-    group_by(m_z) %>%
-    summarise(adduct = paste(adduct,collapse = ', '),
+  annotation_table = annotation_table |>
+    dplyr::group_by(m_z) |>
+    dplyr::summarise(adduct = paste(adduct,collapse = ', '),
               kegg_id = paste(kegg_id,collapse = ', '),
               name = paste(name,collapse = ', '))
   annotation_table$display_name = ifelse(is.na(annotation_table$name),annotation_table$m_z,

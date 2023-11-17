@@ -129,7 +129,6 @@ BulkQCpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
     output[['plsda']] <- renderPlot(plsda.plot())
     
     plsda.contrib <- reactive({
-      print(input[['plsda.comp']])
       myplot <- plsda_contrib(expression.matrix=bulk.expression.matrix,
                               metadata=bulk.metadata,
                               separator.id = match(input[['plsda.separator']], colnames(bulk.metadata)),
@@ -146,7 +145,6 @@ BulkQCpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
         sub.expression.matrix <- data.frame(bulk.expression.matrix[peak.ids,,drop=F])
       }
       rownames(sub.expression.matrix) <- input[["barPeakName"]]
-      print(bulk.metadata[,input[['peak.barplot.colour']]])
       myplot <- peaks_barplot(
         sub.expression.matrix = sub.expression.matrix,
         log.transformation = F,
@@ -156,7 +154,6 @@ BulkQCpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
     output[['barplot']] <- renderPlot(bar.plot())
     
     box.plot <- reactive({
-      print(input$barplot_click)
       peak.ids <- anno$m_z[match(input[["boxPeakName"]],anno$display_name)]
       if (length(peak.ids)==1){
         sub.expression.matrix <- data.frame(bulk.expression.matrix[peak.ids,,drop=F])
@@ -169,7 +166,6 @@ BulkQCpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
         log.transformation = F,
         metadata = bulk.metadata,
         metadata.column = input[['boxplot.metadata']])
-      print(myplot$table)
       return(myplot)
     })
     output[['boxplot']] <- renderPlot(box.plot()$plot)

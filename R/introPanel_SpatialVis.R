@@ -45,39 +45,40 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.ex
       }
       current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
       legend_title = ifelse(input[['log2_intensity']],paste0('log2 ',my_peak$m_z,'\n intensity'),paste0(my_peak$m_z,'\n intensity'))
-      return(ggplot(current.metadata,aes(x=x,y=y,color=peak,fill=peak))+geom_tile()+
-               facet_wrap(~current.metadata$Sample, nrow = floor(sqrt(length(input[['samplesToShow']]))), scales = 'free')  +                  
-               theme_classic() +
-               theme(axis.title.x=element_blank(),
-                     axis.text.x=element_blank(),
-                     axis.ticks.x=element_blank(),
-                     axis.line.x = element_blank(),
-                     axis.title.y=element_blank(),
-                     axis.text.y=element_blank(),
-                     axis.ticks.y=element_blank(),
-                     axis.line.y = element_blank(),
-                     legend.title = element_text(legend_title))+ 
-        scale_fill_gradient(name=legend_title,low = "lightgrey", high = "brown")+
-        scale_color_gradient(name=legend_title,low = "lightgrey", high = "brown")+ 
-        theme(aspect.ratio = 1))
+      return(ggplot2::ggplot(current.metadata,ggplot2::aes(x=x,y=y,color=peak,fill=peak))+geom_tile()+
+               ggplot2::facet_wrap(~current.metadata$Sample, nrow = floor(sqrt(length(input[['samplesToShow']]))), scales = 'free')  +                  
+               ggplot2::theme_classic() +
+               ggplot2::theme(axis.title.x=ggplot2::element_blank(),
+                     axis.text.x=ggplot2::element_blank(),
+                     axis.ticks.x=ggplot2::element_blank(),
+                     axis.line.x = ggplot2::element_blank(),
+                     axis.title.y=ggplot2::element_blank(),
+                     axis.text.y=ggplot2::element_blank(),
+                     axis.ticks.y=ggplot2::element_blank(),
+                     axis.line.y = ggplot2::element_blank(),
+                     legend.title = ggplot2::element_text(legend_title))+ 
+               ggplot2::scale_fill_gradient(name=legend_title,low = "lightgrey", high = "brown")+
+               ggplot2::scale_color_gradient(name=legend_title,low = "lightgrey", high = "brown")+ 
+               ggplot2::theme(aspect.ratio = 1))
     })
     
     show_metadata <- reactive({
       current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToShow']],]
       current.metadata$metadata = current.metadata[,input[['metadataName']]]
       current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
-      return(ggplot(current.metadata,aes(x=x,y=y,color=metadata,fill=metadata))+geom_tile()+
-               facet_wrap(~current.metadata$Sample, nrow = floor(sqrt(length(input[['samplesToShow']]))), scales = 'free')  +                  
-               theme_classic() +
-               theme(axis.title.x=element_blank(),
-                     axis.text.x=element_blank(),
-                     axis.ticks.x=element_blank(),
-                     axis.line.x = element_blank(),
-                     axis.title.y=element_blank(),
-                     axis.text.y=element_blank(),
-                     axis.ticks.y=element_blank(),
-                     axis.line.y = element_blank())+ 
-               theme(aspect.ratio = 1))
+      return(ggplot2::ggplot(current.metadata,ggplot2::aes(x=x,y=y,color=metadata,fill=metadata))+
+               ggplot2::geom_tile()+
+               ggplot2::facet_wrap(~current.metadata$Sample, nrow = floor(sqrt(length(input[['samplesToShow']]))), scales = 'free')  +                  
+               ggplot2::theme_classic() +
+               ggplot2::theme(axis.title.x=ggplot2::element_blank(),
+                     axis.text.x=ggplot2::element_blank(),
+                     axis.ticks.x=ggplot2::element_blank(),
+                     axis.line.x = ggplot2::element_blank(),
+                     axis.title.y=ggplot2::element_blank(),
+                     axis.text.y=ggplot2::element_blank(),
+                     axis.ticks.y=ggplot2::element_blank(),
+                     axis.line.y = ggplot2::element_blank())+ 
+               ggplot2::theme(aspect.ratio = 1))
     })
     
 
