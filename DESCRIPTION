@@ -10,7 +10,8 @@ License: What license is it under?
 Encoding: UTF-8
 LazyData: true
 Depends: 
-    R (>= 2.10),
+    R (>= 4.0),
+    shiny,
     matrixStats,
     tibble,
     dplyr,
@@ -27,3 +28,4 @@ Depends:
     circlize,
     shinyjqui,
     RcppML
+RoxygenNote: 7.2.3

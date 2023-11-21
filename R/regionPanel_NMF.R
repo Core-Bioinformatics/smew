@@ -1,3 +1,5 @@
+#' @rdname RegionNMFPanel
+#' @export
 RegionNMFPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
   ns <- NS(id)
   # add option to name cluster and retain it
@@ -5,7 +7,7 @@ RegionNMFPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
     tabPanel(
       'NMF',
       sidebarLayout(
-        
+
         # Sidebar panel for inputs ----
         sidebarPanel(
           # samples to include
@@ -49,11 +51,11 @@ RegionNMFPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
                       choices = colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y'))],
                       selected = colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y'))][1],
                       multiple = FALSE)
-          
-          
-          
+
+
+
         ),
-        
+
         #Main panel for displaying table of enriched pathways
         mainPanel(
           plotOutput(ns('plotNMF')),
@@ -68,16 +70,16 @@ RegionNMFPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
   }
 }
 
-#' @rdname DEsummaryPanel
+#' @rdname RegionNMFPanel
 #' @export
 RegionNMFPanelServer <- function(id, full.expression.matrix, full.metadata, bulk.metadata, anno){
-  
+
   moduleServer(id, function(input, output, session){
     observe(
       updateSelectizeInput(session, "focus_NMF", choices = 1:input[['numFactors']], server = TRUE, selected = 1)
     )
-    
-    
+
+
     get_nmf <- reactive({
       current.expression.matrix <- full.expression.matrix[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToFactor']],]
       current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToFactor']],]
@@ -94,7 +96,7 @@ RegionNMFPanelServer <- function(id, full.expression.matrix, full.metadata, bulk
       return.list = list('metadata'=current.metadata,'feature_weights'=nmf.factor.features)
       return(return.list)
     })  %>% bindEvent(input[["run_nmf"]])
-    
+
     nmf_plot <- reactive({
       current.metadata = get_nmf()$metadata
       my_plot <- ggplot2::ggplot(current.metadata,ggplot2::aes(x = x, y = y, color = get(paste0('NMF_',input[['focus_NMF']])), fill = get(paste0('NMF_',input[['focus_NMF']])))) +
@@ -111,13 +113,13 @@ RegionNMFPanelServer <- function(id, full.expression.matrix, full.metadata, bulk
                        axis.text.y=ggplot2::element_blank(),
                        axis.ticks.y=ggplot2::element_blank(),
                        axis.line.y = ggplot2::element_blank())
-      
+
       return(my_plot)
     }) %>% bindEvent(input[["run_nmf"]])
-    
+
     nmf_persample <- reactive({
       current.metadata = get_nmf()$metadata
-      my_plot <- ggplot2::ggplot(current.metadata,ggplot2::aes(y = get(paste0('NMF_',input[['focus_NMF']])), x = get(input[['groupingMetadataBox']]), fill = get(input[['colourMetadataBox']])))+geom_boxplot()+ 
+      my_plot <- ggplot2::ggplot(current.metadata,ggplot2::aes(y = get(paste0('NMF_',input[['focus_NMF']])), x = get(input[['groupingMetadataBox']]), fill = get(input[['colourMetadataBox']])))+geom_boxplot()+
         theme_classic()+
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
         ylab(paste0('NMF_',input[['focus_NMF']]))+
@@ -126,7 +128,7 @@ RegionNMFPanelServer <- function(id, full.expression.matrix, full.metadata, bulk
         xlab(input[['groupingMetadataBox']])
       return(my_plot)
     })
-    
+
     nmf_featureweights <- reactive({
       nmf.weights = data.frame(t(get_nmf()$feature_weights))
       nmf.weights = nmf.weights[order(-nmf.weights[,paste0('NMF_',input[['focus_NMF']])]),]
@@ -144,7 +146,7 @@ RegionNMFPanelServer <- function(id, full.expression.matrix, full.metadata, bulk
     #     ggplot2::xlab('Proportion of spots')+
     #     ggplot2::theme_classic()
     # })
-    # 
+    #
     # cluster_props_persample <- reactive({
     #   current.metadata = get_clusters()
     #   current.metadata$SelectedMetadata = current.metadata[,input[['groupingMetadataBox']]]
@@ -159,7 +161,7 @@ RegionNMFPanelServer <- function(id, full.expression.matrix, full.metadata, bulk
     #     ggplot2::ylab('Proportion of spots per sample') +
     #     ggplot2::theme_classic()
     # })
-    # 
+    #
     # return_object <- reactive({
     #   rownames(full.metadata)<-full.metadata$spot_id
     #   merged.metadata = merge(full.metadata,get_clusters(),all.x=T,sort=F)
@@ -169,29 +171,29 @@ RegionNMFPanelServer <- function(id, full.expression.matrix, full.metadata, bulk
     #   merged.metadata <- tidyr::replace_na(merged.metadata, list(cluster = 'None'))
     #   return(merged.metadata)
     # })
-    # 
+    #
     output[['plotNMF']] <- renderPlot({
       nmf_plot()
     })
-    
+
     output[['plotPerSampleNMF']] <- renderPlot({
       nmf_persample()
     })
-    
+
     output[['plotNMFFeatureWeights']] <- renderPlot({
       nmf_featureweights()
     })
-    
+
     # output[['plotClusterProps']] <- renderPlot({
     #   cluster_props()
     # })
-    # 
+    #
     # output[['plotClusterPropsPerSample']] <- renderPlot({
     #   cluster_props_persample()
     # })
-    # 
+    #
     # return(reactive(return_object()))
-    
+
   })
 }
 

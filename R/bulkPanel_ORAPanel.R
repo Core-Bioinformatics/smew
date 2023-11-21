@@ -1,11 +1,13 @@
+#' @rdname BulkORAPanel
+#' @export
 BulkORAPanelUI <- function(id, bulk.metadata, show = TRUE){
   ns <- NS(id)
-  
+
   if(show){
     tabPanel(
       'ORA',
       sidebarLayout(
-        
+
         # Sidebar panel for inputs ----
         sidebarPanel(
           # add slider to select the minimum number of pathways to be considered before peak mapping
@@ -42,7 +44,7 @@ BulkORAPanelUI <- function(id, bulk.metadata, show = TRUE){
             icon = icon("play")
           )
         ),
-        
+
         #Main panel for displaying table of enriched pathways
         mainPanel(
           DT::dataTableOutput(ns('data')),
@@ -57,10 +59,10 @@ BulkORAPanelUI <- function(id, bulk.metadata, show = TRUE){
   }
 }
 
-#' @rdname DEsummaryPanel
+#' @rdname BulkORAPanel
 #' @export
 BulkORAPanelServer <- function(id, bulk.expression.matrix, bulk.metadata, DEresults, anno){
-  
+
   # check whether inputs (other than id) are reactive or not
   stopifnot({
     is.reactive(DEresults)
@@ -68,9 +70,9 @@ BulkORAPanelServer <- function(id, bulk.expression.matrix, bulk.metadata, DEresu
     is.reactive(bulk.metadata)
     !is.reactive(anno)
   })
-  
+
   moduleServer(id, function(input, output, session){
-    
+
     get_ORA <- reactive({
       execute_ora(de_peaks = DEresults()$DE()$DEtableSubset,
                   path_dict = NULL,
@@ -79,7 +81,7 @@ BulkORAPanelServer <- function(id, bulk.expression.matrix, bulk.metadata, DEresu
                   ora_pvalue_cutoff = input[['ora_pvalue_cutoff']],
                   min_pathway_hits = input[['min_pathway_hits']])
     }) %>% bindEvent(input[["submit_from_ora"]])
-    
+
     dataTable <- reactive({
       get_ORA() |>
         dplyr::filter(FDR<0.05) |>
@@ -87,20 +89,20 @@ BulkORAPanelServer <- function(id, bulk.expression.matrix, bulk.metadata, DEresu
         DT::datatable() %>%
         DT::formatSignif(columns = c('Raw.p', 'Holm.p','FDR'), digits = 3)
     })
-    
+
     output[['data']] <- DT::renderDataTable(dataTable())
-    
+
     output[['oraVolcano']] <- renderPlot({
       ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']])
     })
-    
+
     output[['oraVolcanoData']] <- renderTable({
       req(input[['plot_click']])
       data = get_ORA() |> dplyr::mutate(`-log10pval` = -log10(.data$FDR),
                                         lfc = ifelse(.data$direction=='up',log2(.data$hits/.data$expected),-log2(.data$hits/.data$expected)))
       nearPoints(df = data, coordinfo = input[['plot_click']], threshold = 20, maxpoints = 10)
     }, digits = 4)
-    
+
     output[['pathwayCategories']] <- renderPlot({
       significant.pathways = get_ORA()[get_ORA()$FDR<0.05,]
       kegg_classification$pathway = kegg_classification$pathway_name
@@ -118,6 +120,6 @@ BulkORAPanelServer <- function(id, bulk.expression.matrix, bulk.metadata, DEresu
                ggplot2::theme(legend.position="none")
       )
     })
-    
+
   })
 }

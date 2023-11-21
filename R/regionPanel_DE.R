@@ -1,15 +1,17 @@
+#' @rdname RegionDEPanel
+#' @export
 RegionDEpanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
   ns <- NS(id)
-  
+
   if(show){
     tabPanel(
       'Differential expression',
       shinyjs::useShinyjs(),
       sidebarLayout(
-        
+
         # Sidebar panel for inputs ----
         sidebarPanel(
-          
+
           selectInput(
             inputId = ns("regionToGroupOn"),
             label = "Select region to group on",
@@ -24,24 +26,24 @@ RegionDEpanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
           selectInput(ns('condition'), 'Metadata column to use:', colnames(bulk.metadata)[-1],
                       selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
           actionButton(ns('pseudoBulk'), label = 'Start Pseudobulking'),
-          
+
           # Input: Selector variables to compare
           selectInput(ns('variable1'), 'Condition 1:', c()),
           selectInput(ns('variable2'), 'Condition 2:', c(),
                       selected = c()),
-          
+
           selectInput(ns('pipeline'), 'DE pipeline:', c("t-test", "Wilcox rank sum")),
-          
+
           #DE thresholds
-          
+
           sliderInput(ns('pvalThreshold'), label = 'Adjusted p-value threshold',
                       min = 0, value = 0.05, max = 1, step = 0.005),
           sliderInput(ns('lfcThreshold'), label = 'log2 fold change threshold',
                       min = 0, value = 1, max = 5, step = 0.1),
-          
+
           #Only start DE when button is pressed
           actionButton(ns('goDE'), label = 'Start DE'),
-          
+
           #download file name and button
           textInput(ns('fileName'),'File name for download', value ='DEset.csv', placeholder = 'DEset.csv'),
           downloadButton(ns('download'), 'Download Table'),
@@ -52,9 +54,9 @@ RegionDEpanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
           actionButton(ns('resetSelection'), label = "Reset row selection"),
           div(style="margin-bottom:10px"),
           actionButton(ns('selectTop50'), label = "Select top 50 peaks")
-          
+
         ),
-        
+
         #Main panel for displaying table of DE peaks
         mainPanel(
           textOutput(ns('print_pseudobulk')),
@@ -67,7 +69,7 @@ RegionDEpanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
   }
 }
 
-#' @rdname DEpanel
+#' @rdname RegionDEPanel
 #' @export
 RegionDEpanelServer <- function(id, full.expression.matrix, full.metadata, bulk.metadata, region.clusters, anno){
   # check whether inputs (other than id) are reactive or not
@@ -76,7 +78,7 @@ RegionDEpanelServer <- function(id, full.expression.matrix, full.metadata, bulk.
     is.reactive(bulk.metadata)
     !is.reactive(anno)
   })
-  
+
   moduleServer(id, function(input, output, session){
     observe(updateSelectInput(
       session,
@@ -84,7 +86,7 @@ RegionDEpanelServer <- function(id, full.expression.matrix, full.metadata, bulk.
       choices = colnames(region.clusters())[!(colnames(region.clusters())%in%c('spot_id','x','y','Sample',colnames(bulk.metadata)))],
       selected=colnames(region.clusters())[!(colnames(region.clusters())%in%c('spot_id','x','y','Sample',colnames(bulk.metadata)))][1])
     )
-    
+
     pseudobulk_samples <- reactive({
       pseudobulked <- create_bulk_exp_regions(full.expression.matrix,
                               region.clusters(),
@@ -93,7 +95,7 @@ RegionDEpanelServer <- function(id, full.expression.matrix, full.metadata, bulk.
                               region.clusters()[,input[['regionToGroupOn']]],
                               minimum.pixels = input[['minimumPixelsPerSample']])
 #      if (is.null(region.clusters())){
-        # choices = 
+        # choices =
         # selected = colnames(full.metadata)[colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata))][1]
 #      } else {
 #        choices = c('cluster',colnames(full.metadata)[colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata))])
@@ -102,10 +104,10 @@ RegionDEpanelServer <- function(id, full.expression.matrix, full.metadata, bulk.
       updateSelectInput(session, 'variable1', choices = unique(pseudobulked$metadata[[input[["condition"]]]]))
       updateSelectInput(session, 'variable2', choices = unique(pseudobulked$metadata[[input[["condition"]]]]),
                         selected = unique(pseudobulked$metadata[[input[["condition"]]]])[2])
-      
+
       return(pseudobulked)
     }) %>% bindEvent(input[["pseudoBulk"]])
-    
+
     output[['print_pseudobulk']]<-renderText(paste0('Conditions extracted: ',paste(unique(pseudobulk_samples()$metadata[[input[["condition"]]]]),collapse = ', ')))
 
     observe({
@@ -182,6 +184,6 @@ RegionDEpanelServer <- function(id, full.expression.matrix, full.metadata, bulk.
     return(reactive(list('DE' = DEresults,
                          'selectedPeaks' = reactive(selectedPeaks())
     )))
-    
+
   })
 }

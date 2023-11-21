@@ -1,14 +1,14 @@
 get_ORA = function (pathways, metabolites, universe, minSize = 1, maxSize = length(universe) - 1, direction = c("up", "down")) {
-  
+
   if (!is.list(pathways)) {
     stop("pathways should be a list with each element containing metabolites from the universe")
   }
-  
+
   if (any(duplicated(universe))) {
     warning("There were duplicate metabolites in universe, they were collapsed")
     universe = unique(universe)
   }
-  
+
   empty_ora_result = data.frame(
     pathway = character(),
     total = numeric(),
@@ -20,32 +20,32 @@ get_ORA = function (pathways, metabolites, universe, minSize = 1, maxSize = leng
     metabolites = character(),
     direction = character()
   )
-  
+
   minSize = max(minSize, 1)
   pathwaysFiltered = lapply(pathways, function(p) {
     unique(p[p%in%universe])
   })
-  
+
   pathwaysSizes = sapply(pathwaysFiltered, length)
-  
+
   toKeep = which(minSize <= pathwaysSizes & pathwaysSizes <= maxSize)
-  
+
   if (length(toKeep) == 0) {
     return(empty_ora_result)
   }
-  
+
   pathwaysFiltered = pathwaysFiltered[toKeep]
   pathwaysSizes = pathwaysSizes[toKeep]
   if (!all(metabolites %in% universe)) {
     warning("Not all of the input metabolites belong to the universe, such metabolites were removed")
   }
-  
+
   metabolitesFiltered = unique(na.omit(metabolites[metabolites%in%universe]))
   if (length(metabolitesFiltered) == 0) {
     warning("No metabolites from the input list belong to the universe")
     return(empty_ora_result)
   }
-  
+
   overlaps = lapply(pathwaysFiltered, intersect, metabolitesFiltered)
   overlap_metabolites = lapply(overlaps, function(x) paste0(x, collapse = '; '))
   overlapsT = data.frame(
@@ -72,7 +72,7 @@ get_ORA = function (pathways, metabolites, universe, minSize = 1, maxSize = leng
 
 
 execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalue_cutoff, min_pathway_hits, peak_direction) {
-  
+
   # if (background == 'Whole metabolome') {
   #   background_peaks = unique(unlist(path_dict))
   # } else if (background == 'Detected metabolome') {
@@ -86,11 +86,11 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
   # } else {
   #   my_peaks = unique(strsplit(paste(de_peaks$kegg_id,collapse=', '),split = ', ')[[1]])
   # }
-  
+
   # get up and down regulated peaks
   up_peaks = unique(strsplit(paste(de_peaks[de_peaks$lfc>0,]$kegg_id,collapse=', '),split = ', ')[[1]])
   down_peaks = unique(strsplit(paste(de_peaks[de_peaks$lfc<0,]$kegg_id,collapse=', '),split = ', ')[[1]])
-  
+
   # if no peaks are up AND down regulated, return NULL and display message
   if (length(c(up_peaks,down_peaks)) == 0) {
     return(NULL)
@@ -108,15 +108,15 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
   # prepare a pathway:peak dictionary
   path_list = unique(kegg_db_filt$pathway_name)
   names(path_list) = path_list
-  
+
   pathway2peaks = lapply(path_list, function (x) {
     a = unique(kegg_db_filt[kegg_db_filt$pathway_name == x,]$compound_id)
     a[!is.na(a)]
   })
-  
+
   # keep only pathways with < 500 and > 1 entries
   pathway2peaks = pathway2peaks[which(lapply(pathway2peaks, length) < 500 & lapply(pathway2peaks, length) > 1)]
-  
+
   ora_up = get_ORA(
     pathways = pathway2peaks,
     metabolites = up_peaks,
@@ -125,7 +125,7 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
     maxSize = 500,
     direction = 'up'
   ) %>% as.data.frame()
-  
+
   ora_down = get_ORA(
     pathways = pathway2peaks,
     metabolites = down_peaks,
@@ -134,7 +134,7 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
     maxSize = 500,
     direction = 'down'
   ) %>% as.data.frame()
-  
+
   ora_combined = rbind(ora_up,ora_down)
   # calculate fc, log2fc
   # ora_combined$FC = ora_combined$hits/ora_combined$expected
@@ -166,8 +166,8 @@ ora_volcano_plot <- function(
     ggplot2::xlab("log2(FC)") +
     ggplot2::ylab("-log10(pval)") +
     ggplot2::scale_color_manual(values=c("Non-significant"="#999999", "Significant"="#FF0000"))
-  
-  
+
+
   return(vp)
 }
 

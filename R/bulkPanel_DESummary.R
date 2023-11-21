@@ -1,3 +1,5 @@
+#' @rdname BulkDESummaryPanel
+#' @export
 BulkDESummaryPanelUI <- function(id, bulk.metadata, show = TRUE){
   ns <- NS(id)
 
@@ -83,7 +85,7 @@ BulkDESummaryPanelUI <- function(id, bulk.metadata, show = TRUE){
   }
 }
 
-#' @rdname DEsummaryPanel
+#' @rdname BulkDESummaryPanel
 #' @export
 BulkDESummaryPanelServer <- function(id, bulk.expression.matrix, bulk.metadata, DEresults, anno){
 

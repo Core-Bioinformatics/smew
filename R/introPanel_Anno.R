@@ -1,3 +1,5 @@
+#' @rdname IntroAnnoPanel
+#' @export
 IntroAnnopanelUI <- function(id, bulk.metadata, show = TRUE){
   ns <- NS(id)
   if(show){
@@ -10,7 +12,7 @@ IntroAnnopanelUI <- function(id, bulk.metadata, show = TRUE){
   }
 }
 
-#' @rdname QCpanel
+#' @rdname IntroAnnoPanel
 #' @export
 IntroAnnopanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
   ns <- NS(id)

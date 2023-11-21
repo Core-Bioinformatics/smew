@@ -1,3 +1,5 @@
+#' @rdname RegionClusterPanel
+#' @export
 RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
   ns <- NS(id)
   # add option to name cluster and retain it
@@ -5,7 +7,7 @@ RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
     tabPanel(
       'Clustering',
       sidebarLayout(
-        
+
         # Sidebar panel for inputs ----
         sidebarPanel(
           # samples to include
@@ -39,14 +41,14 @@ RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
                          max = 10,
                          value = 3,
                          step = 1)),
-          
+
           # button to start clustering
           actionButton(
             inputId = ns("run_clustering"),
             label = "Find clusters",
             icon = icon("play")
           ),
-          
+
           selectInput(inputId = ns("groupingMetadataBarPlot"),
                       label = "Metadata to group barplot on",
                       choices = colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y'))],
@@ -57,11 +59,11 @@ RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
                       choices = colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata)[1]))],
                       selected = colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata)[1]))][1],
                       multiple = FALSE),
-          
-          
-          
+
+
+
         ),
-        
+
         #Main panel for displaying table of enriched pathways
         mainPanel(
           plotOutput(ns('plotClusters')),
@@ -74,13 +76,13 @@ RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
   }
 }
 
-#' @rdname DEsummaryPanel
+#' @rdname RegionClusterPanel
 #' @export
 RegionClusterPanelServer <- function(id, full.expression.matrix, full.metadata, bulk.metadata, anno){
-  
+
   moduleServer(id, function(input, output, session){
     updateSelectizeInput(session, "peakToThreshold", choices = anno$display_name, server = TRUE, selected = anno$display_name[1])
-    
+
     get_clusters <- reactive({
       current.expression.matrix <- full.expression.matrix[,full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToCluster']]]
       current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToCluster']],]
@@ -93,7 +95,7 @@ RegionClusterPanelServer <- function(id, full.expression.matrix, full.metadata, 
                                         ifelse(my_peak_expression>=quantiles[2],'High','Medium')),levels=c('Low','Medium','High'))
       }
       if (input[['clusteringApproach']]=='k-means'){
-        
+
  #     set.seed(23)
       current.expression.matrix <- scale(x = current.expression.matrix,center = T,scale = T)
       current.expression.matrix <- current.expression.matrix[complete.cases(current.expression.matrix),]
@@ -104,7 +106,7 @@ RegionClusterPanelServer <- function(id, full.expression.matrix, full.metadata, 
       }
       return(current.metadata)
     })  %>% bindEvent(input[["run_clustering"]])
-    
+
     cluster_plot <- reactive({
       current.metadata = get_clusters()
       my_plot <- ggplot2::ggplot(current.metadata,ggplot2::aes(x = x, y = y, color = cluster, fill = cluster)) +
@@ -119,10 +121,10 @@ RegionClusterPanelServer <- function(id, full.expression.matrix, full.metadata, 
                           axis.text.y=ggplot2::element_blank(),
                           axis.ticks.y=ggplot2::element_blank(),
                           axis.line.y = ggplot2::element_blank())
-      
+
       return(my_plot)
     }) %>% bindEvent(input[["run_clustering"]])
-    
+
     cluster_props <- reactive({
       current.metadata = get_clusters()
       current.metadata$SelectedMetadata = current.metadata[,input[['groupingMetadataBarPlot']]]
@@ -132,7 +134,7 @@ RegionClusterPanelServer <- function(id, full.expression.matrix, full.metadata, 
         ggplot2::xlab('Proportion of spots')+
         ggplot2::theme_classic()
     })
-    
+
     cluster_props_persample <- reactive({
       current.metadata = get_clusters()
       current.metadata$SelectedMetadata = current.metadata[,input[['groupingMetadataBox']]]
@@ -147,7 +149,7 @@ RegionClusterPanelServer <- function(id, full.expression.matrix, full.metadata, 
         ggplot2::ylab('Proportion of spots per sample') +
         ggplot2::theme_classic()
     })
-    
+
     return_object <- reactive({
       rownames(full.metadata)<-full.metadata$spot_id
       merged.metadata = merge(full.metadata,get_clusters(),all.x=T,sort=F)
@@ -157,21 +159,21 @@ RegionClusterPanelServer <- function(id, full.expression.matrix, full.metadata, 
       merged.metadata <- tidyr::replace_na(merged.metadata, list(cluster = 'None'))
       return(merged.metadata)
     })
-    
+
     output[['plotClusters']] <- renderPlot({
       cluster_plot()
     })
-    
+
     output[['plotClusterProps']] <- renderPlot({
       cluster_props()
     })
-    
+
     output[['plotClusterPropsPerSample']] <- renderPlot({
       cluster_props_persample()
     })
-    
+
     return(reactive(return_object()))
-           
+
   })
 }
 
