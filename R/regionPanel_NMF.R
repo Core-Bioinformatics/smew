@@ -1,11 +1,37 @@
-#' @rdname RegionNMFPanel
+ColorBlender <- function (
+    data,
+    channels.use = NULL
+) {
+  rgb.order <- setNames(1:3, c("red", "green", "blue"))
+  if (!length(channels.use) == ncol(data)) {
+    stop(paste0("channels.use must be same length as number of features or dimensions"))
+  } else if (!all(channels.use %in% names(rgb.order))) {
+    stop("Invalid color names in channels.use. Valid options are: 'red', 'green' and 'blue'")
+  } else if (sum(duplicated(channels.use))){
+    stop("Duplicate color names are not allowed in channels.use")
+  }
+  col.order <- rgb.order[channels.use]
+
+  if (ncol(data) == 2) {
+    first_vec <- data[, 1]
+    second_vec <- data[, 2]
+    data <- matrix(data = 0, nrow = nrow(data), ncol = 3)
+    data[, col.order[1]] <- first_vec; data[, col.order[2]] <- second_vec
+  } else if (ncol(data) == 3) {
+    data <- data[, col.order]
+  }
+  color.codes <- rgb(data)
+}
+
+
+#' @rdname RegionDimRedPanel
 #' @export
-RegionNMFPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
+RegionDimRedPanelUI <- function(id, bulk.metadata, full.metadata, full.expression.matrix,show = TRUE){
   ns <- NS(id)
   # add option to name cluster and retain it
   if(show){
     tabPanel(
-      'NMF',
+      'Dimensionality reduction',
       sidebarLayout(
 
         # Sidebar panel for inputs ----
@@ -13,15 +39,16 @@ RegionNMFPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
           # samples to include
           # number of clusters
           # any other parameters
+          selectInput(inputId = ns("dimReduction"),label = "Dimensionality reduction",choices = c('NMF','PCA'),selected = 'NMF'),
           selectInput(
             inputId = ns("samplesToFactor"),
-            label = "Select samples for factorising",
+            label = "Select samples for infer dimensionality reduction",
             choices = unique(bulk.metadata[,1]),
             selected = unique(bulk.metadata[,1]),
             multiple = TRUE
           ),
-          numericInput(inputId = ns("numFactors"),
-                       label = 'Number of factors',
+          numericInput(inputId = ns("numDimensions"),
+                       label = 'Number of dimensions to infer',
                        value = 10,
                        min = 2,
                        max = 50,
@@ -34,12 +61,12 @@ RegionNMFPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
                        step = 1),
           # button to start clustering
           actionButton(
-            inputId = ns("run_nmf"),
-            label = "Find NMF factors",
+            inputId = ns("run_dimred"),
+            label = "Run dimensionality reduction",
             icon = icon("play")
           ),
-          selectInput(inputId=ns("focus_NMF"),
-                      label = 'Select NMF factor',
+          selectInput(inputId=ns("focus_dimension"),
+                      label = 'Select dimension of interest',
                       choices = 1:10,selected = 1),
           selectInput(inputId = ns("groupingMetadataBox"),
                       label = "Metadata to group boxplot on",
@@ -50,6 +77,11 @@ RegionNMFPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
                       label = "Metadata to colour boxplots by",
                       choices = colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y'))],
                       selected = colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y'))][1],
+                      multiple = FALSE),
+          selectInput(inputId = ns("colourUMAP"),
+                      label = "Metadata to colour UMAP",
+                      choices = c(colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y'))],colnames(full.expression.matrix)),
+                      selected = colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y'))][1],
                       multiple = FALSE)
 
 
@@ -58,11 +90,13 @@ RegionNMFPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
 
         #Main panel for displaying table of enriched pathways
         mainPanel(
-          plotOutput(ns('plotNMF')),
-          plotOutput(ns('plotPerSampleNMF')),
-          plotOutput(ns('plotNMFFeatureWeights')))
-          # plotOutput(ns('plotClusterProps')),
-          # plotOutput(ns('plotClusterPropsPerSample')))
+          plotOutput(ns('plotDimRed')),
+          plotOutput(ns('plotPerSampleDimRed')),
+          plotOutput(ns('plotDimRedFeatureWeights')),
+          plotOutput(ns('DimRedUMAPSpatial')),
+          plotOutput(ns('DimRedUMAP')))
+        # plotOutput(ns('plotClusterProps')),
+        # plotOutput(ns('plotClusterPropsPerSample')))
       )
     )
   }else{
@@ -70,39 +104,66 @@ RegionNMFPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
   }
 }
 
-#' @rdname RegionNMFPanel
+#' @rdname RegionDimRedPanel
 #' @export
-RegionNMFPanelServer <- function(id, full.expression.matrix, full.metadata, bulk.metadata, anno){
+RegionDimRedPanelServer <- function(id, full.expression.matrix, full.metadata, bulk.metadata, anno){
 
   moduleServer(id, function(input, output, session){
     observe(
-      updateSelectizeInput(session, "focus_NMF", choices = 1:input[['numFactors']], server = TRUE, selected = 1)
+      updateSelectizeInput(session, "focus_DimRed", choices = 1:input[['numDimensions']], server = TRUE, selected = 1)
     )
-
-
-    get_nmf <- reactive({
+    get_subset_exp <- reactive({
       current.expression.matrix <- full.expression.matrix[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToFactor']],]
       current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToFactor']],]
       current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
-      # current.expression.matrix <- scale(x = current.expression.matrix,center = T,scale = T)
+      return(list('exp'=current.expression.matrix,'meta'=current.metadata))
+    }) %>% bindEvent(input[["run_dimred"]])
+
+    get_nmf <- reactive({
+      current.expression.matrix <- get_subset_exp()$exp
+      current.metadata <- get_subset_exp()$meta      # current.expression.matrix <- scale(x = current.expression.matrix,center = T,scale = T)
       # current.expression.matrix <- current.expression.matrix[complete.cases(current.expression.matrix),]
-      nmf.factors <- RcppML::nmf(as.matrix(current.expression.matrix),seed = input[['seed']],k = input[['numFactors']])
+      nmf.factors <- RcppML::nmf(as.matrix(current.expression.matrix),seed = input[['seed']],k = input[['numDimensions']])
       nmf.factor.weights = data.frame(nmf.factors$w)
       nmf.factor.features = data.frame(nmf.factors$h)
       colnames(nmf.factor.weights)=paste0('NMF_',gsub('X','',colnames(nmf.factor.weights)))
       current.metadata = cbind(current.metadata,nmf.factor.weights)
       colnames(nmf.factor.features)=colnames(current.expression.matrix)
       rownames(nmf.factor.features)=paste0('NMF_',gsub('X','',rownames(nmf.factor.features)))
-      return.list = list('metadata'=current.metadata,'feature_weights'=nmf.factor.features)
+      return.list = list('metadata'=current.metadata,'feature_weights'=nmf.factor.features,'dimRed'=input[['dimReduction']],'numDimensions'=input[['numDimensions']])
       return(return.list)
-    })  %>% bindEvent(input[["run_nmf"]])
+    })  %>% bindEvent(input[["run_dimred"]])
 
+    get_pca <- reactive({
+      current.expression.matrix <- get_subset_exp()$exp
+      current.metadata <- get_subset_exp()$meta
+      current.expression.matrix <- current.expression.matrix[,apply(current.expression.matrix, 2, var, na.rm=TRUE) != 0]
+      # current.expression.matrix <- scale(x = current.expression.matrix,center = T,scale = T)
+      # current.expression.matrix <- current.expression.matrix[complete.cases(current.expression.matrix),]
+      pc.components <- prcomp(as.matrix(current.expression.matrix),center = TRUE,scale.=TRUE,rank. = input[["numDimensions"]])
+      pc.component.weights = data.frame(pc.components$x)
+      pc.component.features = data.frame(t(pc.components$rotation))
+      colnames(pc.component.weights)=paste0('PCA_',1:input[["numDimensions"]])
+      current.metadata = cbind(current.metadata,pc.component.weights)
+      colnames(pc.component.features)=colnames(current.expression.matrix)
+      rownames(pc.component.features)=paste0('PCA_',1:input[["numDimensions"]])
+      return.list = list('metadata'=current.metadata,'feature_weights'=pc.component.features,'dimRed'=input[['dimReduction']],'numDimensions'=input[['numDimensions']])
+      return(return.list)
+    })  %>% bindEvent(input[["run_dimred"]])
+
+    get_dimred <- reactive({
+      if (input[["dimReduction"]]=="NMF"){
+        return(get_nmf())
+      } else {
+        return(get_pca())
+      }
+    })
     nmf_plot <- reactive({
-      current.metadata = get_nmf()$metadata
-      my_plot <- ggplot2::ggplot(current.metadata,ggplot2::aes(x = x, y = y, color = get(paste0('NMF_',input[['focus_NMF']])), fill = get(paste0('NMF_',input[['focus_NMF']])))) +
+      current.metadata = get_dimred()$metadata
+      my_plot <- ggplot2::ggplot(current.metadata,ggplot2::aes(x = x, y = y, color = get(paste0(get_dimred()$dimRed,'_',input[['focus_dimension']])), fill = get(paste0(get_dimred()$dimRed,'_',input[['focus_dimension']])))) +
         ggplot2::geom_tile() +
-        ggplot2::scale_fill_gradient(low='white',high='darkred',name=paste0('NMF_',input[['focus_NMF']]))+
-        ggplot2::scale_color_gradient(low='white',high='darkred',name=paste0('NMF_',input[['focus_NMF']]))+
+        ggplot2::scale_fill_gradient2(low='darkblue',high='darkred',mid='white',name=paste0(get_dimred()$dimRed,'_',input[['focus_dimension']]))+
+        ggplot2::scale_color_gradient2(low='darkblue',high='darkred',mid='white',name=paste0(get_dimred()$dimRed,'_',input[['focus_dimension']]))+
         ggplot2::facet_wrap(~current.metadata$Sample, nrow = floor(sqrt(length(input[['samplesToFactor']]))), scales = 'free') +
         ggplot2::theme_classic() +
         ggplot2::theme(axis.title.x=ggplot2::element_blank(),
@@ -115,14 +176,14 @@ RegionNMFPanelServer <- function(id, full.expression.matrix, full.metadata, bulk
                        axis.line.y = ggplot2::element_blank())
 
       return(my_plot)
-    }) %>% bindEvent(input[["run_nmf"]])
+    }) %>% bindEvent(input[["run_dimred"]])
 
     nmf_persample <- reactive({
-      current.metadata = get_nmf()$metadata
-      my_plot <- ggplot2::ggplot(current.metadata,ggplot2::aes(y = get(paste0('NMF_',input[['focus_NMF']])), x = get(input[['groupingMetadataBox']]), fill = get(input[['colourMetadataBox']])))+geom_boxplot()+
+      current.metadata = get_dimred()$metadata
+      my_plot <- ggplot2::ggplot(current.metadata,ggplot2::aes(y = get(paste0(get_dimred()$dimRed,'_',input[['focus_dimension']])), x = get(input[['groupingMetadataBox']]), fill = get(input[['colourMetadataBox']])))+geom_boxplot()+
         theme_classic()+
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-        ylab(paste0('NMF_',input[['focus_NMF']]))+
+        ylab(paste0(get_dimred()$dimRed,'_',input[['focus_dimension']]))+
         scale_fill_discrete(name=input[['colourMetadataBox']])+
         scale_fill_discrete(name=input[['groupingMetadataBox']])+
         xlab(input[['groupingMetadataBox']])
@@ -130,58 +191,75 @@ RegionNMFPanelServer <- function(id, full.expression.matrix, full.metadata, bulk
     })
 
     nmf_featureweights <- reactive({
-      nmf.weights = data.frame(t(get_nmf()$feature_weights))
-      nmf.weights = nmf.weights[order(-nmf.weights[,paste0('NMF_',input[['focus_NMF']])]),]
+      nmf.weights = data.frame(t(get_dimred()$feature_weights))
+      nmf.weights = nmf.weights[order(-nmf.weights[,paste0(get_dimred()$dimRed,'_',input[['focus_dimension']])]),]
       nmf.weights = head(nmf.weights,20)
       nmf.weights$peak = rownames(nmf.weights)
       nmf.weights$peak = factor(nmf.weights$peak,levels=rev(nmf.weights$peak))
-      ggplot(nmf.weights,aes(y=peak,x=get(paste0('NMF_',input[['focus_NMF']]))))+geom_bar(stat='identity')+theme_classic()+xlab(paste0('NMF_',input[['focus_NMF']]))
+      ggplot(nmf.weights,aes(y=peak,x=get(paste0(get_dimred()$dimRed,'_',input[['focus_dimension']]))))+geom_bar(stat='identity')+theme_classic()+xlab(paste0(get_dimred()$dimRed,'_',input[['focus_dimension']]))
     })
-    # cluster_props <- reactive({
-    #   current.metadata = get_clusters()
-    #   current.metadata$SelectedMetadata = current.metadata[,input[['groupingMetadataBarPlot']]]
-    #   ggplot2::ggplot(current.metadata,ggplot2::aes(y=SelectedMetadata,fill=cluster)) +
-    #     ggplot2::geom_bar(position = 'fill') +
-    #     ggplot2::ylab(input[['groupingMetadataBarPlot']]) +
-    #     ggplot2::xlab('Proportion of spots')+
-    #     ggplot2::theme_classic()
-    # })
-    #
-    # cluster_props_persample <- reactive({
-    #   current.metadata = get_clusters()
-    #   current.metadata$SelectedMetadata = current.metadata[,input[['groupingMetadataBox']]]
-    #   current.metadata.count = current.metadata |>
-    #     dplyr::group_by(Sample, cluster) |>
-    #     dplyr::summarise(n = dplyr::n()) |>
-    #     dplyr::mutate(freq = n / sum(n))
-    #   current.metadata.count = merge(data.frame(current.metadata.count),unique(current.metadata[,c('Sample','SelectedMetadata')]))
-    #   ggplot2::ggplot(current.metadata.count,ggplot2::aes(fill=SelectedMetadata,y=freq,x=cluster)) +
-    #     ggplot2::geom_boxplot() +
-    #     ggplot2::scale_fill_discrete(name=input[['groupingMetadataBox']]) +
-    #     ggplot2::ylab('Proportion of spots per sample') +
-    #     ggplot2::theme_classic()
-    # })
-    #
-    # return_object <- reactive({
-    #   rownames(full.metadata)<-full.metadata$spot_id
-    #   merged.metadata = merge(full.metadata,get_clusters(),all.x=T,sort=F)
-    #   rownames(merged.metadata)=merged.metadata$spot_id
-    #   merged.metadata = merged.metadata[rownames(full.metadata),]
-    #   merged.metadata$cluster = as.character(merged.metadata$cluster)
-    #   merged.metadata <- tidyr::replace_na(merged.metadata, list(cluster = 'None'))
-    #   return(merged.metadata)
-    # })
-    #
-    output[['plotNMF']] <- renderPlot({
+
+    nmf_umap_prep <- reactive({
+      current.metadata = get_dimred()$metadata
+      dim.red.weights = current.metadata[,paste0(get_dimred()$dimRed,'_',1:get_dimred()$numDimensions)]
+      my.umap = uwot::umap(dim.red.weights,n_neighbors = 30,n_components = 2)
+      my.umap = as.data.frame(my.umap)
+      colnames(my.umap)=c('UMAP_1','UMAP_2')
+      current.metadata = cbind(current.metadata,my.umap)
+      current.metadata$UMAP_1 = scales::rescale(current.metadata$UMAP_1)
+      current.metadata$UMAP_2 = scales::rescale(current.metadata$UMAP_2)
+      colors=ColorBlender(current.metadata[,c('UMAP_1','UMAP_2')],channels.use = c("red","blue"))
+      current.metadata$my.color = colors
+      return(current.metadata)})
+
+    nmf_umap <- reactive({
+      current.metadata = nmf_umap_prep()
+      if (input[['colourUMAP']]%in%colnames(get_subset_exp()$exp)){
+        current.metadata$selectedPeak = get_subset_exp()$exp[,input[['colourUMAP']]]
+        current.metadata$selectedPeak = pmin(quantile(current.metadata$selectedPeak,0.95),current.metadata$selectedPeak)
+        current.metadata$selectedPeak = pmax(quantile(current.metadata$selectedPeak,0.05),current.metadata$selectedPeak)
+        current.metadata = current.metadata[order(current.metadata$selectedPeak),]
+        colour.function = ggplot2::scale_fill_gradient(name=input[['colourUMAP']],low = "lightgrey", high = "brown")
+
+      } else {
+        current.metadata$selectedPeak = current.metadata[,input[['colourUMAP']]]
+        colour.function = ggplot2::scale_color_discrete(name=input[['colourUMAP']])
+      }
+      return(list('SpatialView'=ggplot(current.metadata,aes(x=x,y=y))+
+                    geom_tile(color=current.metadata$my.color,fill=current.metadata$my.color)+
+                    theme_classic()+facet_wrap(~current.metadata$Group,scales='free')+
+                    ggplot2::theme(axis.title.x=ggplot2::element_blank(),
+                                   axis.text.x=ggplot2::element_blank(),
+                                   axis.ticks.x=ggplot2::element_blank(),
+                                   axis.line.x = ggplot2::element_blank(),
+                                   axis.title.y=ggplot2::element_blank(),
+                                   axis.text.y=ggplot2::element_blank(),
+                                   axis.ticks.y=ggplot2::element_blank(),
+                                   axis.line.y = ggplot2::element_blank()),
+                  'UMAP'=ggplot(current.metadata,aes(x=UMAP_1,y=UMAP_2,color=selectedPeak))+
+                    geom_point()+
+                    theme_classic()+colour.function))
+
+    })
+
+    output[['plotDimRed']] <- renderPlot({
       nmf_plot()
     })
 
-    output[['plotPerSampleNMF']] <- renderPlot({
+    output[['plotPerSampleDimRed']] <- renderPlot({
       nmf_persample()
     })
 
-    output[['plotNMFFeatureWeights']] <- renderPlot({
+    output[['plotDimRedFeatureWeights']] <- renderPlot({
       nmf_featureweights()
+    })
+
+    output[['DimRedUMAPSpatial']] <- renderPlot({
+      nmf_umap()$SpatialView
+    })
+
+    output[['DimRedUMAP']] <- renderPlot({
+      nmf_umap()$UMAP
     })
 
     # output[['plotClusterProps']] <- renderPlot({

@@ -27,5 +27,7 @@ Depends:
     ComplexHeatmap,
     circlize,
     shinyjqui,
-    RcppML
+    RcppML,
+    semla,
+    forcats
 RoxygenNote: 7.2.3
