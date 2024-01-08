@@ -1,3 +1,5 @@
+# need to check that features aren't getting combined!!
+
 #' @rdname BulkDEPanel
 #' @export
 BulkDEpanelUI <- function(id, bulk.metadata, show = TRUE){
@@ -5,12 +7,29 @@ BulkDEpanelUI <- function(id, bulk.metadata, show = TRUE){
 
   if(show){
     tabPanel(
-      'Differential expression',
+      'Differential analysis',
+      tags$h1("Differential analysis"),
       shinyjs::useShinyjs(),
       sidebarLayout(
 
         # Sidebar panel for inputs ----
         sidebarPanel(
+          dropMenu(
+            circleButton(ns("info_differential_analysis"), icon = icon("info"),status = "success"),
+            tags$div(
+              tags$h3("Differential analysis"),
+              tags$ul(
+                tags$li("Select a sample-wide metadata column and 2 condition groups to compare using t-tests or Wilcox rank sum tests"),
+                tags$li("log2FC and BH-adjusted p-values can be capped using the slides."),
+                tags$li("Comparisons are only performed once the button has been pressed."),
+                tags$li("The most recent comparison is passed onto other tabs for visualisation, pathway analysis etc."),
+                tags$li("The table of peaks showing significant changes can also be downloaded as a csv."),
+              )
+            ),
+            theme = "light-border",
+            placement = "right",
+            arrow = FALSE
+          ),
 
           selectInput(ns('condition'), 'Metadata column to use:', colnames(bulk.metadata)[-1],
                       selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
@@ -67,6 +86,8 @@ BulkDEpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
   })
 
   moduleServer(id, function(input, output, session){
+    r <- reactiveValues(go_DE=0)
+    observeEvent(input$goDE,{r$go_DE <- 1})
 
     observe({
       updateSelectInput(session, 'variable1', choices = unique(bulk.metadata[[input[["condition"]]]]))
@@ -113,7 +134,7 @@ BulkDEpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
     dataTable <- reactive({
       DEresults()$DEtableSubset %>%
         DT::datatable() %>%
-        DT::formatSignif(columns = c('pval', 'pvalAdj','lfc','log2exp'), digits = 3)
+        DT::formatSignif(columns = c('pval', 'pvalAdj','lfc','log2_intensity'), digits = 3)
     })
 
     output[['data']] <- DT::renderDataTable(dataTable())
@@ -142,7 +163,8 @@ BulkDEpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
       bindEvent(input[['selectTop50']])
 
     return(reactive(list('DE' = DEresults,
-                         'selectedPeaks' = reactive(selectedPeaks())
+                         'selectedPeaks' = reactive(selectedPeaks()),
+                         'runDE'=r$go_DE
     )))
 
 

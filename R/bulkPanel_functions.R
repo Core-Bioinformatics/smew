@@ -211,6 +211,7 @@ create_bulk_exp <- function(expression.matrix,
                             ppm = 5
                             ) {
   # add extra checks
+  expression.matrix = t(unique(t(expression.matrix)))
   expression.matrix$sample <- metadata[,sample.id.column]
   expression.matrix.mean <- expression.matrix |>
           dplyr::group_by(sample) |>

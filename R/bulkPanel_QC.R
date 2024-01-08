@@ -8,6 +8,14 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
       'Quality checks',
       tags$h1("Principal Component Analysis (PCA)"),
       shinyWidgets::dropdownButton(
+        tags$h3("PCA"),
+        tags$ul(
+          tags$li("Distribution of samples across the first 2 principal components."),
+          tags$li("Each sample is coloured by the selected sample-wide metadata information."),
+          tags$li("Metadata groups are surrounded by minimal ellipses containing all samples (ggplot2::stat_ellipse) or 95% confidence ellipses as selected in the options below."),
+          tags$li("Each sample can also be labelled.")
+        ),
+        br(),
         radioButtons(ns('pca.annotation'), label = "Group by",
                      choices = colnames(bulk.metadata), selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
         checkboxInput(ns("pca.show.labels"), label = "Show sample labels", value = FALSE),
@@ -18,12 +26,22 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
 
         status = "info",
         icon = icon("gear", verify_fa = FALSE),
-        tooltip = shinyWidgets::tooltipOptions(title = "Click to see inputs!")
+        tooltip = shinyWidgets::tooltipOptions(title = "Click to see information and options!")
       ),
       plotOutput(ns('pca')),
 
       tags$h1("Partial Least Squares Discriminant Analysis (PLS-DA)"),
       shinyWidgets::dropdownButton(
+        tags$h3("PLS-DA"),
+        tags$ul(
+          tags$li("Distribution of samples across the first 2 PLS-DA components as computed using mixOmics."),
+          tags$li("The discriminating metadata (used to compute PLS-DA which maximises separation between these groups) and the metadata to colour samples by can both be selected below."),
+          tags$li("As with PCA, metadata groups are surrounded by minimal ellipses containing all samples (ggplot2::stat_ellipse) or 95% confidence ellipses as selected in the options below."),
+          tags$li("Each sample can also be labelled."),
+          tags$li("The top peaks contributing to the PLS-DA are also shown below.")
+        ),
+        br(),
+
         radioButtons(ns('plsda.separator'), label = "Discriminating bulk.metadata",
                      choices = colnames(bulk.metadata), selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
         radioButtons(ns('plsda.annotation'), label = "Group by",
@@ -37,12 +55,25 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
 
         status = "info",
         icon = icon("gear", verify_fa = FALSE),
-        tooltip = shinyWidgets::tooltipOptions(title = "Click to see inputs!")
+        tooltip = shinyWidgets::tooltipOptions(title = "Click to see information and options!")
       ),
       plotOutput(ns('plsda')),
       plotOutput(ns('plsda_contrib')),
 
       tags$h1("Individual peak intensity barplots"),
+      dropMenu(
+        circleButton(ns("info_peak_barplot"), icon = icon("info"),status = "success"),
+        tags$div(
+          tags$h3("Peak intensity barplots"),
+          tags$ul(
+            tags$li("Select peaks and visualise their sample-wide average intensity compared to other samples in barplots."),
+            tags$li("Choose sample-wide metadata information to colour each bar by."),
+          )
+        ),
+        theme = "light-border",
+        placement = "right",
+        arrow = FALSE
+      ),
       selectInput(ns("barPeakName"), "Peaks to include:", multiple = TRUE, choices = character(0)),
       radioButtons(ns('peak.barplot.colour'), label = "Group by",
                    choices = colnames(bulk.metadata), selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
@@ -52,10 +83,23 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
 
         status = "info",
         icon = icon("gear", verify_fa = FALSE),
-        tooltip = shinyWidgets::tooltipOptions(title = "Click to see inputs!")
+        tooltip = shinyWidgets::tooltipOptions(title = "Click to see information and options!")
       ),
       plotOutput(ns('barplot')),
       tags$h1("Individual peak intensity box plots"),
+      dropMenu(
+        circleButton(ns("info_peak_boxplot"), icon = icon("info"),status = "success"),
+        tags$div(
+          tags$h3("Peak intensity boxplots"),
+          tags$ul(
+            tags$li("Select peaks and visualise their sample-wide average intensity compared to other samples in boxplots, grouped by the selected sample-wide metadata information."),
+          )
+        ),
+        theme = "light-border",
+        placement = "right",
+        arrow = FALSE
+      ),
+
       selectInput(ns("boxPeakName"), "Peaks to include:", multiple = TRUE, choices = character(0)),
       radioButtons(ns('boxplot.metadata'), label = "Group by",
                    choices = colnames(bulk.metadata), selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
@@ -65,7 +109,7 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
 
         status = "info",
         icon = icon("gear", verify_fa = FALSE),
-        tooltip = shinyWidgets::tooltipOptions(title = "Click to see inputs!")
+        tooltip = shinyWidgets::tooltipOptions(title = "Click to see information and options!")
       ),
       plotOutput(ns('boxplot'),click = ns('boxplot_click')),
 #      verbatimTextOutput(ns("data"))

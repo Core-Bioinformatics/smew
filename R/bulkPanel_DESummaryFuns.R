@@ -2,16 +2,16 @@ expression_heatmap_met <- function(
     expression.matrix.subset,
     top.annotation.ids = NULL,
     metadata,
-    type = c('Z-score', 'Log2 Expression', 'Expression'),
+    type = c('Z-score', 'Log2 Intensity', 'Intensity'),
     show.column.names = TRUE,
     cluster.peaks = TRUE
 ){
   heatmat <- as.matrix(expression.matrix.subset)
-  
+
   type <- type[1]
   heatmat <- rescale_matrix(heatmat, type)
   if(!show.column.names){colnames(heatmat) <- NULL}
-  
+
   if(!is.null(top.annotation.ids)){
     qual.col.pals = dplyr::filter(RColorBrewer::brewer.pal.info, .data$category == 'qual')
     col.vector = unique(unlist(mapply(RColorBrewer::brewer.pal,
@@ -58,7 +58,7 @@ expression_heatmap_met <- function(
     row_names_side = "right",
     top_annotation = top.annotation,
     heatmap_legend_param = list(
-      legend_direction = "horizontal", 
+      legend_direction = "horizontal",
       legend_width = unit(6, "cm")),
   ),
   heatmap_legend_side='bottom',
@@ -72,7 +72,7 @@ expression_heatmap_met <- function(
 #' \code{\link{DEanalysis_edger}}
 #' @param pval.threshold,lfc.threshold the p-value and/or log2(fold-change)
 #' thresholds to determine whether a peak is DE
-#' @param alpha the transparency of points; ignored for DE peaks if 
+#' @param alpha the transparency of points; ignored for DE peaks if
 #' add.expression.colour.gradient is TRUE; default is 0.1
 #' @param xlims a single value to create (symmetric) x-axis limits; by default
 #' inferred from the data
@@ -84,7 +84,7 @@ expression_heatmap_met <- function(
 #' for DE peaks to present their log2(expression); default is TRUE
 #' @param add.guide.lines whether to add vertical and horizontal guide lines
 #' to the plot to highlight the thresholds; default is TRUE
-#' @param add.labels.auto whether to automatically label peaks with the 
+#' @param add.labels.auto whether to automatically label peaks with the
 #' highest |log2(fold-change)| and expression; default is TRUE
 #' @param add.labels.custom whether to add labels to user-specified peaks;
 #' the parameter peaks.to.label must also be specified; default is FALSE
@@ -93,10 +93,10 @@ expression_heatmap_met <- function(
 #' @export
 #' @examples
 #' expression.matrix.preproc <- as.matrix(read.csv(
-#'   system.file("extdata", "expression_matrix_preprocessed.csv", package = "bulkAnalyseR"), 
+#'   system.file("extdata", "expression_matrix_preprocessed.csv", package = "bulkAnalyseR"),
 #'   row.names = 1
 #' ))[1:500, 1:4]
-#' 
+#'
 #' anno <- AnnotationDbi::select(
 #'   getExportedValue('org.Mm.eg.db', 'org.Mm.eg.db'),
 #'   keys = rownames(expression.matrix.preproc),
@@ -105,7 +105,7 @@ expression_heatmap_met <- function(
 #' ) %>%
 #'   dplyr::distinct(ENSEMBL, .keep_all = TRUE) %>%
 #'   dplyr::mutate(NAME = ifelse(is.na(SYMBOL), ENSEMBL, SYMBOL))
-#'   
+#'
 #' edger <- DEanalysis_edger(
 #'   expression.matrix = expression.matrix.preproc,
 #'   condition = rep(c("0h", "12h"), each = 2),
@@ -117,7 +117,7 @@ expression_heatmap_met <- function(
 #' print(vp)
 volcano_plot <- function(
     peaks.de.results,
-    pval.threshold = 0.05, 
+    pval.threshold = 0.05,
     lfc.threshold = 1,
     alpha = 0.1,
     xlims = NULL,
@@ -132,28 +132,28 @@ volcano_plot <- function(
   df = peaks.de.results %>%
     dplyr::mutate(peak = .data$m_z, log10pval = log10(.data$pvalAdj)) %>%
     dplyr::filter(!is.na(.data$log10pval))
-  
+
   if(all(df$log10pval >= -10)) log10pval.cap <- FALSE
   if(log10pval.cap) df$log10pval[df$log10pval < -10] <- -10
-  
+
   lfc <- NULL; log10pval <- NULL
   vp <- ggplot(data = df, mapping = aes(x = lfc, y = -log10pval)) +
     theme_minimal() +
     xlab("log2(FC)") +
-    ylab("-log10(pval)") 
-  
+    ylab("-log10(pval)")
+
   if(is.null(xlims)){
     max.abs.lfc = max(abs(df[df$log10pval > -Inf,]$lfc))
     vp <- vp + xlim(-max.abs.lfc, max.abs.lfc)
   }else{
     vp <- vp + xlim(-abs(xlims), abs(xlims))
   }
-  
+
   if(log10pval.cap){
     vp <- vp + scale_y_continuous(labels=c("0.0", "2.5", "5.0", "7.5", ">10"))
   }
-  
-  if(any(add.colours, 
+
+  if(any(add.colours,
          add.expression.colour.gradient,
          add.guide.lines,
          add.labels.auto,
@@ -172,15 +172,15 @@ volcano_plot <- function(
       ...
     )
   }
-  
+
   return(vp)
-  
+
 }
 
-#' @description \code{\link{volcano_enhance}} is called indirectly by 
+#' @description \code{\link{volcano_enhance}} is called indirectly by
 #' \code{\link{volcano_plot}} to add extra features.
 #' @param vp volcano plot as a ggplot object (usually passed by \code{\link{volcano_plot}})
-#' @param df data frame of DE results for all peaks (usually passed by 
+#' @param df data frame of DE results for all peaks (usually passed by
 #' \code{\link{volcano_plot}})
 #' @param point.colours a vector of 4 colours to colour peaks with both pval
 #' and lfc under thresholds, just pval under threshold, just lfc under threshold,
@@ -242,9 +242,9 @@ volcano_enhance <- function(
     seed = 0,
     label.force = 1
 ){
-  
+
   logp.threshold = log10(pval.threshold)
-  
+
   if(add.colours){
     colours = vector(length=nrow(df))
     colours[] = point.colours[1]
@@ -252,47 +252,47 @@ volcano_enhance <- function(
     colours[df$log10pval < logp.threshold] = point.colours[3]
     colours[abs(df$lfc) > lfc.threshold & df$log10pval < logp.threshold] = point.colours[4]
     df$colours <- colours
-    
+
     if(raster){
       vp <- vp + ggrastr::rasterise(geom_point(alpha = alpha, colour = colours))
     }else{
       vp <- vp + geom_point(alpha = alpha, colour = colours, fill = colours)
     }
   }
-  
+
   if(add.expression.colour.gradient){
     df.colour.gradient <- df %>%
       dplyr::filter(abs(.data$lfc) > lfc.threshold & .data$log10pval < logp.threshold) %>%
-      dplyr::arrange(.data$log2exp)
+      dplyr::arrange(.data$log2_intensity)
     if(identical(colour.gradient.scale$left, colour.gradient.scale$right)){
       vp <- vp +
         geom_point(data = df.colour.gradient,
-                   mapping = aes(x = .data$lfc, y = -.data$log10pval, colour = .data$log2exp)) +
-        scale_color_gradient(low = colour.gradient.scale$left[1], 
+                   mapping = aes(x = .data$lfc, y = -.data$log10pval, colour = .data$log2_intensity)) +
+        scale_color_gradient(low = colour.gradient.scale$left[1],
                              high = colour.gradient.scale$left[2],
                              breaks = colour.gradient.breaks,
                              limits = colour.gradient.limits) +
-        labs(colour = "log2(exp)")
+        labs(colour = "log2(intensity)")
     }else{
       vp <- vp +
         geom_point(data = dplyr::filter(df.colour.gradient, .data$lfc < 0),
-                   mapping = aes(x = .data$lfc, y = -.data$log10pval, colour = .data$log2exp)) +
-        scale_color_gradient(low = colour.gradient.scale$left[1], 
+                   mapping = aes(x = .data$lfc, y = -.data$log10pval, colour = .data$log2_intensity)) +
+        scale_color_gradient(low = colour.gradient.scale$left[1],
                              high = colour.gradient.scale$left[2],
                              breaks = colour.gradient.breaks,
                              limits = colour.gradient.limits) +
-        labs(colour = "log2(exp)") +
+        labs(colour = "log2(intensity)") +
         ggnewscale::new_scale_colour() +
         geom_point(data = dplyr::filter(df.colour.gradient, .data$lfc > 0),
-                   mapping = aes(x = .data$lfc, y = -.data$log10pval, colour = .data$log2exp)) +
-        scale_colour_gradient(low = colour.gradient.scale$right[1], 
+                   mapping = aes(x = .data$lfc, y = -.data$log10pval, colour = .data$log2_intensity)) +
+        scale_colour_gradient(low = colour.gradient.scale$right[1],
                               high = colour.gradient.scale$right[2],
                               breaks = colour.gradient.breaks,
                               limits = colour.gradient.limits) +
-        labs(colour = "log2(exp)")
+        labs(colour = "log2(intensity)")
     }
   }
-  
+
   if(add.guide.lines){
     vp <- vp +
       geom_vline(xintercept =      lfc.threshold,  colour = guide.line.colours[1]) +
@@ -302,10 +302,10 @@ volcano_enhance <- function(
       geom_hline(yintercept =     -logp.threshold, colour = guide.line.colours[1]) +
       geom_hline(yintercept = -2 * logp.threshold, colour = guide.line.colours[2])
   }
-  
+
   if(add.labels.auto | add.labels.custom){
     if(!is.null(annotation)){
-      df <- df %>% 
+      df <- df %>%
         dplyr::mutate(
           symbol = .data$peak,
           name = ifelse(is.na(.data$symbol), .data$peak, .data$symbol)
@@ -314,7 +314,7 @@ volcano_enhance <- function(
     }else{
       df <- df %>% dplyr::mutate(name = .data$peak)
     }
-    
+
     df.label <- tibble::tibble()
     if(add.labels.custom){
       peaks.to.rename <- peaks.to.label[names(peaks.to.label) != ""]
@@ -328,40 +328,40 @@ volcano_enhance <- function(
                        "did you forget to supply peaks.to.label or annotation?"))
       }
     }
-    
+
     if(add.labels.auto){
       if(length(n.labels.auto) == 1) n.labels.auto <- rep(n.labels.auto, 3)
       df.significant <- dplyr::filter(df, !(.data$name %in% peaks.to.label))
-      
+
       df.significant <- df.significant[order(abs(df.significant$lfc), decreasing=TRUE), ]
       df.highest.lfc <- utils::head(df.significant, n.labels.auto[1])
       df.rest <- utils::tail(df.significant, nrow(df.significant) - n.labels.auto[1]) %>%
         dplyr::filter(abs(.data$lfc) > lfc.threshold, .data$log10pval < logp.threshold)
-      
+
       df.rest <- df.rest[order(abs(df.rest$log10pval), decreasing=TRUE), ]
       df.lowest.p.vals <- utils::head(df.rest, n.labels.auto[2])
       df.rest <- utils::tail(df.rest, nrow(df.rest) - n.labels.auto[2])
-      
-      df.rest <- df.rest[order(df.rest$log2exp, decreasing=TRUE), ]
+
+      df.rest <- df.rest[order(df.rest$log2_intensity, decreasing=TRUE), ]
       df.highest.abn <- utils::head(df.rest, n.labels.auto[3])
-      
+
       df.label <- rbind(df.lowest.p.vals, df.highest.lfc, df.highest.abn, df.label) %>%
         dplyr::distinct(.data$name, .keep_all = TRUE)
     }
-    
+
     set.seed(seed = seed)
     vp <- vp +
       ggrepel::geom_label_repel(
-        data = df.label, 
+        data = df.label,
         mapping = aes(x = .data$lfc, y = -.data$log10pval, label = .data$name),
         max.overlaps = Inf,
         force = label.force,
         point.size = NA
       )
   }
-  
+
   return(vp)
-  
+
 }
 
 #' Create an MA plot visualising differential expression (DE) results
@@ -375,10 +375,10 @@ volcano_enhance <- function(
 #' @export
 #' @examples
 #' expression.matrix.preproc <- as.matrix(read.csv(
-#'   system.file("extdata", "expression_matrix_preprocessed.csv", package = "bulkAnalyseR"), 
+#'   system.file("extdata", "expression_matrix_preprocessed.csv", package = "bulkAnalyseR"),
 #'   row.names = 1
 #' ))[1:500, 1:4]
-#' 
+#'
 #' anno <- AnnotationDbi::select(
 #'   getExportedValue('org.Mm.eg.db', 'org.Mm.eg.db'),
 #'   keys = rownames(expression.matrix.preproc),
@@ -387,7 +387,7 @@ volcano_enhance <- function(
 #' ) %>%
 #'   dplyr::distinct(ENSEMBL, .keep_all = TRUE) %>%
 #'   dplyr::mutate(NAME = ifelse(is.na(SYMBOL), ENSEMBL, SYMBOL))
-#'   
+#'
 #' edger <- DEanalysis_edger(
 #'   expression.matrix = expression.matrix.preproc,
 #'   condition = rep(c("0h", "12h"), each = 2),
@@ -399,7 +399,7 @@ volcano_enhance <- function(
 #' print(mp)
 ma_plot <- function(
     peaks.de.results,
-    pval.threshold = 0.05, 
+    pval.threshold = 0.05,
     lfc.threshold = 1,
     alpha = 0.1,
     ylims = NULL,
@@ -413,21 +413,21 @@ ma_plot <- function(
   df = peaks.de.results %>%
     dplyr::mutate(peak = .data$m_z, log10pval = log10(.data$pvalAdj)) %>%
     dplyr::filter(!is.na(.data$log10pval))
-  
-  log2exp <- NULL; lfc <- NULL
-  p <- ggplot(data = df, mapping = aes(x = log2exp, y = lfc)) +
+
+  log2_intensity <- NULL; lfc <- NULL
+  p <- ggplot(data = df, mapping = aes(x = log2_intensity, y = lfc)) +
     ggplot2::theme_minimal() +
-    xlab("Average log2(exp)") +
+    xlab("Average log2(intensity)") +
     ylab("log2(FC)")
-  
+
   if(is.null(ylims)){
     max.abs.lfc = max(abs(df$lfc))
     p <- p + ylim(-max.abs.lfc, max.abs.lfc)
   }else{
     p <- p + ylim(-abs(ylims), abs(ylims))
   }
-  
-  if(any(add.colours, 
+
+  if(any(add.colours,
          add.expression.colour.gradient,
          add.guide.lines,
          add.labels.auto,
@@ -446,16 +446,16 @@ ma_plot <- function(
       ...
     )
   }
-  
+
   return(p)
-  
+
 }
 
 #' Add features to an MA plot visualising differential expression (DE) results
-#' @description \code{\link{ma_enhance}} is called indirectly by 
+#' @description \code{\link{ma_enhance}} is called indirectly by
 #' \code{\link{ma_plot}} to add extra features.
 #' @param p MA plot as a ggplot object (usually passed by \code{\link{ma_plot}})
-#' @param df data frame of DE results for all peaks (usually passed by 
+#' @param df data frame of DE results for all peaks (usually passed by
 #' \code{\link{ma_plot}})
 #' @return The enhanced MA plot as a ggplot object.
 #' @export
@@ -484,9 +484,9 @@ ma_enhance <- function(
     seed = 0,
     label.force = 1
 ){
-  
+
   logp.threshold = log10(pval.threshold)
-  
+
   if(add.colours){
     colours = vector(length=nrow(df))
     colours[] = point.colours[1]
@@ -494,47 +494,47 @@ ma_enhance <- function(
     colours[df$log10pval < logp.threshold] = point.colours[3]
     colours[abs(df$lfc) > lfc.threshold & df$log10pval < logp.threshold] = point.colours[4]
     df$colours <- colours
-    
+
     if(raster){
       p <- p + ggrastr::rasterise(geom_point(alpha = alpha, colour = colours))
     }else{
       p <- p + geom_point(alpha = alpha, colour = colours, fill = colours)
     }
   }
-  
+
   if(add.expression.colour.gradient){
     df.colour.gradient <- df %>%
       dplyr::filter(abs(.data$lfc) > lfc.threshold & .data$log10pval < logp.threshold) %>%
-      dplyr::arrange(.data$log2exp)
+      dplyr::arrange(.data$log2_intensity)
     if(identical(colour.gradient.scale$left, colour.gradient.scale$right)){
       p <- p +
         geom_point(data = df.colour.gradient,
-                   mapping = aes(x = .data$log2exp, y = .data$lfc, colour = .data$log2exp)) +
-        scale_color_gradient(low = colour.gradient.scale$left[1], 
+                   mapping = aes(x = .data$log2_intensity, y = .data$lfc, colour = .data$log2_intensity)) +
+        scale_color_gradient(low = colour.gradient.scale$left[1],
                              high = colour.gradient.scale$left[2],
                              breaks = colour.gradient.breaks,
                              limits = colour.gradient.limits) +
-        labs(colour = "log2(exp)")
+        labs(colour = "log2(intensity)")
     }else{
       p <- p +
         geom_point(data = dplyr::filter(df.colour.gradient, .data$lfc < 0),
-                   mapping = aes(x = .data$log2exp, y = .data$lfc, colour = .data$log2exp)) +
-        scale_color_gradient(low = colour.gradient.scale$left[1], 
+                   mapping = aes(x = .data$log2_intensity, y = .data$lfc, colour = .data$log2_intensity)) +
+        scale_color_gradient(low = colour.gradient.scale$left[1],
                              high = colour.gradient.scale$left[2],
                              breaks = colour.gradient.breaks,
                              limits = colour.gradient.limits) +
-        labs(colour = "log2(exp)") +
+        labs(colour = "log2(intensity)") +
         ggnewscale::new_scale_colour() +
         geom_point(data = dplyr::filter(df.colour.gradient, .data$lfc > 0),
-                   mapping = aes(x = .data$log2exp, y = .data$lfc, colour = .data$log2exp)) +
-        scale_colour_gradient(low = colour.gradient.scale$right[1], 
+                   mapping = aes(x = .data$log2_intensity, y = .data$lfc, colour = .data$log2_intensity)) +
+        scale_colour_gradient(low = colour.gradient.scale$right[1],
                               high = colour.gradient.scale$right[2],
                               breaks = colour.gradient.breaks,
                               limits = colour.gradient.limits) +
-        labs(colour = "log2(exp)")
+        labs(colour = "log2(intensity)")
     }
   }
-  
+
   if(add.guide.lines){
     p <- p +
       geom_hline(yintercept =      lfc.threshold,  colour = guide.line.colours[1]) +
@@ -542,10 +542,10 @@ ma_enhance <- function(
       geom_hline(yintercept =  2 * lfc.threshold,  colour = guide.line.colours[2]) +
       geom_hline(yintercept = -2 * lfc.threshold,  colour = guide.line.colours[2])
   }
-  
+
   if(add.labels.auto | add.labels.custom){
     if(!is.null(annotation)){
-      df <- df %>% 
+      df <- df %>%
         dplyr::mutate(
           symbol = .data$peak,
           name = ifelse(is.na(.data$symbol), .data$peak, .data$symbol)
@@ -554,7 +554,7 @@ ma_enhance <- function(
     }else{
       df <- df %>% dplyr::mutate(name = .data$peak)
     }
-    
+
     df.label <- tibble::tibble()
     if(add.labels.custom){
       peaks.to.rename <- peaks.to.label[names(peaks.to.label) != ""]
@@ -568,7 +568,7 @@ ma_enhance <- function(
                        "did you forget to supply peaks.to.label or annotation?"))
       }
     }
-    
+
     if(add.labels.auto){
       if(length(n.labels.auto) == 1) n.labels.auto <- rep(n.labels.auto, 3)
       df.significant <- dplyr::filter(df, !(.data$name %in% peaks.to.label))
@@ -576,23 +576,23 @@ ma_enhance <- function(
       df.highest.lfc <- utils::head(df.significant, n.labels.auto[1])
       df.rest <- utils::tail(df.significant, nrow(df.significant) - n.labels.auto[1]) %>%
         dplyr::filter(abs(.data$lfc) > lfc.threshold, .data$log10pval < logp.threshold)
-      
+
       df.rest <- df.rest[order(abs(df.rest$log10pval), decreasing=TRUE), ]
       df.lowest.p.vals <- utils::head(df.rest, n.labels.auto[2])
       df.rest <- utils::tail(df.rest, nrow(df.rest) - n.labels.auto[2])
-      
-      df.rest <- df.rest[order(df.rest$log2exp, decreasing=TRUE), ]
+
+      df.rest <- df.rest[order(df.rest$log2_intensity, decreasing=TRUE), ]
       df.highest.abn <- utils::head(df.rest, n.labels.auto[3])
-      
+
       df.label <- rbind(df.lowest.p.vals, df.highest.lfc, df.highest.abn, df.label) %>%
         dplyr::distinct(.data$name, .keep_all = TRUE)
     }
-    
+
     set.seed(seed = seed)
     p <- p +
       ggrepel::geom_label_repel(
-        data = df.label, 
-        mapping = aes(x = .data$log2exp, y = .data$lfc, label = .data$name),
+        data = df.label,
+        mapping = aes(x = .data$log2_intensity, y = .data$lfc, label = .data$name),
         max.overlaps = Inf,
         force = label.force,
         point.size = NA
@@ -603,13 +603,13 @@ ma_enhance <- function(
 
 
 rescale_matrix <- function(
-    mat, 
-    type = c('Expression', 'Log2 Expression', 'Mean Scaled', 'Z-score')
+    mat,
+    type = c('Intensity', 'Log2 Intensity', 'Mean Scaled', 'Z-score')
 ){
   type <- type [1]
-  if(type == 'Expression'){
+  if(type == 'Intensity'){
     mat <- mat
-  }else if(type == 'Log2 Expression'){
+  }else if(type == 'Log2 Intensity'){
     mat <- log2(mat + 1)
   }else if(type == 'Mean Scaled'){
     mat <- mat / rowMeans(mat)

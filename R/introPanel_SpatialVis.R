@@ -6,6 +6,7 @@ IntroSpatialVisPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE
   if(show){
     tabPanel(
       'Spatial visualisation',
+
       selectInput(
             inputId = ns("samplesToShow"),
             label = "Select samples to show",
@@ -15,6 +16,21 @@ IntroSpatialVisPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE
           ),
       sidebarLayout(
         sidebarPanel(
+          dropMenu(
+            circleButton(ns("info_peak"), icon = icon("info"),status = "success"),
+            tags$div(
+              tags$h3("Spatial peak visualisation"),
+              tags$ul(
+                tags$li("Select a peak and visualise its intensity across the samples selected at the top of this panel."),
+                tags$li("The intensity can be capped at different percentiles using the sliders provided. If you select 0 and 100 as the limits then no capping is applied."),
+                tags$li("Density plots showing the variation in intensity are also included to help select meaningful capping points."),
+                tags$li("Log (base 2) transformations can also be applied to intensities (after capping is applied).")
+              )
+            ),
+            theme = "light-border",
+            placement = "right",
+            arrow = FALSE
+          ),
           selectInput(ns("peakName"), "Peaks to include:", multiple = FALSE, choices = character(0)),
           checkboxInput(ns("log2_intensity"),label = 'Show log2 intensity',value = FALSE),
           sliderInput(ns("capRange"), "Cap scale on percentiles:",
@@ -28,6 +44,18 @@ IntroSpatialVisPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE
       fluidRow(column=10,plotOutput(ns('plotPeak'),height = 600)),
       sidebarLayout(
         sidebarPanel(
+          dropMenu(
+            circleButton(ns("info_metadata"), icon = icon("info"),status = "success"),
+            tags$div(
+              tags$h3("Spatial peak visualisation"),
+              tags$ul(
+                tags$li("Select a metadata column and visualise it spatially across the samples selected at the top of this panel."),
+              )
+            ),
+            theme = "light-border",
+            placement = "right",
+            arrow = FALSE
+          ),
             selectInput(ns("metadataName"), "Metadata to display:", multiple = FALSE, choices = colnames(full.metadata),selected=colnames(full.metadata)[length(colnames(full.metadata))]),
             actionButton(ns("go_plot_metadata"),'Show spatial visualisation')),
         mainPanel(
@@ -124,5 +152,6 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.ex
     # } else {
       return(unique(bulk.metadata[,1]))
  #   }
+
   })
 }

@@ -140,13 +140,16 @@ RegionDimRedPanelServer <- function(id, full.expression.matrix, full.metadata, b
       current.expression.matrix <- current.expression.matrix[,apply(current.expression.matrix, 2, var, na.rm=TRUE) != 0]
       # current.expression.matrix <- scale(x = current.expression.matrix,center = T,scale = T)
       # current.expression.matrix <- current.expression.matrix[complete.cases(current.expression.matrix),]
+      print('I am running')
       pc.components <- prcomp(as.matrix(current.expression.matrix),center = TRUE,scale.=TRUE,rank. = input[["numDimensions"]])
+      print('I have calculate PCs')
       pc.component.weights = data.frame(pc.components$x)
       pc.component.features = data.frame(t(pc.components$rotation))
       colnames(pc.component.weights)=paste0('PCA_',1:input[["numDimensions"]])
       current.metadata = cbind(current.metadata,pc.component.weights)
       colnames(pc.component.features)=colnames(current.expression.matrix)
       rownames(pc.component.features)=paste0('PCA_',1:input[["numDimensions"]])
+      print('I am here')
       return.list = list('metadata'=current.metadata,'feature_weights'=pc.component.features,'dimRed'=input[['dimReduction']],'numDimensions'=input[['numDimensions']])
       return(return.list)
     })  %>% bindEvent(input[["run_dimred"]])

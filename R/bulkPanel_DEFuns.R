@@ -1,11 +1,11 @@
-DEanalysis <-function(expression.matrix,condition,var1,var2,test='ttest',anno){
-  
+DEanalysis <-function(expression.matrix,condition,var1,var2,test='t-test',anno){
+
   # calculate FC
   expression.matrix = expression.matrix[(matrixStats::rowMins(as.matrix(expression.matrix))!=matrixStats::rowMaxs(as.matrix(expression.matrix))) &
-                                          (matrixStats::rowMins(as.matrix(expression.matrix[,condition==var1]))!=matrixStats::rowMaxs(as.matrix(expression.matrix[,condition==var1]))) &
-                                          (matrixStats::rowMins(as.matrix(expression.matrix[,condition==var2]))!=matrixStats::rowMaxs(as.matrix(expression.matrix[,condition==var2]))),]
+                                          ((matrixStats::rowMins(as.matrix(expression.matrix[,condition==var1]))!=matrixStats::rowMaxs(as.matrix(expression.matrix[,condition==var1]))) |
+                                          (matrixStats::rowMins(as.matrix(expression.matrix[,condition==var2]))!=matrixStats::rowMaxs(as.matrix(expression.matrix[,condition==var2])))),]
   fc_results=as.data.frame(expression.matrix)
-  fc_results$log2exp = log2(rowMeans(expression.matrix))
+  fc_results$log2_intensity = log2(rowMeans(expression.matrix))
   fc_results$group1_mean = as.numeric(rowMeans(expression.matrix[, condition==var1]))
   fc_results$group2_mean = as.numeric(rowMeans(expression.matrix[, condition==var2]))
   fc_results$fc = fc_results$group1_mean / fc_results$group2_mean
@@ -34,20 +34,19 @@ DEanalysis <-function(expression.matrix,condition,var1,var2,test='ttest',anno){
   print(paste("Number of rows before dropping NA values:", nrow(fc_results)))
   fc_results = fc_results[apply(fc_results, 1, function(x) !any(is.na(x))),]
   print(paste("Number of rows after dropping NA values:", nrow(fc_results)))
-  
+
   # drop duplicates
-  print(paste("Number of rows before dropping duplicates:", nrow(fc_results)))
-  fc_results = dplyr::distinct(fc_results)
-  print(paste("Number of rows after dropping duplicates:", nrow(fc_results)))
-  
+   print(paste("Number of rows before dropping duplicates:", nrow(fc_results)))
+   fc_results = dplyr::distinct(fc_results)
+   print(paste("Number of rows after dropping duplicates:", nrow(fc_results)))
   # rearrange columns
-  fc_results = fc_results[,c('group1_mean', 'group2_mean', 'pvalue', 'pvalue_adj', 'log2fc','log2exp')] # , colnames_1, colnames_2
+  fc_results = fc_results[,c('group1_mean', 'group2_mean', 'pvalue', 'pvalue_adj', 'log2fc','log2_intensity')] # , colnames_1, colnames_2
   print(paste("#### Number of rows after rearranging columns:", nrow(fc_results)))
   mytable = tibble::tibble('m_z'=rownames(fc_results),
                            'pval'=fc_results$pvalue,
                            'pvalAdj'=fc_results$pvalue_adj,
                            'lfc'=fc_results$log2fc,
-                           'log2exp'=fc_results$log2exp)
+                           'log2_intensity'=fc_results$log2_intensity)
   mytable = merge(mytable,anno[,colnames(anno)!='name'],all.x=T)
   return(mytable)
 }
