@@ -6,8 +6,9 @@ create_bulk_exp_regions <- function(expression.matrix,
                             minimum.pixels = 3
 ) {
   # add extra checks
+  print(head(metadata))
   expression.matrix$sample <- metadata[,sample.id.metadata.column]
-
+  # passed here
   expression.matrix$region <- region.ids
   expression.matrix.mean <- expression.matrix |>
     dplyr::group_by(sample,region) |>
@@ -31,5 +32,5 @@ create_bulk_exp_regions <- function(expression.matrix,
     }
   }
   metadata.mean = metadata.mean[metadata.mean[,1]%in%colnames(expression.matrix.mean),]
-  return(list('expression.matrix'=expression.matrix.mean,'metadata'=metadata.mean))
+  return(list('expression.matrix'=as.matrix(expression.matrix.mean),'metadata'=metadata.mean))
 }

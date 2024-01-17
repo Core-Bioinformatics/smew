@@ -6,6 +6,23 @@ PixelSVMPanelUI <- function(id, bulk.metadata, full.metadata, full.expression.ma
   if(show){
     tabPanel(
       'Spatial visualisation',
+      dropMenu(
+        circleButton(ns("info_svm"), icon = icon("info"),status = "success"),
+        tags$div(
+          tags$h3("Spatially variable metabolite identification"),
+          tags$ul(
+            tags$li("Spatially variable peaks/metabolites can be identified using the approach implemented in semla."),
+            tags$li("The identification is run separately on each sample selected then the results are aggregated across samples to show the intersection of peaks which were among the top most spatially variable across samples in upset plots and barplots (where the bar can also be split by colour according to metadata information)."),
+            tags$li("If differential intensity analysis has been run (in the Pseudobulk tab) then any significantly changing peaks are highlighted by stars above the barplot (if multiple samples are included) or in the table (when one sample only is included)."),
+            tags$li("The top spatially variable peaks (the number of which is user-selected) can then be visualised spatially"),
+            tags$li("Finally, the spatially variable peaks are clustered to identified modules of peaks which have similar intensity patterns"),
+          )
+        ),
+        theme = "light-border",
+        placement = "right",
+        arrow = FALSE
+      ),
+
       selectInput(
         inputId = ns("samplesToInclude"),
         label = "Select samples to include",
@@ -63,8 +80,8 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.expressio
       coords$barcode = as.character(coords$barcode)
       coords = as.tibble(coords)
       coords$sampleID = as.numeric(as.factor(coords$sampleID))
-      spatnet = semla::GetSpatialNetwork(coords)
-      spatgenes = semla::CorSpatialFeatures(current.expression.matrix,spatnet)
+      spatnet = GetSpatialNetwork(coords)
+      spatgenes = CorSpatialFeatures(current.expression.matrix,spatnet,nCores=1)
       return(spatgenes)
     })
     run_svm <- reactive({
@@ -97,16 +114,25 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.expressio
       } else {
         top.svm$label=''
       }
-      top.svm$label = paste0(top.svm$value,' ',top.svm$label)
+ #     top.svm$label = paste0(top.svm$value,' ',top.svm$label)
       print(unique(top.svm$label))
       print(head(top.svm))
-      plot = ggplot(top.svm,aes(x=forcats::fct_infreq(label),fill=get(input[['metadataBarplot']]),label=label))+
-        geom_bar()+
+      top.svm$metadataBarplot = top.svm[,input[['metadataBarplot']]]
+      top.svm = top.svm %>% group_by(value,metadataBarplot,label) %>% summarise(n=n()) %>% arrange(desc(n))
+      top.svm.grouped = top.svm %>% group_by(value,label) %>% summarise(n=sum(n)) %>% arrange(desc(n))
+      print(head(top.svm.grouped))
+      print(head(top.svm))
+      top.svm$value = factor(top.svm$value,levels=top.svm.grouped$value)
+      plot = ggplot(data=top.svm,aes(x=value, fill=metadataBarplot,y=n)) +
+        geom_bar(stat='identity')+
         theme_classic()+
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
         xlab('Peak')+
-        scale_fill_discrete(name=input[['metadataBarplot']])
-      return(list('plot'=plot,'names'=names(sort(table(top.svm$value),decreasing=T))))
+        scale_fill_discrete(name=input[['metadataBarplot']])+
+        ylab('Number of samples')+
+        geom_text(data = top.svm.grouped,aes(x=value,y=n,label = label,fill=NULL),size=10)
+
+      return(list('plot'=plot,'names'=top.svm.grouped$value))
 
     })
 

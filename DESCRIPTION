@@ -1,9 +1,9 @@
 Package: MSIToolKit
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Interactive Shiny App Workflow For Analysing Spatial Metabolomics MSI Data
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
+Author: Eleanor Williams
+Maintainer: Eleanor Williams <ecw63@cam.ac.uk>
 Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
 License: What license is it under?
@@ -28,6 +28,7 @@ Depends:
     circlize,
     shinyjqui,
     RcppML,
-    semla,
-    forcats
+    forcats,
+    rlang,
+    Matrix
 RoxygenNote: 7.2.3

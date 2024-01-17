@@ -5,7 +5,7 @@ BulkDESummaryPanelUI <- function(id, bulk.metadata, show = TRUE){
 
   if(show){
     tabPanel(
-      'Differential analysis visualisation',
+      'Differential intensity analysis visualisation',
       tags$h1("Peak heatmap"),
       shinyWidgets::dropdownButton(
         tags$h3("Peak heatmap"),
@@ -38,7 +38,7 @@ BulkDESummaryPanelUI <- function(id, bulk.metadata, show = TRUE){
         tags$h3("Volcano/MA plots"),
         tags$ul(
           tags$li("Volcano/MA plots showing the log2FC, log10 BH-adjusted p-value and average intensity for each peak, colouring peaks showing significant changes."),
-          tags$li("Peaks selected in Differential analysis tab are highlighted."),
+          tags$li("Peaks selected in Differential intensity analysis tab are highlighted."),
           tags$li("Extra peaks can be highlighted using the search box below."),
           tags$li("The y-axis scale for volcano plots can be capped at log10(p-value) > 10."),
         ),

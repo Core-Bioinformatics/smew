@@ -13,6 +13,21 @@ RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
           # samples to include
           # number of clusters
           # any other parameters
+          dropMenu(
+            circleButton(ns("info_clustering"), icon = icon("info"),status = "success"),
+            tags$div(
+              tags$h3("Clustering"),
+              tags$ul(
+                tags$li("Regions/clusters can be identified using k-means clustering or intensity threshold-based segmentation (more methods to be added soon)."),
+                tags$li("Select which samples to use for clusters - note that the intensity thresholding method will only calculate a threshold based on the samples you include."),
+                tags$li("After clustering, the spatial distribution of the clusters is shown, followed by a barplot showing the proportion of pixels in your selected metadata column in each cluster and a boxplot showing the distribution of proportion of pixels per sample in each cluster grouped by your selected metadata column."),
+                tags$li("The most recent clusters identified are passed onto the region-level differential intensity analysis tab"),
+              )
+            ),
+            theme = "light-border",
+            placement = "right",
+            arrow = FALSE
+          ),
           selectInput(
             inputId = ns("samplesToCluster"),
             label = "Select samples for clustering",
@@ -66,7 +81,7 @@ RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
 
         #Main panel for displaying table of enriched pathways
         mainPanel(
-          plotOutput(ns('plotClusters')),
+          fluidRow(column=10,plotOutput(ns('plotClusters'),height = 600)),
           plotOutput(ns('plotClusterProps')),
           plotOutput(ns('plotClusterPropsPerSample')))
         )
@@ -120,7 +135,8 @@ RegionClusterPanelServer <- function(id, full.expression.matrix, full.metadata, 
                           axis.title.y=ggplot2::element_blank(),
                           axis.text.y=ggplot2::element_blank(),
                           axis.ticks.y=ggplot2::element_blank(),
-                          axis.line.y = ggplot2::element_blank())
+                          axis.line.y = ggplot2::element_blank(),
+                          aspect.ratio = 1)
 
       return(my_plot)
     }) %>% bindEvent(input[["run_clustering"]])
@@ -162,7 +178,7 @@ RegionClusterPanelServer <- function(id, full.expression.matrix, full.metadata, 
 
     output[['plotClusters']] <- renderPlot({
       cluster_plot()
-    })
+    },height=600)
 
     output[['plotClusterProps']] <- renderPlot({
       cluster_props()

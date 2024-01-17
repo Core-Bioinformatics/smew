@@ -39,6 +39,25 @@ RegionDimRedPanelUI <- function(id, bulk.metadata, full.metadata, full.expressio
           # samples to include
           # number of clusters
           # any other parameters
+          dropMenu(
+            circleButton(ns("info_dim_reduction"), icon = icon("info"),status = "success"),
+            tags$div(
+              tags$h3("Dimensionality reduction"),
+              tags$ul(
+                tags$li("This tab will perform dimensionality reduction on all pixels across whichever samples are selected."),
+                tags$li("NMF and PCA are currently available."),
+                tags$li("The number of dimensions (i.e. components/factors) computed is user-selected and a random seed can also be selected."),
+                tags$li("The dimensionality reduction is only performed once 'Run dimensionality reduction' button is pressed."),
+                tags$li("The distribution of factor/component values by metadata column can be visualised and the top contributing peaks extracted."),
+                tags$li("The resulting components/factors can be visualised spatially and a UMAP can further be calculated to visualise the dimensionality reduction in 2 dimensions."),
+                tags$li("Pixels in the UMAP can be coloured according to metadata information or peak intensity."),
+              )
+            ),
+            theme = "light-border",
+            placement = "right",
+            arrow = FALSE
+          ),
+
           selectInput(inputId = ns("dimReduction"),label = "Dimensionality reduction",choices = c('NMF','PCA'),selected = 'NMF'),
           selectInput(
             inputId = ns("samplesToFactor"),

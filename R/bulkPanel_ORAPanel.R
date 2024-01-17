@@ -10,6 +10,22 @@ BulkORAPanelUI <- function(id, bulk.metadata, show = TRUE){
 
         # Sidebar panel for inputs ----
         sidebarPanel(
+          dropMenu(
+            circleButton(ns("info_differential_analysis"), icon = icon("info"),status = "success"),
+            tags$div(
+              tags$h3("Over-representation analysis"),
+              tags$ul(
+                tags$li("This tab performs over-representation analysis on KEGG pathways."),
+                tags$li("The differential metabolites are taken from the last time the Differential intensity analysis tab was run (i.e. the Start differential intensity analysis button was pressed)."),
+                tags$li("Pathways with small numbers of present metabolites or significant can be discarded using the options below."),
+                tags$li("The p-value threshold for calling a pathway significant can also be adjusted."),
+                tags$li("A table of significant pathways is shown, followed by a volcano plot and a separation of pathways into KEGG hierarchy categories and sub-categories."),
+              )
+            ),
+            theme = "light-border",
+            placement = "right",
+            arrow = FALSE
+          ),
           # add slider to select the minimum number of pathways to be considered before peak mapping
           sliderInput(
             inputId = ns("min_pathway_size"),

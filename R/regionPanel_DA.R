@@ -5,12 +5,28 @@ RegionDEpanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
 
   if(show){
     tabPanel(
-      'Differential expression',
+      'Differential intensity analysis',
       shinyjs::useShinyjs(),
       sidebarLayout(
 
         # Sidebar panel for inputs ----
         sidebarPanel(
+          dropMenu(
+            circleButton(ns("info_differential_analysis"), icon = icon("info"),status = "success"),
+            tags$div(
+              tags$h3("Differential intensity analysis"),
+              tags$ul(
+                tags$li("First select a segmentation to pseudobulk on, which is either the clusters identified in the previous tab or a column from the metadata table which is not sample-wide. For each region, a sample will be created for each original sample assuming there are sufficient observations (the threshold can be altered)."),
+                tags$li("A sample-wide metadata column should also be selected "),
+                tags$li("Comparisons are only performed once the button has been pressed."),
+                tags$li("The most recent comparison is passed onto other tabs for visualisation, pathway analysis etc."),
+                tags$li("The table of peaks showing significant changes can also be downloaded as a csv."),
+              )
+            ),
+            theme = "light-border",
+            placement = "right",
+            arrow = FALSE
+          ),
 
           selectInput(
             inputId = ns("regionToGroupOn"),
@@ -42,10 +58,10 @@ RegionDEpanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
                       min = 0, value = 1, max = 5, step = 0.1),
 
           #Only start DE when button is pressed
-          actionButton(ns('goDE'), label = 'Start DE'),
+          actionButton(ns('goDE'), label = 'Start differential intensity analysis'),
 
           #download file name and button
-          textInput(ns('fileName'),'File name for download', value ='DEset.csv', placeholder = 'DEset.csv'),
+          textInput(ns('fileName'),'File name for download', value ='DIAset.csv', placeholder = 'DIAset.csv'),
           downloadButton(ns('download'), 'Download Table'),
           hr(),
           tags$b("Peak selection"),
@@ -88,7 +104,7 @@ RegionDEpanelServer <- function(id, full.expression.matrix, full.metadata, bulk.
     )
 
     pseudobulk_samples <- reactive({
-      pseudobulked <- create_bulk_exp_regions(full.expression.matrix,
+      pseudobulked <- create_bulk_exp_regions(as.data.frame(full.expression.matrix),
                               region.clusters(),
                               bulk.metadata,
                               colnames(bulk.metadata)[1],
@@ -153,7 +169,7 @@ RegionDEpanelServer <- function(id, full.expression.matrix, full.metadata, bulk.
     dataTable <- reactive({
       DEresults()$DEtableSubset %>%
         DT::datatable() %>%
-        DT::formatSignif(columns = c('pval', 'pvalAdj','lfc','log2exp'), digits = 3)
+        DT::formatSignif(columns = c('pval', 'pvalAdj','lfc','log2_intensity'), digits = 3)
     })
 
     output[['data']] <- DT::renderDataTable(dataTable())

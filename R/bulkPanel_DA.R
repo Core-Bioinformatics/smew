@@ -7,8 +7,8 @@ BulkDEpanelUI <- function(id, bulk.metadata, show = TRUE){
 
   if(show){
     tabPanel(
-      'Differential analysis',
-      tags$h1("Differential analysis"),
+      'Differential intensity analysis',
+      tags$h1("Differential intensity analysis"),
       shinyjs::useShinyjs(),
       sidebarLayout(
 
@@ -17,7 +17,7 @@ BulkDEpanelUI <- function(id, bulk.metadata, show = TRUE){
           dropMenu(
             circleButton(ns("info_differential_analysis"), icon = icon("info"),status = "success"),
             tags$div(
-              tags$h3("Differential analysis"),
+              tags$h3("Differential intensity analysis"),
               tags$ul(
                 tags$li("Select a sample-wide metadata column and 2 condition groups to compare using t-tests or Wilcox rank sum tests"),
                 tags$li("log2FC and BH-adjusted p-values can be capped using the slides."),
@@ -49,10 +49,10 @@ BulkDEpanelUI <- function(id, bulk.metadata, show = TRUE){
                      min = 0, value = 1, max = 5, step = 0.1),
 
           #Only start DE when button is pressed
-          actionButton(ns('goDE'), label = 'Start DE'),
+          actionButton(ns('goDE'), label = 'Start differential intensity analysis'),
 
           #download file name and button
-          textInput(ns('fileName'),'File name for download', value ='DEset.csv', placeholder = 'DEset.csv'),
+          textInput(ns('fileName'),'File name for download', value ='DIAset.csv', placeholder = 'DIAset.csv'),
           downloadButton(ns('download'), 'Download Table'),
           hr(),
           tags$b("Peak selection"),
