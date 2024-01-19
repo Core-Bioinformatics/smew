@@ -103,25 +103,18 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
       top.svm = tidyr::pivot_longer(top.svm,cols=colnames(top.svm))
       colnames(top.svm)[1]=colnames(bulk.metadata)[1]
       top.svm = merge(top.svm,bulk.metadata)
-      print(head(top.svm))
       if (DEresults()$runDE==1){
         deres = DEresults()$DE()$DEtable[,c('m_z','pvalAdj','lfc')]
         deres$DE = deres$m_z %in% DEresults()$DE()$DEtableSubset$m_z
         colnames(deres)[1]='value'
         top.svm = merge(top.svm,deres,all.x=T)
         top.svm$label = ifelse(top.svm$DE==TRUE,'*','')
-        print(top.svm[top.svm$label=='*',])
       } else {
         top.svm$label=''
       }
- #     top.svm$label = paste0(top.svm$value,' ',top.svm$label)
-      print(unique(top.svm$label))
-      print(head(top.svm))
       top.svm$metadataBarplot = top.svm[,input[['metadataBarplot']]]
       top.svm = top.svm %>% group_by(value,metadataBarplot,label) %>% summarise(n=n()) %>% arrange(desc(n))
       top.svm.grouped = top.svm %>% group_by(value,label) %>% summarise(n=sum(n)) %>% arrange(desc(n))
-      print(head(top.svm.grouped))
-      print(head(top.svm))
       top.svm$value = factor(top.svm$value,levels=top.svm.grouped$value)
       plot = ggplot(data=top.svm,aes(x=value, fill=metadataBarplot,y=n)) +
         geom_bar(stat='identity')+
@@ -140,10 +133,8 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
       updateSelectInput(session, 'peakName', choices = svm_barplot()$names)
     })
     show_peak <- reactive({
-      print(input[['peakName']])
       svm_results <- run_svm()
       my_peak = anno[anno$m_z==input[['peakName']],]
-      print(my_peak)
       current.intensity.matrix <- get_subset_exp()$exp
       current.metadata <- get_subset_exp()$meta
       caps = quantile(current.intensity.matrix[,my_peak$m_z],probs=c(0.05,0.95))
@@ -190,8 +181,6 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
     output[['SVMTable']] <- DT::renderDT({
       svm.table = svm_preprocess()[[1]]
       colnames(svm.table)=c('m_z','SVM_corr')
-      print('Showing DE results structure')
-      print(DEresults()$runDE)
       svm.table = merge(svm.table,anno[,c('m_z','name')],all.x=T)
       if (DEresults()$runDE==1){
         deres = DEresults()$DE()$DEtable[,c('m_z','pvalAdj','lfc')]

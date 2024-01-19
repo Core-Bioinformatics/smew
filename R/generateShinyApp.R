@@ -81,7 +81,7 @@ generateAppFile <- function(
 ){
   lines.out <- c()
 
-  packages.to.load <- c("MSIToolKit","shiny")
+  packages.to.load <- c("smew","shiny")
   code.load.packages <- paste0("library(", packages.to.load, ")")
   lines.out <- c(lines.out, code.load.packages, "")
 

@@ -25,23 +25,23 @@ DEanalysis <-function(intensity.matrix,condition,var1,var2,test='t-test',anno){
   rownames(fc_results)=names
   # check if there are any NA values
   if (any(is.na(fc_results$pvalue))){
-    print("NA values found in pvalue column")
+#    print("NA values found in pvalue column")
   }
   if (any(is.na(fc_results$pvalue_adj))){
-    print("NA values found in pvalue_adj column")
+#    print("NA values found in pvalue_adj column")
   }
   # drop NA values
-  print(paste("Number of rows before dropping NA values:", nrow(fc_results)))
+#  print(paste("Number of rows before dropping NA values:", nrow(fc_results)))
   fc_results = fc_results[apply(fc_results, 1, function(x) !any(is.na(x))),]
-  print(paste("Number of rows after dropping NA values:", nrow(fc_results)))
+#  print(paste("Number of rows after dropping NA values:", nrow(fc_results)))
 
   # drop duplicates
-   print(paste("Number of rows before dropping duplicates:", nrow(fc_results)))
+#   print(paste("Number of rows before dropping duplicates:", nrow(fc_results)))
    fc_results = dplyr::distinct(fc_results)
-   print(paste("Number of rows after dropping duplicates:", nrow(fc_results)))
+#   print(paste("Number of rows after dropping duplicates:", nrow(fc_results)))
   # rearrange columns
   fc_results = fc_results[,c('group1_mean', 'group2_mean', 'pvalue', 'pvalue_adj', 'log2fc','log2_intensity')] # , colnames_1, colnames_2
-  print(paste("#### Number of rows after rearranging columns:", nrow(fc_results)))
+#  print(paste("#### Number of rows after rearranging columns:", nrow(fc_results)))
   mytable = tibble::tibble('m_z'=rownames(fc_results),
                            'pval'=fc_results$pvalue,
                            'pvalAdj'=fc_results$pvalue_adj,

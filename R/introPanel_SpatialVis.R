@@ -78,13 +78,7 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
       my_peak = anno[anno$display_name==input[['peakName']],]
       current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToShow']],]
       current.intensity.matrix <- t(full.intensity.matrix)[,full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToShow']]]
-      print(input[['capRange']])
       caps = quantile(current.intensity.matrix[my_peak$m_z,],probs=input[['capRange']]/100)
-      print(caps)
-      print(caps[1])
-      print(caps[2])
-      print(max(current.intensity.matrix[my_peak$m_z,]))
-      print(min(current.intensity.matrix[my_peak$m_z,]))
       current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
       current.metadata$peak = current.intensity.matrix[my_peak$m_z,]
       if (input[['splitDensity']]){

@@ -30,7 +30,6 @@ CorSpatialFeatures.default <- function (
 
   # Check that objects match
   spots_in_spatnets <- !unique(all_spatial_network_spots) %in% rownames(object)
-  print(str(spots_in_spatnets))
   if (any(spots_in_spatnets)) abort(glue("{sum(spots_in_spatnets)} spots in the spatial networks could not be found in the feature matrix.",
                                          "i" = "Make sure that the spatial networks share spot IDs with the feature matrix."))
 

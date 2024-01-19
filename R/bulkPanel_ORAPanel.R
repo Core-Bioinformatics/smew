@@ -66,7 +66,8 @@ BulkORAPanelUI <- function(id, bulk.metadata, show = TRUE){
           DT::dataTableOutput(ns('data')),
           plotOutput(ns('oraVolcano'),click=ns('plot_click')),
           tableOutput(ns('oraVolcanoData')),
-          plotOutput(ns('pathwayCategories'))
+          plotOutput(ns('pathwayCategories')),
+          visNetwork::visNetworkOutput(ns('ORAnetwork'))
         )
       )
     )
@@ -100,10 +101,40 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
 
     dataTable <- reactive({
       get_ORA() |>
-        dplyr::filter(FDR<0.05) |>
+        dplyr::filter(FDR<input[['ora_pvalue_cutoff']]) |>
         dplyr::select(-metabolites) |>
         DT::datatable() %>%
         DT::formatSignif(columns = c('Raw.p', 'Holm.p','FDR'), digits = 3)
+    })
+
+    oraNetwork <- reactive({
+      ora <- get_ORA() |>
+        dplyr::filter(FDR<input[['ora_pvalue_cutoff']]) |>
+        dplyr::mutate(`-log10pval` = -log10(.data$FDR),
+                      lfc = ifelse(.data$direction=='up',log2(.data$hits/.data$expected),-log2(.data$hits/.data$expected)))
+      pathway.list = list()
+      for (pathway in unique(kegg_db$pathway_name)){
+        pathway.list[[pathway]]=unique(kegg_db[kegg_db$pathway_name==pathway,]$compound_id)
+      }
+      nodes = data.frame(label=ora$pathway,id=ora$pathway,shape='circle',color=ora$lfc,font.color='white')
+      nodes$label = stringr::str_wrap(nodes$label,10)
+      edges = data.frame(t(combn(names(pathway.list), 2)))
+      edges = edges[edges$X1!=edges$X2,]
+      colnames(edges)=c('from','to')
+      weight.vector = c()
+      for (i in 1:nrow(edges)){
+        from.met = pathway.list[[edges[i,'from']]]
+        to.met = pathway.list[[edges[i,'to']]]
+        weight.vector = c(weight.vector,(length(intersect(from.met,to.met))/length(union(from.met,to.met))))
+        #  weight.vector = c(weight.vector,(length(intersect(from.met,to.met))))
+      }
+      edges$value = weight.vector
+      edges = edges[edges$value!=0,]
+      nodes$color = scales::col_numeric('RdYlBu',-ceiling(max(abs(nodes$color))):ceiling(max(abs(nodes$color))))(nodes$color)
+      return(visNetwork::visNetwork(nodes,edges) |>
+        visNetwork::visPhysics(solver = "forceAtlas2Based",
+                               forceAtlas2Based = list(gravitationalConstant = -100)))
+
     })
 
     output[['data']] <- DT::renderDataTable(dataTable())
@@ -120,7 +151,7 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
     }, digits = 4)
 
     output[['pathwayCategories']] <- renderPlot({
-      significant.pathways = get_ORA()[get_ORA()$FDR<0.05,]
+      significant.pathways = get_ORA()[get_ORA()$FDR<input[['ora_pvalue_cutoff']],]
       kegg_classification$pathway = kegg_classification$pathway_name
       kegg_classification$category1 = factor(kegg_classification$category1)
       kegg_classification$category2 = factor(kegg_classification$category2)
@@ -136,6 +167,8 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
                ggplot2::theme(legend.position="none")
       )
     })
+
+    output[['ORAnetwork']] <- visNetwork::renderVisNetwork(oraNetwork())
 
   })
 }

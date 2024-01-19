@@ -6,7 +6,6 @@ create_bulk_exp_regions <- function(intensity.matrix,
                             minimum.pixels = 3
 ) {
   # add extra checks
-  print(head(metadata))
   intensity.matrix$sample <- metadata[,sample.id.metadata.column]
   # passed here
   intensity.matrix$region <- region.ids

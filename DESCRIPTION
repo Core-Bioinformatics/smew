@@ -29,5 +29,8 @@ Depends:
     RcppML,
     forcats,
     rlang,
-    Matrix
+    Matrix,
+    visNetwork,
+    scales,
+    stringr
 RoxygenNote: 7.2.3
