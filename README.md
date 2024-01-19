@@ -31,6 +31,26 @@ For example, your intensity matrix and metadata table may look something like:
 
 The first column of the metadata table must match the row names of the expression matrix, named *spot_id*, followed by *x* and *y* columns containing spatial coordiantes. There must be another column which describes the sample a pixel corresponds to, specified in the *generateShinyApp* call as *sample.id.column*. Other columns can contain sample-wide information (e.g. treatment group), specified in *sample.wide.columns* and other metadata information containing individual pixel information. 
 
+### Creating an app
+
+Once your data is in the format above, you can create an app in just 1 line of code. In the case, suppose you have data from mouse in negative ion mode where the sample name is denoted by 'Sample_Name', you have 2 extra sample-wide columns called 'Timepoint' and 'Treatment' and 1 pixel-wise metadata column called 'Fibrotic'. In this case we only want to include peaks which can be annotated as known metabolites.
+
+```{r}
+library(smew) 
+
+generateShinyApp(
+  shiny.dir = 'MyShinyApp',
+  intensity.matrix = my.intensity.matrix,
+  metadata = my.metadata,
+  sample.id.column = 'Sample_Name',
+  sample.wide.columns = c('Timepoint','Treatment'),
+  only.annotated = TRUE,
+  organism = 'Mouse'
+)
+
+#run shiny app
+shiny::runApp(shiny.dir)
+```
 
 ## Installation guide
 
