@@ -1,12 +1,12 @@
 expression_heatmap_met <- function(
-    expression.matrix.subset,
+    intensity.matrix.subset,
     top.annotation.ids = NULL,
     metadata,
     type = c('Z-score', 'Log2 Intensity', 'Intensity'),
     show.column.names = TRUE,
     cluster.peaks = TRUE
 ){
-  heatmat <- as.matrix(expression.matrix.subset)
+  heatmat <- as.matrix(intensity.matrix.subset)
 
   type <- type[1]
   heatmat <- rescale_matrix(heatmat, type)
@@ -92,14 +92,14 @@ expression_heatmap_met <- function(
 #' @return The volcano plot as a ggplot object.
 #' @export
 #' @examples
-#' expression.matrix.preproc <- as.matrix(read.csv(
+#' intensity.matrix.preproc <- as.matrix(read.csv(
 #'   system.file("extdata", "expression_matrix_preprocessed.csv", package = "bulkAnalyseR"),
 #'   row.names = 1
 #' ))[1:500, 1:4]
 #'
 #' anno <- AnnotationDbi::select(
 #'   getExportedValue('org.Mm.eg.db', 'org.Mm.eg.db'),
-#'   keys = rownames(expression.matrix.preproc),
+#'   keys = rownames(intensity.matrix.preproc),
 #'   keytype = 'ENSEMBL',
 #'   columns = 'SYMBOL'
 #' ) %>%
@@ -107,7 +107,7 @@ expression_heatmap_met <- function(
 #'   dplyr::mutate(NAME = ifelse(is.na(SYMBOL), ENSEMBL, SYMBOL))
 #'
 #' edger <- DEanalysis_edger(
-#'   expression.matrix = expression.matrix.preproc,
+#'   intensity.matrix = intensity.matrix.preproc,
 #'   condition = rep(c("0h", "12h"), each = 2),
 #'   var1 = "0h",
 #'   var2 = "12h",
@@ -374,14 +374,14 @@ volcano_enhance <- function(
 #' @return The MA plot as a ggplot object.
 #' @export
 #' @examples
-#' expression.matrix.preproc <- as.matrix(read.csv(
+#' intensity.matrix.preproc <- as.matrix(read.csv(
 #'   system.file("extdata", "expression_matrix_preprocessed.csv", package = "bulkAnalyseR"),
 #'   row.names = 1
 #' ))[1:500, 1:4]
 #'
 #' anno <- AnnotationDbi::select(
 #'   getExportedValue('org.Mm.eg.db', 'org.Mm.eg.db'),
-#'   keys = rownames(expression.matrix.preproc),
+#'   keys = rownames(intensity.matrix.preproc),
 #'   keytype = 'ENSEMBL',
 #'   columns = 'SYMBOL'
 #' ) %>%
@@ -389,7 +389,7 @@ volcano_enhance <- function(
 #'   dplyr::mutate(NAME = ifelse(is.na(SYMBOL), ENSEMBL, SYMBOL))
 #'
 #' edger <- DEanalysis_edger(
-#'   expression.matrix = expression.matrix.preproc,
+#'   intensity.matrix = intensity.matrix.preproc,
 #'   condition = rep(c("0h", "12h"), each = 2),
 #'   var1 = "0h",
 #'   var2 = "12h",

@@ -1,6 +1,6 @@
 #' @rdname IntroSpatialVisPanel
 #' @export
-PixelSVMPanelUI <- function(id, bulk.metadata, full.metadata, full.expression.matrix, show = TRUE){
+PixelSVMPanelUI <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, show = TRUE){
   ns <- NS(id)
 
   if(show){
@@ -60,20 +60,20 @@ PixelSVMPanelUI <- function(id, bulk.metadata, full.metadata, full.expression.ma
 
 #' @rdname IntroSpatialVisPanel
 #' @export
-PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.expression.matrix, anno, DEresults){
+PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, anno, DEresults){
 
   moduleServer(id, function(input, output, session){
 
     get_subset_exp <- reactive({
-      current.expression.matrix <- full.expression.matrix[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToInclude']],]
+      current.intensity.matrix <- full.intensity.matrix[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToInclude']],]
       current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToInclude']],]
       current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
-      rownames(current.expression.matrix)=current.metadata[,1]
-      return(list('exp'=current.expression.matrix,'meta'=current.metadata))
+      rownames(current.intensity.matrix)=current.metadata[,1]
+      return(list('exp'=current.intensity.matrix,'meta'=current.metadata))
     }) %>% bindEvent(input[["run_SVM"]])
 
     svm_preprocess <- reactive({
-      current.expression.matrix <- get_subset_exp()$exp
+      current.intensity.matrix <- get_subset_exp()$exp
       current.metadata <- get_subset_exp()$meta
       coords = current.metadata[,c('spot_id','x','y',colnames(bulk.metadata)[1])]
       colnames(coords)=c('barcode','x','y','sampleID')
@@ -81,7 +81,7 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.expressio
       coords = as.tibble(coords)
       coords$sampleID = as.numeric(as.factor(coords$sampleID))
       spatnet = GetSpatialNetwork(coords)
-      spatgenes = CorSpatialFeatures(current.expression.matrix,spatnet,nCores=1)
+      spatgenes = CorSpatialFeatures(current.intensity.matrix,spatnet,nCores=1)
       return(spatgenes)
     })
     run_svm <- reactive({
@@ -144,11 +144,11 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.expressio
       svm_results <- run_svm()
       my_peak = anno[anno$m_z==input[['peakName']],]
       print(my_peak)
-      current.expression.matrix <- get_subset_exp()$exp
+      current.intensity.matrix <- get_subset_exp()$exp
       current.metadata <- get_subset_exp()$meta
-      caps = quantile(current.expression.matrix[,my_peak$m_z],probs=c(0.05,0.95))
+      caps = quantile(current.intensity.matrix[,my_peak$m_z],probs=c(0.05,0.95))
       current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
-      current.metadata$peak = current.expression.matrix[,my_peak$m_z]
+      current.metadata$peak = current.intensity.matrix[,my_peak$m_z]
       current.metadata$peak = pmin(caps[2],current.metadata$peak)
       current.metadata$peak = pmax(caps[1],current.metadata$peak)
       spatial.plot = ggplot2::ggplot(current.metadata,ggplot2::aes(x=x,y=y,color=peak,fill=peak))+geom_tile()+

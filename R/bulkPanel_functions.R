@@ -34,9 +34,9 @@ get_matched_comps = function(adducts_table, mz_list, allowed_dppm) {
   diff_df$allowed_tolerance = tolerance
 
   # convert to long format
-  # diff_df_long = pivot_longer(diff_df, cols = -c(exp_peak, allowed_tolerance), names_to = 'mw_adduct_adductmass', values_to = 'observed_difference')
+  diff_df_long = pivot_longer(diff_df, cols = -c(exp_peak, allowed_tolerance), names_to = 'mw_adduct_adductmass', values_to = 'observed_difference')
   # Melt the data table - this is a faster alternative to pivot_longer
-  diff_df_long = reshape2::melt(diff_df, id.vars = c("exp_peak", "allowed_tolerance"))
+#  diff_df_long = reshape2::melt(diff_df, id.vars = c("exp_peak", "allowed_tolerance"))
   # # Rename the variable columns
   colnames(diff_df_long) = c("exp_peak", "allowed_tolerance", "mw_adduct_adductmass", "observed_difference")
 
@@ -190,8 +190,8 @@ get_matched_peaks = function(
 
 #' Create bulk dataset from pixel-wise intensity matrix
 #'
-#' @param expression.matrix A data.frame containing m/z values on the columns and pixels/spots on the rows.
-#' @param metadata A data.frame with the first column matching the rownames from expression.matrix, the next 2
+#' @param intensity.matrix A data.frame containing m/z values on the columns and pixels/spots on the rows.
+#' @param metadata A data.frame with the first column matching the rownames from intensity.matrix, the next 2
 #' columns containing x and y coordinates and other columns describing attributes of the pixel, e.g. sample
 #' of origin, timepoint, treatment, pathology annotations.
 #' @param sample.id.column Name or index of column in metadata table which specifies the sample of origin
@@ -201,7 +201,7 @@ get_matched_peaks = function(
 #' @examples
 #' add(1, 1)
 #' add(10, 1)
-create_bulk_exp <- function(expression.matrix,
+create_bulk_exp <- function(intensity.matrix,
                             metadata,
                             sample.id.column = 4,
                             sample.wide.columns = c(),
@@ -211,26 +211,26 @@ create_bulk_exp <- function(expression.matrix,
                             ppm = 5
                             ) {
   # add extra checks
-  expression.matrix = t(unique(t(expression.matrix)))
-  expression.matrix$sample <- metadata[,sample.id.column]
-  expression.matrix.mean <- expression.matrix |>
+#  intensity.matrix = t(unique(t(intensity.matrix)))
+  intensity.matrix$sample <- metadata[,sample.id.column]
+  intensity.matrix.mean <- intensity.matrix |>
           dplyr::group_by(sample) |>
           dplyr::summarise(across(everything(), mean))
-  sample.names = expression.matrix.mean$sample
-  expression.matrix.mean <- expression.matrix.mean |>
+  sample.names = intensity.matrix.mean$sample
+  intensity.matrix.mean <- intensity.matrix.mean |>
           dplyr::select(-sample) |>
           as.matrix() |>
           t() |>
           as.data.frame() |>
           dplyr::rename_with(~sample.names)
   metadata.mean = unique(metadata[,c(sample.id.column,sample.wide.columns)])
-  if (nrow(metadata.mean)!=ncol(expression.matrix.mean)){
+  if (nrow(metadata.mean)!=ncol(intensity.matrix.mean)){
     stop('Please check all your sample.wide.columns are indeed sample-wide.')
   }
 
   #finished current stuff
   matched_peaks = get_matched_peaks(kegg_db = kegg_db,
-                                    peak_list = gsub('X','',rownames(expression.matrix.mean)),
+                                    peak_list = gsub('X','',rownames(intensity.matrix.mean)),
                                     ppm = ppm,
                                     mode = mode,
                                     adducts = adducts,
@@ -250,7 +250,7 @@ create_bulk_exp <- function(expression.matrix,
   annotation_table = matched_peaks[,c(1,6,8,9)]
   colnames(annotation_table)=c('m_z','adduct','kegg_id','name')
 #  annotation_table$m_z = paste0('X',annotation_table$m_z)
-  full_table = data.frame('m_z'=rownames(expression.matrix.mean))
+  full_table = data.frame('m_z'=rownames(intensity.matrix.mean))
   annotation_table = merge(full_table,annotation_table,all.x=T)
   annotation_table = unique(annotation_table)
   annotation_table = annotation_table |>
@@ -260,7 +260,7 @@ create_bulk_exp <- function(expression.matrix,
               name = paste(name,collapse = ', '))
   annotation_table$display_name = ifelse(is.na(annotation_table$name),annotation_table$m_z,
                                                paste0(annotation_table$m_z,'_',annotation_table$name))
-  return(list('expression_matrix'=expression.matrix.mean,
+  return(list('intensity_matrix'=intensity.matrix.mean,
               'metadata'=metadata.mean,
               'matched_peaks'=matched_peaks,
               'annotation_table'=annotation_table))

@@ -1,4 +1,4 @@
-create_bulk_exp_regions <- function(expression.matrix,
+create_bulk_exp_regions <- function(intensity.matrix,
                             metadata,
                             bulk.metadata,
                             sample.id.metadata.column,
@@ -7,16 +7,16 @@ create_bulk_exp_regions <- function(expression.matrix,
 ) {
   # add extra checks
   print(head(metadata))
-  expression.matrix$sample <- metadata[,sample.id.metadata.column]
+  intensity.matrix$sample <- metadata[,sample.id.metadata.column]
   # passed here
-  expression.matrix$region <- region.ids
-  expression.matrix.mean <- expression.matrix |>
+  intensity.matrix$region <- region.ids
+  intensity.matrix.mean <- intensity.matrix |>
     dplyr::group_by(sample,region) |>
     dplyr::summarise(across(everything(), mean),n=n())
-  expression.matrix.mean = expression.matrix.mean[expression.matrix.mean$n>minimum.pixels,]
-  sample.names = paste0(expression.matrix.mean$sample,'_',expression.matrix.mean$region)
-  expression.matrix.mean <- expression.matrix.mean[,!(colnames(expression.matrix.mean)%in%c('sample','region'))]
-  expression.matrix.mean <- expression.matrix.mean |>
+  intensity.matrix.mean = intensity.matrix.mean[intensity.matrix.mean$n>minimum.pixels,]
+  sample.names = paste0(intensity.matrix.mean$sample,'_',intensity.matrix.mean$region)
+  intensity.matrix.mean <- intensity.matrix.mean[,!(colnames(intensity.matrix.mean)%in%c('sample','region'))]
+  intensity.matrix.mean <- intensity.matrix.mean |>
     dplyr::select(-dplyr::one_of(c('sample','region'))) |>
     as.matrix() |>
     t() |>
@@ -31,6 +31,6 @@ create_bulk_exp_regions <- function(expression.matrix,
       metadata.mean = rbind(metadata.mean,current.metadata)
     }
   }
-  metadata.mean = metadata.mean[metadata.mean[,1]%in%colnames(expression.matrix.mean),]
-  return(list('expression.matrix'=as.matrix(expression.matrix.mean),'metadata'=metadata.mean))
+  metadata.mean = metadata.mean[metadata.mean[,1]%in%colnames(intensity.matrix.mean),]
+  return(list('intensity.matrix'=as.matrix(intensity.matrix.mean),'metadata'=metadata.mean))
 }

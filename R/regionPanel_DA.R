@@ -87,10 +87,10 @@ RegionDEpanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
 
 #' @rdname RegionDEPanel
 #' @export
-RegionDEpanelServer <- function(id, full.expression.matrix, full.metadata, bulk.metadata, region.clusters, anno){
+RegionDEpanelServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, region.clusters, anno){
   # check whether inputs (other than id) are reactive or not
   stopifnot({
-    is.reactive(bulk.expression.matrix)
+    is.reactive(bulk.intensity.matrix)
     is.reactive(bulk.metadata)
     !is.reactive(anno)
   })
@@ -104,7 +104,7 @@ RegionDEpanelServer <- function(id, full.expression.matrix, full.metadata, bulk.
     )
 
     pseudobulk_samples <- reactive({
-      pseudobulked <- create_bulk_exp_regions(as.data.frame(full.expression.matrix),
+      pseudobulked <- create_bulk_exp_regions(as.data.frame(full.intensity.matrix),
                               region.clusters(),
                               bulk.metadata,
                               colnames(bulk.metadata)[1],
@@ -136,12 +136,12 @@ RegionDEpanelServer <- function(id, full.expression.matrix, full.metadata, bulk.
     DEresults <- reactive({
       shinyjs::disable("goDE")
       pseudobulk.metadata = pseudobulk_samples()$metadata
-      pseudobulk.expression.matrix = pseudobulk_samples()$expression.matrix
-      pseudobulk.expression.matrix = pseudobulk.expression.matrix[,pseudobulk.metadata[,1]]
+      pseudobulk.intensity.matrix = pseudobulk_samples()$intensity.matrix
+      pseudobulk.intensity.matrix = pseudobulk.intensity.matrix[,pseudobulk.metadata[,1]]
       condition.indices <- pseudobulk.metadata[[input[["condition"]]]] %in% c(input[['variable1']], input[['variable2']])
       # Need to add error if any group has <2 samples
       DEtable <- DEanalysis(
-        expression.matrix = pseudobulk.expression.matrix[, condition.indices],
+        intensity.matrix = pseudobulk.intensity.matrix[, condition.indices],
         condition = pseudobulk.metadata[[input[["condition"]]]][condition.indices],
         var1 = input[['variable1']],
         var2 = input[['variable2']],

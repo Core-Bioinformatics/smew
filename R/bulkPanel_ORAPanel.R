@@ -77,12 +77,12 @@ BulkORAPanelUI <- function(id, bulk.metadata, show = TRUE){
 
 #' @rdname BulkORAPanel
 #' @export
-BulkORAPanelServer <- function(id, bulk.expression.matrix, bulk.metadata, DEresults, anno){
+BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresults, anno){
 
   # check whether inputs (other than id) are reactive or not
   stopifnot({
     is.reactive(DEresults)
-    is.reactive(bulk.expression.matrix)
+    is.reactive(bulk.intensity.matrix)
     is.reactive(bulk.metadata)
     !is.reactive(anno)
   })

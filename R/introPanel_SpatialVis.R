@@ -69,7 +69,7 @@ IntroSpatialVisPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE
 
 #' @rdname IntroSpatialVisPanel
 #' @export
-IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.expression.matrix, anno){
+IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, anno){
 
   moduleServer(id, function(input, output, session){
     updateSelectizeInput(session, "peakName", choices = anno$display_name, server = TRUE, selected = anno$display_name[1])
@@ -77,16 +77,16 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.ex
     show_peak <- reactive({
       my_peak = anno[anno$display_name==input[['peakName']],]
       current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToShow']],]
-      current.expression.matrix <- t(full.expression.matrix)[,full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToShow']]]
+      current.intensity.matrix <- t(full.intensity.matrix)[,full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToShow']]]
       print(input[['capRange']])
-      caps = quantile(current.expression.matrix[my_peak$m_z,],probs=input[['capRange']]/100)
+      caps = quantile(current.intensity.matrix[my_peak$m_z,],probs=input[['capRange']]/100)
       print(caps)
       print(caps[1])
       print(caps[2])
-      print(max(current.expression.matrix[my_peak$m_z,]))
-      print(min(current.expression.matrix[my_peak$m_z,]))
+      print(max(current.intensity.matrix[my_peak$m_z,]))
+      print(min(current.intensity.matrix[my_peak$m_z,]))
       current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
-      current.metadata$peak = current.expression.matrix[my_peak$m_z,]
+      current.metadata$peak = current.intensity.matrix[my_peak$m_z,]
       if (input[['splitDensity']]){
         density.plot = ggplot2::ggplot(current.metadata,ggplot2::aes(x=peak,color=Sample))+geom_density()+theme_classic()+geom_vline(xintercept = caps[1])+geom_vline(xintercept = caps[2])
       } else {

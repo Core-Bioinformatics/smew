@@ -93,18 +93,18 @@ RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
 
 #' @rdname RegionClusterPanel
 #' @export
-RegionClusterPanelServer <- function(id, full.expression.matrix, full.metadata, bulk.metadata, anno){
+RegionClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, anno){
 
   moduleServer(id, function(input, output, session){
     updateSelectizeInput(session, "peakToThreshold", choices = anno$display_name, server = TRUE, selected = anno$display_name[1])
 
     get_clusters <- reactive({
-      current.expression.matrix <- full.expression.matrix[,full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToCluster']]]
+      current.intensity.matrix <- full.intensity.matrix[,full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToCluster']]]
       current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToCluster']],]
       current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
       if (input[['clusteringApproach']]=='Intensity thresholding'){
       my_peak = anno[anno$display_name==input[['peakToThreshold']],]
-      my_peak_expression <- t(current.expression.matrix[my_peak$m_z,])
+      my_peak_expression <- t(current.intensity.matrix[my_peak$m_z,])
       quantiles = quantile(my_peak_expression, prob=c(input[['thresholdLow']]/100,(100-input[['thresholdHigh']])/100), type=1)
       current.metadata$cluster = factor(ifelse(my_peak_expression<=quantiles[1],'Low',
                                         ifelse(my_peak_expression>=quantiles[2],'High','Medium')),levels=c('Low','Medium','High'))
@@ -112,9 +112,9 @@ RegionClusterPanelServer <- function(id, full.expression.matrix, full.metadata, 
       if (input[['clusteringApproach']]=='k-means'){
 
  #     set.seed(23)
-      current.expression.matrix <- scale(x = current.expression.matrix,center = T,scale = T)
-      current.expression.matrix <- current.expression.matrix[complete.cases(current.expression.matrix),]
-      clusters <- kmeans(t(current.expression.matrix),
+      current.intensity.matrix <- scale(x = current.intensity.matrix,center = T,scale = T)
+      current.intensity.matrix <- current.intensity.matrix[complete.cases(current.intensity.matrix),]
+      clusters <- kmeans(t(current.intensity.matrix),
                          centers = input[['numClusters']],
                          nstart = 1)
       current.metadata$cluster = factor(clusters$cluster,levels=1:input[['numClusters']])

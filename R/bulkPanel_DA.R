@@ -77,10 +77,10 @@ BulkDEpanelUI <- function(id, bulk.metadata, show = TRUE){
 
 #' @rdname BulkDEPanel
 #' @export
-BulkDEpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
+BulkDEpanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
   # check whether inputs (other than id) are reactive or not
   stopifnot({
-    is.reactive(bulk.expression.matrix)
+    is.reactive(bulk.intensity.matrix)
     is.reactive(bulk.metadata)
     !is.reactive(anno)
   })
@@ -106,7 +106,7 @@ BulkDEpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
       condition.indices <- bulk.metadata[[input[["condition"]]]] %in% c(input[['variable1']], input[['variable2']])
       # Need to add error if any group has <2 samples
       DEtable <- DEanalysis(
-        expression.matrix = bulk.expression.matrix[, condition.indices],
+        intensity.matrix = bulk.intensity.matrix[, condition.indices],
         condition = bulk.metadata[[input[["condition"]]]][condition.indices],
         var1 = input[['variable1']],
         var2 = input[['variable2']],
@@ -125,7 +125,7 @@ BulkDEpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
                   'pvalThreshold' = input[["pvalThreshold"]],
                   'lfcThreshold' = input[['lfcThreshold']]))
     }) %>%
-      bindCache(utils::head(bulk.expression.matrix), bulk.metadata, input[["condition"]],
+      bindCache(utils::head(bulk.intensity.matrix), bulk.metadata, input[["condition"]],
                 input[['variable1']], input[['variable2']], input[["pipeline"]],
                 input[["pvalThreshold"]],input[['lfcThreshold']]) |>
       bindEvent(input[["goDE"]])

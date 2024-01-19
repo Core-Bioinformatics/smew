@@ -121,7 +121,7 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
 
 #' @rdname BulkQCPanel
 #' @export
-BulkQCpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
+BulkQCpanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
   ns <- NS(id)
   # check whether inputs (other than id) are reactive or not
 
@@ -136,10 +136,10 @@ BulkQCpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
 
     pca.plot <- reactive({
       myplot <- plot_pca(
-        expression.matrix = bulk.expression.matrix,
+        intensity.matrix = bulk.intensity.matrix,
         metadata = bulk.metadata,
         annotation.id = match(input[['pca.annotation']], colnames(bulk.metadata)),
-        n.abundant = nrow(bulk.expression.matrix),
+        n.abundant = nrow(bulk.intensity.matrix),
         show.labels = input[['pca.show.labels']],
         show.ellipses = input[['pca.show.ellipses']],
         show.confidence.ellipses = input[['pca.show.confidence.ellipses']]
@@ -150,7 +150,7 @@ BulkQCpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
 
     plsda.plot <- reactive({
       myplot <- plot_plsda(
-        expression.matrix = bulk.expression.matrix,
+        intensity.matrix = bulk.intensity.matrix,
         metadata = bulk.metadata,
         separator.id = match(input[['plsda.separator']], colnames(bulk.metadata)),
         annotation.id = match(input[['plsda.annotation']], colnames(bulk.metadata)),
@@ -163,7 +163,7 @@ BulkQCpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
     output[['plsda']] <- renderPlot(plsda.plot())
 
     plsda.contrib <- reactive({
-      myplot <- plsda_contrib(expression.matrix=bulk.expression.matrix,
+      myplot <- plsda_contrib(intensity.matrix=bulk.intensity.matrix,
                               metadata=bulk.metadata,
                               separator.id = match(input[['plsda.separator']], colnames(bulk.metadata)),
                               comp = input[['plsda.comp']],
@@ -174,13 +174,13 @@ BulkQCpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
     bar.plot <- reactive({
       peak.ids <- anno$m_z[match(input[["barPeakName"]],anno$display_name)]
       if (length(peak.ids)==1){
-        sub.expression.matrix <- data.frame(bulk.expression.matrix[peak.ids,,drop=F])
+        sub.intensity.matrix <- data.frame(bulk.intensity.matrix[peak.ids,,drop=F])
       } else {
-        sub.expression.matrix <- data.frame(bulk.expression.matrix[peak.ids,,drop=F])
+        sub.intensity.matrix <- data.frame(bulk.intensity.matrix[peak.ids,,drop=F])
       }
-      rownames(sub.expression.matrix) <- input[["barPeakName"]]
+      rownames(sub.intensity.matrix) <- input[["barPeakName"]]
       myplot <- peaks_barplot(
-        sub.expression.matrix = sub.expression.matrix,
+        sub.intensity.matrix = sub.intensity.matrix,
         log.transformation = F,
         condition.vector = bulk.metadata[,input[['peak.barplot.colour']]])
       myplot
@@ -190,13 +190,13 @@ BulkQCpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
     box.plot <- reactive({
       peak.ids <- anno$m_z[match(input[["boxPeakName"]],anno$display_name)]
       if (length(peak.ids)==1){
-        sub.expression.matrix <- data.frame(bulk.expression.matrix[peak.ids,,drop=F])
+        sub.intensity.matrix <- data.frame(bulk.intensity.matrix[peak.ids,,drop=F])
       } else {
-        sub.expression.matrix <- data.frame(bulk.expression.matrix[peak.ids,,drop=F])
+        sub.intensity.matrix <- data.frame(bulk.intensity.matrix[peak.ids,,drop=F])
       }
-      rownames(sub.expression.matrix) <- input[["boxPeakName"]]
+      rownames(sub.intensity.matrix) <- input[["boxPeakName"]]
       myplot <- peaks_boxplot(
-        sub.expression.matrix = sub.expression.matrix,
+        sub.intensity.matrix = sub.intensity.matrix,
         log.transformation = F,
         metadata = bulk.metadata,
         metadata.column = input[['boxplot.metadata']])
@@ -237,7 +237,7 @@ BulkQCpanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
 #   shinyApp(
 #     ui = fluidPage(QCpanelMetabUI('qc', bulk.metadata)),
 #     server = function(input, output, session){
-#       QCpanelMetabServer('qc', bulk.expression.matrix[[1]], bulk.metadata[[1]])
+#       QCpanelMetabServer('qc', bulk.intensity.matrix[[1]], bulk.metadata[[1]])
 #     }
 #   )
 # }

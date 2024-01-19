@@ -14,7 +14,7 @@ IntroAnnopanelUI <- function(id, bulk.metadata, show = TRUE){
 
 #' @rdname IntroAnnoPanel
 #' @export
-IntroAnnopanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno){
+IntroAnnopanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
   ns <- NS(id)
   # check whether inputs (other than id) are reactive or not
   moduleServer(id, function(input, output, session){
@@ -26,7 +26,7 @@ IntroAnnopanelServer <- function(id, bulk.expression.matrix, bulk.metadata, anno
 #   shinyApp(
 #     ui = fluidPage(QCpanelMetabUI('qc', bulk.metadata)),
 #     server = function(input, output, session){
-#       QCpanelMetabServer('qc', bulk.expression.matrix[[1]], bulk.metadata[[1]])
+#       QCpanelMetabServer('qc', bulk.intensity.matrix[[1]], bulk.metadata[[1]])
 #     }
 #   )
 # }

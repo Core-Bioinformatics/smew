@@ -6,7 +6,7 @@
 \usage{
 generateShinyApp(
   shiny.dir = "MSIToolKitApp",
-  expression.matrix,
+  intensity.matrix,
   metadata,
   sample.id.column,
   sample.wide.columns,
@@ -20,12 +20,12 @@ generateShinyApp(
 \arguments{
 \item{shiny.dir}{directory to store the shiny app}
 
-\item{expression.matrix}{the intensity matrix, a dataframe where rows correspond to
+\item{intensity.matrix}{the intensity matrix, a dataframe where rows correspond to
 pixels (named by pixel ID) and columns correspond to peaks (named by m/z value).}
 
 \item{metadata}{a data frame containing metadata for each pixel contained
-in the expression.matrix; must contain at minimum four columns:
-the first column must contain the row names of the expression matrix, the pixel IDs,
+in the intensity.matrix; must contain at minimum four columns:
+the first column must contain the row names of the intensity matrix, the pixel IDs,
 the second and third columns should be named x and y and contain (x,y) coordinates for each pixel,
 and another column should correspond to the sample IDs which each pixel comes from}
 

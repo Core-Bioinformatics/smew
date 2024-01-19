@@ -1,5 +1,5 @@
 plot_pca <- function(
-    expression.matrix,
+    intensity.matrix,
     metadata,
     annotation.id,
     n.abundant = NULL,
@@ -9,23 +9,23 @@ plot_pca <- function(
     label.force = 1
 ){
   annotation.name <- colnames(metadata)[annotation.id]
-  n.abundant <- min(n.abundant, nrow(expression.matrix))
-  
-  expr.PCA.list <- expression.matrix |>
+  n.abundant <- min(n.abundant, nrow(intensity.matrix))
+
+  expr.PCA.list <- intensity.matrix |>
     as.data.frame() |>
-    dplyr::filter(seq_len(nrow(expression.matrix)) %in%
-                    utils::tail(order(rowSums(expression.matrix)), n.abundant)) |>
+    dplyr::filter(seq_len(nrow(intensity.matrix)) %in%
+                    utils::tail(order(rowSums(intensity.matrix)), n.abundant)) |>
     t()
   expr.PCA.list <- expr.PCA.list[, apply(expr.PCA.list, 2, function(x) max(x) != min(x))] %>%
     stats::prcomp(center = TRUE, scale = TRUE)
-  
+
   expr.PCA <- dplyr::mutate(
                   as.data.frame(expr.PCA.list$x),
                   name = factor(metadata[, 1], levels = metadata[, 1]),
                   condition = if(!is.factor(metadata[,annotation.id])){
                     factor(metadata[, annotation.id], levels = unique(metadata[, annotation.id]))
                     }else{metadata[,annotation.id]}
-                  
+
   )
   if(min(table(metadata[, annotation.id])) <= 2){
     expr.PCA.2 <- expr.PCA
@@ -43,7 +43,7 @@ plot_pca <- function(
   if(show.confidence.ellipses){
     pca.plot <- pca.plot +
       stat_ellipse(geom='polygon',alpha=0.3,aes(fill = .data$condition, colour = .data$condition), show.legend = FALSE)
-    
+
   } else if(show.ellipses){
     pca.plot <- pca.plot +
       ggforce::geom_mark_ellipse(aes(fill = .data$condition, colour = .data$condition), show.legend = FALSE)
@@ -58,19 +58,19 @@ plot_pca <- function(
         point.size = NA
       )
   }
-  
+
   pca.plot
 }
 
-perform_plsda <- function(expression.matrix,
+perform_plsda <- function(intensity.matrix,
                           metadata,
                           separator.id
 ){
-  return(mixOmics::plsda(t(expression.matrix),as.vector(metadata[,separator.id]) , ncomp = 2))
+  return(mixOmics::plsda(t(intensity.matrix),as.vector(metadata[,separator.id]) , ncomp = 2))
 }
 
 plot_plsda <- function(
-    expression.matrix,
+    intensity.matrix,
     metadata,
     separator.id,
     annotation.id,
@@ -81,14 +81,14 @@ plot_plsda <- function(
     label.force = 1
 ){
   annotation.name <- colnames(metadata)[annotation.id]
-  my.plsda <- perform_plsda(expression.matrix,metadata,separator.id)
+  my.plsda <- perform_plsda(intensity.matrix,metadata,separator.id)
   coords = my.plsda$variates$X
   expr.plsda <- dplyr::mutate(
     as.data.frame(coords),
     name = factor(metadata[, 1], levels = metadata[, 1]),
     condition = if(!is.factor(metadata[,annotation.id])){
       factor(metadata[, annotation.id], levels = unique(metadata[, annotation.id]))}else{metadata[,annotation.id]}
-    
+
   )
   plsda.plot <- ggplot2::ggplot(expr.plsda, ggplot2::aes(x = .data$comp1, y = .data$comp2, colour = .data$condition)) +
     ggplot2::theme_minimal() +
@@ -99,7 +99,7 @@ plot_plsda <- function(
   if(show.confidence.ellipses){
     plsda.plot <- plsda.plot +
       ggplot2::stat_ellipse(geom='polygon',alpha=0.3,aes(fill = .data$condition, colour = .data$condition), show.legend = FALSE)
-    
+
   } else if(show.ellipses){
     plsda.plot <- plsda.plot +
       ggforce::geom_mark_ellipse(aes(fill = .data$condition, colour = .data$condition), show.legend = FALSE)
@@ -118,12 +118,12 @@ plot_plsda <- function(
 }
 
 
-plsda_contrib <- function(expression.matrix,
+plsda_contrib <- function(intensity.matrix,
                           metadata,
                           separator.id,
                           comp=1,
                           anno){
-  my.plsda <- perform_plsda(expression.matrix,metadata,separator.id)
+  my.plsda <- perform_plsda(intensity.matrix,metadata,separator.id)
   contrib = data.frame(my.plsda$loadings$X)
   contrib$metab = rownames(contrib)
   colnames(contrib)[comp]='PLSDAComp'
@@ -140,53 +140,53 @@ plsda_contrib <- function(expression.matrix,
   return(contrib.plot)
 }
 
-peaks_barplot <- function(sub.expression.matrix,
+peaks_barplot <- function(sub.intensity.matrix,
                           log.transformation = TRUE,
                           condition.vector){
   if (log.transformation){
-    log.expression.matrix <- data.frame(log2(as.matrix(sub.expression.matrix) + 1))
+    log.intensity.matrix <- data.frame(log2(as.matrix(sub.intensity.matrix) + 1))
   } else {
-    log.expression.matrix <- sub.expression.matrix
+    log.intensity.matrix <- sub.intensity.matrix
   }
-  log.expression.matrix$peak <- stringr::word(rownames(log.expression.matrix),sep='_',1,1)
-  melted.expression.matrix <- tidyr::pivot_longer(log.expression.matrix,
-                                                  cols = colnames(log.expression.matrix)[1:(ncol(log.expression.matrix)-1)])
-  melted.expression.matrix$condition <- rep(condition.vector,nrow(sub.expression.matrix))
-  p <- ggplot2::ggplot(melted.expression.matrix, ggplot2::aes(x = .data$name,
+  log.intensity.matrix$peak <- stringr::word(rownames(log.intensity.matrix),sep='_',1,1)
+  melted.intensity.matrix <- tidyr::pivot_longer(log.intensity.matrix,
+                                                  cols = colnames(log.intensity.matrix)[1:(ncol(log.intensity.matrix)-1)])
+  melted.intensity.matrix$condition <- rep(condition.vector,nrow(sub.intensity.matrix))
+  p <- ggplot2::ggplot(melted.intensity.matrix, ggplot2::aes(x = .data$name,
                                             y = .data$value,
                                             fill = .data$condition)) +
     ggplot2::geom_bar(stat='identity',position='dodge') +
     ggplot2::theme_minimal() +
     ggplot2::ylab(ifelse(log.transformation,'log2 intensity','intensity')) +
     ggplot2::theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),legend.position = "bottom") +
-    ggplot2::facet_wrap(~melted.expression.matrix$peak,scales='free')
+    ggplot2::facet_wrap(~melted.intensity.matrix$peak,scales='free')
   p
 }
 
-peaks_boxplot <- function(sub.expression.matrix,
+peaks_boxplot <- function(sub.intensity.matrix,
                           metadata,
                           log.transformation = TRUE,
                           metadata.column = 2){
   if (log.transformation){
-    log.expression.matrix <- data.frame(log2(as.matrix(sub.expression.matrix) + 1))
+    log.intensity.matrix <- data.frame(log2(as.matrix(sub.intensity.matrix) + 1))
   } else {
-    log.expression.matrix <- sub.expression.matrix
+    log.intensity.matrix <- sub.intensity.matrix
   }
-  log.expression.matrix$peak <- stringr::word(rownames(log.expression.matrix),sep='_',1,1)
-  melted.expression.matrix <- tidyr::pivot_longer(log.expression.matrix,
-                                                  cols = colnames(log.expression.matrix)[1:(ncol(log.expression.matrix)-1)])
-  melted.expression.matrix$metadata = rep(metadata[,metadata.column],nrow(sub.expression.matrix))
-  melted.expression.matrix$sample = rep(metadata[,1],nrow(sub.expression.matrix))
-  p <- ggplot2::ggplot(melted.expression.matrix, ggplot2::aes(fill = metadata,
+  log.intensity.matrix$peak <- stringr::word(rownames(log.intensity.matrix),sep='_',1,1)
+  melted.intensity.matrix <- tidyr::pivot_longer(log.intensity.matrix,
+                                                  cols = colnames(log.intensity.matrix)[1:(ncol(log.intensity.matrix)-1)])
+  melted.intensity.matrix$metadata = rep(metadata[,metadata.column],nrow(sub.intensity.matrix))
+  melted.intensity.matrix$sample = rep(metadata[,1],nrow(sub.intensity.matrix))
+  p <- ggplot2::ggplot(melted.intensity.matrix, ggplot2::aes(fill = metadata,
                                             x = metadata,
                                             y = value)) +
-    ggplot2::geom_boxplot() + 
+    ggplot2::geom_boxplot() +
     ggplot2::geom_jitter(width=0.1) +
     ggplot2::theme_minimal() +
     ggplot2::ylab(ifelse(log.transformation,'log2 intensity','intensity')) +
     ggplot2::theme(legend.position = "bottom") +
-    ggplot2::scale_x_discrete(labels = function(x) str_wrap(x, width = 20)) + 
-    ggplot2::facet_wrap(~melted.expression.matrix$peak,scales = 'free')
+    ggplot2::scale_x_discrete(labels = function(x) str_wrap(x, width = 20)) +
+    ggplot2::facet_wrap(~melted.intensity.matrix$peak,scales = 'free')
   p
-  return.list = list('plot'=p,'table'=melted.expression.matrix)
+  return.list = list('plot'=p,'table'=melted.intensity.matrix)
 }

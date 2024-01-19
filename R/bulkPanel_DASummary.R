@@ -104,12 +104,12 @@ BulkDESummaryPanelUI <- function(id, bulk.metadata, show = TRUE){
 
 #' @rdname BulkDESummaryPanel
 #' @export
-BulkDESummaryPanelServer <- function(id, bulk.expression.matrix, bulk.metadata, DEresults, anno){
+BulkDESummaryPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresults, anno){
 
   # check whether inputs (other than id) are reactive or not
   stopifnot({
     is.reactive(DEresults)
-    is.reactive(bulk.expression.matrix)
+    is.reactive(bulk.intensity.matrix)
     is.reactive(bulk.metadata)
     !is.reactive(anno)
   })
@@ -143,13 +143,13 @@ BulkDESummaryPanelServer <- function(id, bulk.expression.matrix, bulk.metadata, 
         peakSet <- head(DEresults()$DE()$DEtableSubset$m_z, 50)
       }
       peakIDs <- peakSet
-      subsetExpression <- bulk.expression.matrix[peakIDs, , drop = FALSE]
+      subsetExpression <- bulk.intensity.matrix[peakIDs, , drop = FALSE]
       rownames(subsetExpression) <- peakSet
       meta <- lapply(bulk.metadata, function(x)if(!is.factor(x)){factor(x, levels = unique(x))}else{x}) |>
         as.data.frame() |>
         dplyr::arrange(dplyr::across(input[['heatmap.annotations']]))
       myplot <- expression_heatmap_met(
-        expression.matrix.subset = subsetExpression[, as.character(meta[, 1]), drop = FALSE],
+        intensity.matrix.subset = subsetExpression[, as.character(meta[, 1]), drop = FALSE],
         top.annotation.ids = match(input[['heatmap.annotations']], colnames(meta)),
         metadata = meta,
         type = input[["heatmap.processing"]],

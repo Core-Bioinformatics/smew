@@ -1,13 +1,13 @@
-DEanalysis <-function(expression.matrix,condition,var1,var2,test='t-test',anno){
+DEanalysis <-function(intensity.matrix,condition,var1,var2,test='t-test',anno){
 
   # calculate FC
-  expression.matrix = expression.matrix[(matrixStats::rowMins(as.matrix(expression.matrix))!=matrixStats::rowMaxs(as.matrix(expression.matrix))) &
-                                          ((matrixStats::rowMins(as.matrix(expression.matrix[,condition==var1]))!=matrixStats::rowMaxs(as.matrix(expression.matrix[,condition==var1]))) |
-                                          (matrixStats::rowMins(as.matrix(expression.matrix[,condition==var2]))!=matrixStats::rowMaxs(as.matrix(expression.matrix[,condition==var2])))),]
-  fc_results=as.data.frame(expression.matrix)
-  fc_results$log2_intensity = log2(rowMeans(expression.matrix))
-  fc_results$group1_mean = as.numeric(rowMeans(expression.matrix[, condition==var1]))
-  fc_results$group2_mean = as.numeric(rowMeans(expression.matrix[, condition==var2]))
+  intensity.matrix = intensity.matrix[(matrixStats::rowMins(as.matrix(intensity.matrix))!=matrixStats::rowMaxs(as.matrix(intensity.matrix))) &
+                                          ((matrixStats::rowMins(as.matrix(intensity.matrix[,condition==var1]))!=matrixStats::rowMaxs(as.matrix(intensity.matrix[,condition==var1]))) |
+                                          (matrixStats::rowMins(as.matrix(intensity.matrix[,condition==var2]))!=matrixStats::rowMaxs(as.matrix(intensity.matrix[,condition==var2])))),]
+  fc_results=as.data.frame(intensity.matrix)
+  fc_results$log2_intensity = log2(rowMeans(intensity.matrix))
+  fc_results$group1_mean = as.numeric(rowMeans(intensity.matrix[, condition==var1]))
+  fc_results$group2_mean = as.numeric(rowMeans(intensity.matrix[, condition==var2]))
   fc_results$fc = fc_results$group1_mean / fc_results$group2_mean
   fc_results$log2fc = log2(fc_results$fc)
   # drop NA

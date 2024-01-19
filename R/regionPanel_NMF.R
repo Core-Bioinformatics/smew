@@ -26,7 +26,7 @@ ColorBlender <- function (
 
 #' @rdname RegionDimRedPanel
 #' @export
-RegionDimRedPanelUI <- function(id, bulk.metadata, full.metadata, full.expression.matrix,show = TRUE){
+RegionDimRedPanelUI <- function(id, bulk.metadata, full.metadata, full.intensity.matrix,show = TRUE){
   ns <- NS(id)
   # add option to name cluster and retain it
   if(show){
@@ -99,7 +99,7 @@ RegionDimRedPanelUI <- function(id, bulk.metadata, full.metadata, full.expressio
                       multiple = FALSE),
           selectInput(inputId = ns("colourUMAP"),
                       label = "Metadata to colour UMAP",
-                      choices = c(colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y'))],colnames(full.expression.matrix)),
+                      choices = c(colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y'))],colnames(full.intensity.matrix)),
                       selected = colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y'))][1],
                       multiple = FALSE)
 
@@ -125,48 +125,48 @@ RegionDimRedPanelUI <- function(id, bulk.metadata, full.metadata, full.expressio
 
 #' @rdname RegionDimRedPanel
 #' @export
-RegionDimRedPanelServer <- function(id, full.expression.matrix, full.metadata, bulk.metadata, anno){
+RegionDimRedPanelServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, anno){
 
   moduleServer(id, function(input, output, session){
     observe(
       updateSelectizeInput(session, "focus_DimRed", choices = 1:input[['numDimensions']], server = TRUE, selected = 1)
     )
     get_subset_exp <- reactive({
-      current.expression.matrix <- full.expression.matrix[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToFactor']],]
+      current.intensity.matrix <- full.intensity.matrix[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToFactor']],]
       current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToFactor']],]
       current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
-      return(list('exp'=current.expression.matrix,'meta'=current.metadata))
+      return(list('exp'=current.intensity.matrix,'meta'=current.metadata))
     }) %>% bindEvent(input[["run_dimred"]])
 
     get_nmf <- reactive({
-      current.expression.matrix <- get_subset_exp()$exp
-      current.metadata <- get_subset_exp()$meta      # current.expression.matrix <- scale(x = current.expression.matrix,center = T,scale = T)
-      # current.expression.matrix <- current.expression.matrix[complete.cases(current.expression.matrix),]
-      nmf.factors <- RcppML::nmf(as.matrix(current.expression.matrix),seed = input[['seed']],k = input[['numDimensions']])
+      current.intensity.matrix <- get_subset_exp()$exp
+      current.metadata <- get_subset_exp()$meta      # current.intensity.matrix <- scale(x = current.intensity.matrix,center = T,scale = T)
+      # current.intensity.matrix <- current.intensity.matrix[complete.cases(current.intensity.matrix),]
+      nmf.factors <- RcppML::nmf(as.matrix(current.intensity.matrix),seed = input[['seed']],k = input[['numDimensions']])
       nmf.factor.weights = data.frame(nmf.factors$w)
       nmf.factor.features = data.frame(nmf.factors$h)
       colnames(nmf.factor.weights)=paste0('NMF_',gsub('X','',colnames(nmf.factor.weights)))
       current.metadata = cbind(current.metadata,nmf.factor.weights)
-      colnames(nmf.factor.features)=colnames(current.expression.matrix)
+      colnames(nmf.factor.features)=colnames(current.intensity.matrix)
       rownames(nmf.factor.features)=paste0('NMF_',gsub('X','',rownames(nmf.factor.features)))
       return.list = list('metadata'=current.metadata,'feature_weights'=nmf.factor.features,'dimRed'=input[['dimReduction']],'numDimensions'=input[['numDimensions']])
       return(return.list)
     })  %>% bindEvent(input[["run_dimred"]])
 
     get_pca <- reactive({
-      current.expression.matrix <- get_subset_exp()$exp
+      current.intensity.matrix <- get_subset_exp()$exp
       current.metadata <- get_subset_exp()$meta
-      current.expression.matrix <- current.expression.matrix[,apply(current.expression.matrix, 2, var, na.rm=TRUE) != 0]
-      # current.expression.matrix <- scale(x = current.expression.matrix,center = T,scale = T)
-      # current.expression.matrix <- current.expression.matrix[complete.cases(current.expression.matrix),]
+      current.intensity.matrix <- current.intensity.matrix[,apply(current.intensity.matrix, 2, var, na.rm=TRUE) != 0]
+      # current.intensity.matrix <- scale(x = current.intensity.matrix,center = T,scale = T)
+      # current.intensity.matrix <- current.intensity.matrix[complete.cases(current.intensity.matrix),]
       print('I am running')
-      pc.components <- prcomp(as.matrix(current.expression.matrix),center = TRUE,scale.=TRUE,rank. = input[["numDimensions"]])
+      pc.components <- prcomp(as.matrix(current.intensity.matrix),center = TRUE,scale.=TRUE,rank. = input[["numDimensions"]])
       print('I have calculate PCs')
       pc.component.weights = data.frame(pc.components$x)
       pc.component.features = data.frame(t(pc.components$rotation))
       colnames(pc.component.weights)=paste0('PCA_',1:input[["numDimensions"]])
       current.metadata = cbind(current.metadata,pc.component.weights)
-      colnames(pc.component.features)=colnames(current.expression.matrix)
+      colnames(pc.component.features)=colnames(current.intensity.matrix)
       rownames(pc.component.features)=paste0('PCA_',1:input[["numDimensions"]])
       print('I am here')
       return.list = list('metadata'=current.metadata,'feature_weights'=pc.component.features,'dimRed'=input[['dimReduction']],'numDimensions'=input[['numDimensions']])

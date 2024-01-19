@@ -5,11 +5,11 @@
 #' is standalone and can be used on another platform, as long as the MSI toolkit
 #' package is installed there.
 #' @param shiny.dir directory to store the shiny app
-#' @param expression.matrix the intensity matrix, a dataframe where rows correspond to
+#' @param intensity.matrix the intensity matrix, a dataframe where rows correspond to
 #' pixels (named by pixel ID) and columns correspond to peaks (named by m/z value).
 #' @param metadata a data frame containing metadata for each pixel contained
-#' in the expression.matrix; must contain at minimum four columns:
-#' the first column must contain the row names of the expression matrix, the pixel IDs,
+#' in the intensity.matrix; must contain at minimum four columns:
+#' the first column must contain the row names of the intensity matrix, the pixel IDs,
 #' the second and third columns should be named x and y and contain (x,y) coordinates for each pixel,
 #' and another column should correspond to the sample IDs which each pixel comes from
 #' @param sample.id.column name of the column in metadata containing sample ID information where
@@ -33,7 +33,7 @@
 #' @param ppm ppm tolerance for metabolite mapping (default: 5)
 #' @export
 generateShinyApp <- function(shiny.dir='MSIToolKitApp',
-                             expression.matrix,
+                             intensity.matrix,
                              metadata,
                              sample.id.column,
                              sample.wide.columns,
@@ -43,7 +43,7 @@ generateShinyApp <- function(shiny.dir='MSIToolKitApp',
                              mode = 'Negative',
                              ppm = 5){
   # check inputs
-  bulked <- create_bulk_exp(expression.matrix,
+  bulked <- create_bulk_exp(intensity.matrix,
                             metadata,
                             sample.id.column = sample.id.column,
                             sample.wide.columns = sample.wide.columns,
@@ -52,16 +52,21 @@ generateShinyApp <- function(shiny.dir='MSIToolKitApp',
                             mode = mode,
                             ppm = ppm)
   # show the user the assigned identities and ask if they want to include everything or just the annotated ones
-  bulk.expression.matrix = bulked$expression_matrix
+  bulk.intensity.matrix = bulked$intensity_matrix
   bulk.metadata = bulked$metadata
   anno = bulked$annotation_table
   if (only.annotated){
     anno = anno[anno$adduct!='NA',]
-    bulk.expression.matrix = bulk.expression.matrix[anno$m_z,]
-    expression.matrix = as.data.frame(expression.matrix)[,anno$m_z]
+    bulk.intensity.matrix = bulk.intensity.matrix[anno$m_z,]
+    intensity.matrix = as.data.frame(intensity.matrix)[,anno$m_z]
   }
-  return.list = c("expression.matrix",
-                     "bulk.expression.matrix",
+  intensity.matrix = as.matrix(intensity.matrix)
+  intensity.matrix.t = t(intensity.matrix)
+  intensity.matrix.t.unique = unique(intensity.matrix.t)
+  intensity.matrix = t(intensity.matrix.t.unique)
+  bulk.intensity.matrix = bulk.intensity.matrix[colnames(intensity.matrix),]
+  return.list = c("intensity.matrix",
+                     "bulk.intensity.matrix",
                      "metadata",
                      "bulk.metadata",
                      "anno")
@@ -81,7 +86,7 @@ generateAppFile <- function(
   lines.out <- c(lines.out, code.load.packages, "")
 
   code.source.objects <- c(
-    "rda.files <- list.files(pattern = '\\.rda$')",
+    "rda.files <- list.files(path = getwd(),pattern = '\\.rda$')",
     "for(fl in rda.files) load(fl)"
   )
 
@@ -116,7 +121,7 @@ generateAppFile <- function(
     "RegionClusterPanelUI(id='RegionCluster', bulk.metadata = bulk.metadata, full.metadata = metadata),",
     "RegionDEpanelUI(id='RegionDE', full.metadata = metadata, bulk.metadata),",
     "BulkORAPanelUI(id='RegionORA', bulk.metadata = bulk.metadata),",
-    "RegionNMFPanelUI(id='RegionNMF', bulk.metadata = bulk.metadata, full.metadata = metadata),",
+    "RegionDimRedPanelUI(id='RegionNMF', bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix),",
     ")",
     ")",
     ")",
@@ -127,16 +132,16 @@ generateAppFile <- function(
 
   code.server <- c(
     "server <- function(input, output, session) {",
-    "IntroAnnopanelServer(id='Anno', bulk.expression.matrix = bulk.expression.matrix, bulk.metadata = bulk.metadata, anno = anno)",
-    "IntroSpatialVisPanelServer(id='spatialVis', bulk.metadata = bulk.metadata, full.expression.matrix = expression.matrix, full.metadata = metadata, anno = anno)",
-    "BulkQCpanelServer(id='BulkQC', bulk.expression.matrix = bulk.expression.matrix, bulk.metadata = bulk.metadata, anno = anno)",
-    "bulkDEres <- BulkDEpanelServer(id='BulkDE', bulk.expression.matrix = bulk.expression.matrix, bulk.metadata = bulk.metadata, anno = anno)",
-    "BulkDESummaryPanelServer(id='BulkSummaryDE', bulk.expression.matrix = bulk.expression.matrix, bulk.metadata = bulk.metadata, anno = anno,DEresults = bulkDEres)",
-    "BulkORAPanelServer(id='BulkORA', bulk.expression.matrix = bulk.expression.matrix, bulk.metadata = bulk.metadata, anno = anno,DEresults = bulkDEres)",
-    "clusters <- RegionClusterPanelServer(id='RegionCluster', full.expression.matrix = as.data.frame(t(expression.matrix)), full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno)",
-    "regionDEres <- RegionDEpanelServer(id='RegionDE', full.expression.matrix = expression.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, region.clusters = clusters, anno = anno)",
-    "BulkORAPanelServer(id='RegionORA', bulk.expression.matrix = bulk.expression.matrix, bulk.metadata = bulk.metadata, anno = anno,DEresults = regionDEres)",
-    "RegionNMFPanelServer(id='RegionNMF', full.expression.matrix = expression.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno)",
+    "IntroAnnopanelServer(id='Anno', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno)",
+    "IntroSpatialVisPanelServer(id='spatialVis', bulk.metadata = bulk.metadata, full.intensity.matrix = intensity.matrix, full.metadata = metadata, anno = anno)",
+    "BulkQCpanelServer(id='BulkQC', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno)",
+    "bulkDEres <- BulkDEpanelServer(id='BulkDE', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno)",
+    "BulkDESummaryPanelServer(id='BulkSummaryDE', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno,DEresults = bulkDEres)",
+    "BulkORAPanelServer(id='BulkORA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno,DEresults = bulkDEres)",
+    "clusters <- RegionClusterPanelServer(id='RegionCluster', full.intensity.matrix = as.data.frame(t(intensity.matrix)), full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno)",
+    "regionDEres <- RegionDEpanelServer(id='RegionDE', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, region.clusters = clusters, anno = anno)",
+    "BulkORAPanelServer(id='RegionORA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno,DEresults = regionDEres)",
+    "RegionDimRedPanelServer(id='RegionNMF', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno)",
     "}"
   )
   lines.out <- c(lines.out, code.server, "")

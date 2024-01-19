@@ -5,7 +5,7 @@
 \title{Create bulk dataset from pixel-wise intensity matrix}
 \usage{
 create_bulk_exp(
-  expression.matrix,
+  intensity.matrix,
   metadata,
   sample.id.column = 4,
   sample.wide.columns = c(),
@@ -16,9 +16,9 @@ create_bulk_exp(
 )
 }
 \arguments{
-\item{expression.matrix}{A data.frame containing m/z values on the columns and pixels/spots on the rows.}
+\item{intensity.matrix}{A data.frame containing m/z values on the columns and pixels/spots on the rows.}
 
-\item{metadata}{A data.frame with the first column matching the rownames from expression.matrix, the next 2
+\item{metadata}{A data.frame with the first column matching the rownames from intensity.matrix, the next 2
 columns containing x and y coordinates and other columns describing attributes of the pixel, e.g. sample
 of origin, timepoint, treatment, pathology annotations.}
 
