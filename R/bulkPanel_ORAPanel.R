@@ -61,6 +61,16 @@ BulkORAPanelUI <- function(id, bulk.metadata, show = TRUE){
             icon = icon("play")
           ),
           div(style = "margin-top:10px"),
+          tags$b("Pathway selection"),
+          div("\nSelect pathways of interest by clicking on the corresponds rows in the table\n"),
+          div(style="margin-bottom:10px"),
+          actionButton(ns('resetSelection'), label = "Reset row selection"),
+          div(style="margin-bottom:10px"),
+          actionButton(ns('selectTop10'), label = "Select top 10 pathways"),
+          div(style = "margin-top:10px"),
+          tags$b("Pathway network"),
+          selectInput(ns('selectedClassification'),label = 'Select pathway categories to show in network',choices = c('None','Top Level','More Granular'),selected = 'Top Level',multiple = F),
+          div(style = "margin-top:10px"),
           dropMenu(
             circleButton(ns("downloads"), icon = icon("download"),status = "success"),
             tags$div(
@@ -108,7 +118,7 @@ BulkORAPanelUI <- function(id, bulk.metadata, show = TRUE){
           plotOutput(ns('oraVolcano'),click=ns('plot_click')),
           tableOutput(ns('oraVolcanoData')),
           plotOutput(ns('pathwayCategories')),
-          visNetwork::visNetworkOutput(ns('ORAnetwork'))
+          visNetwork::visNetworkOutput(ns('ORAnetwork'),height="600")
         )
       )
     )
@@ -148,6 +158,22 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
         DT::formatSignif(columns = c('Raw.p', 'Holm.p','FDR'), digits = 3)
     })
 
+    #Output selected pathways
+    selectedPathways <- reactive({
+      ora_table <- get_ORA() |>
+        dplyr::filter(FDR<input[['ora_pvalue_cutoff']])
+      ora_table$pathway[input$data_rows_selected]
+    })
+
+    proxy = DT::dataTableProxy('data')
+
+    observe({proxy %>% DT::selectRows(NULL)}) %>%
+      bindEvent(input[['resetSelection']])
+
+    observe({proxy %>% DT::selectRows(selected = 1:10)}) %>%
+      bindEvent(input[['selectTop10']])
+
+
     oraNetwork <- reactive({
       ora <- get_ORA() |>
         dplyr::filter(FDR<input[['ora_pvalue_cutoff']]) |>
@@ -172,6 +198,32 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
       edges$value = weight.vector
       edges = edges[edges$value!=0,]
       nodes$color = scales::col_numeric('RdYlBu',-ceiling(max(abs(nodes$color))):ceiling(max(abs(nodes$color))))(nodes$color)
+      return(list('nodes'=nodes,'edges'=edges))
+    })
+    oraNetworkCategories <- reactive({
+      ora <- get_ORA() |>
+        dplyr::filter(FDR<input[['ora_pvalue_cutoff']]) |>
+        dplyr::mutate(`-log10pval` = -log10(.data$FDR),
+                      lfc = ifelse(.data$direction=='up',log2(.data$hits/.data$expected),-log2(.data$hits/.data$expected)))
+      network = oraNetwork()
+      nodes = network$nodes
+      edges = network$edges
+      if (input[['selectedClassification']]!='None'){
+        kegg_classification = kegg_classification[kegg_classification$pathway_name%in%ora$pathway,]
+        if (input[['selectedClassification']]=='Top Level'){
+          kegg_classification$category = kegg_classification$category1
+        } else {
+          kegg_classification$category = kegg_classification$category2
+        }
+        classification_edges = data.frame('from'=kegg_classification$category,'to'=kegg_classification$pathway_name,value=min(edges$value))
+        edges = rbind(edges,classification_edges)
+        classification_nodes = data.frame('label'=unique(kegg_classification$category),'id'=unique(kegg_classification$category),
+                                          'shape'='box','color'='grey',font.color='white')
+        classification_nodes = classification_nodes[!(classification_nodes$id %in% nodes$id),]
+        nodes = rbind(nodes,classification_nodes)
+        print(tail(nodes))
+
+      }
       return(visNetwork::visNetwork(nodes,edges) |>
         visNetwork::visPhysics(solver = "forceAtlas2Based",
                                forceAtlas2Based = list(gravitationalConstant = -100)))
@@ -210,7 +262,7 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
     )
 
     output[['oraVolcano']] <- renderPlot({
-      ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']])
+      ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']],selectedPathways())
     })
 
     output[['downloadVolcano']] <- downloadHandler(
@@ -239,14 +291,15 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
       }
     )
 
-    output[['ORAnetwork']] <- visNetwork::renderVisNetwork(oraNetwork())
+    output[['ORAnetwork']] <- visNetwork::renderVisNetwork(oraNetworkCategories())
 
     output[['downloadNetwork']] <- downloadHandler(
       filename = function() {input[['networkFileName']]},
       content = function(file) {
-        oraNetwork() %>% visNetwork::visSave(file)
+        oraNetworkCategories() %>% visNetwork::visSave(file)
       }
     )
+
 
   })
 }

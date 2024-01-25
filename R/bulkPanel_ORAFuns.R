@@ -151,21 +151,25 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
 
 ora_volcano_plot <- function(
     ORA_results,
-    pval.threshold = 0.05
+    pval.threshold = 0.05,
+    selectedPathways
 ){
+  print(selectedPathways)
   df = ORA_results |>
     dplyr::mutate(log10pval = log10(.data$FDR),
                   lfc = log2(.data$hits/.data$expected)) |>
     dplyr::filter(!is.na(.data$log10pval))
   df$lfc = ifelse(df$direction=='up',df$lfc,-df$lfc)
   df$significance <- ifelse(df$FDR<pval.threshold,'Significant','Non-significant')
+  df.label = df[df$pathway %in% selectedPathways,]
   lfc <- NULL; log10pval <- NULL; significance <- NULL
   vp <- ggplot2::ggplot(data = df, mapping = ggplot2::aes(x = lfc, y = -log10pval,color=significance)) +
     ggplot2::geom_point() +
     ggplot2::theme_minimal() +
     ggplot2::xlab("log2(FC)") +
     ggplot2::ylab("-log10(pval)") +
-    ggplot2::scale_color_manual(values=c("Non-significant"="#999999", "Significant"="#FF0000"))
+    ggplot2::scale_color_manual(values=c("Non-significant"="#999999", "Significant"="#FF0000"))+
+    ggrepel::geom_text_repel(data = df.label, mapping = aes(x = lfc, y = -log10pval,label = pathway))
 
 
   return(vp)
