@@ -20,6 +20,7 @@ BulkORAPanelUI <- function(id, bulk.metadata, show = TRUE){
                 tags$li("Pathways with small numbers of present metabolites or significant can be discarded using the options below."),
                 tags$li("The p-value threshold for calling a pathway significant can also be adjusted."),
                 tags$li("A table of significant pathways is shown, followed by a volcano plot and a separation of pathways into KEGG hierarchy categories and sub-categories."),
+                tags$li("Finally, a network is displayed showing the significant pathways with connections between them proportional to the number of shared metabolites between them."),
               )
             ),
             theme = "light-border",
@@ -58,7 +59,47 @@ BulkORAPanelUI <- function(id, bulk.metadata, show = TRUE){
             inputId = ns("submit_from_ora"),
             label = "Submit",
             icon = icon("play")
-          )
+          ),
+          div(style = "margin-top:10px"),
+          dropMenu(
+            circleButton(ns("downloads"), icon = icon("download"),status = "success"),
+            tags$div(
+              tags$h3("Downloads"),
+              fluidRow(
+                column(5,offset=0,
+                       tags$h4("ORA Table"),
+                       textInput(ns('tableFileName'),'File name for download', value ='ORATable.csv', placeholder = 'ORATable.csv'),
+                       downloadButton(ns('downloadTable'), 'Download ORA table'),
+                       ),
+                column(5,offset=1,
+                       tags$h4("Volcano Plot"),
+                       textInput(ns('volcanoFileName'),'File name for download', value ='volcano.png', placeholder = 'volcano.png'),
+                       numericInput(ns('volcanoWidth'),value = 8,label = 'Width of downloaded figure (in inches)',min = 1,max = 50,step = 1),
+                       numericInput(ns('volcanoHeight'),value = 6,label = 'Height of downloaded figure (in inches)',min = 1,max = 50,step = 1),
+                       downloadButton(ns('downloadVolcano'), 'Download volcano plot'),
+                ),
+
+            ),
+            fluidRow(
+              column(5,offset=0,
+                     tags$h4("Pathway Categories"),
+                     textInput(ns('categoriesFileName'),'File name for download', value ='pathwayCategories.png', placeholder = 'pathwayCategories.png'),
+                     numericInput(ns('categoriesWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                     numericInput(ns('categoriesHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                     downloadButton(ns('downloadCategories'), 'Download category figure')
+              ),
+              column(5,offset=1,
+                     tags$h4("Pathway Network"),
+                     textInput(ns('networkFileName'),'File name for download', value ='network.html', placeholder = 'network.html'),
+                     downloadButton(ns('downloadNetwork'), 'Download network')
+
+              ),
+
+            )),
+            theme = "light-border",
+            placement = "right",
+            arrow = FALSE
+          ),
         ),
 
         #Main panel for displaying table of enriched pathways
@@ -137,20 +178,7 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
 
     })
 
-    output[['data']] <- DT::renderDataTable(dataTable())
-
-    output[['oraVolcano']] <- renderPlot({
-      ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']])
-    })
-
-    output[['oraVolcanoData']] <- renderTable({
-      req(input[['plot_click']])
-      data = get_ORA() |> dplyr::mutate(`-log10pval` = -log10(.data$FDR),
-                                        lfc = ifelse(.data$direction=='up',log2(.data$hits/.data$expected),-log2(.data$hits/.data$expected)))
-      nearPoints(df = data, coordinfo = input[['plot_click']], threshold = 20, maxpoints = 10)
-    }, digits = 4)
-
-    output[['pathwayCategories']] <- renderPlot({
+    pathwayCategories <- reactive({
       significant.pathways = get_ORA()[get_ORA()$FDR<input[['ora_pvalue_cutoff']],]
       kegg_classification$pathway = kegg_classification$pathway_name
       kegg_classification$category1 = factor(kegg_classification$category1)
@@ -166,9 +194,59 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
                ggrepel::geom_label_repel(aes(label = pathway))+
                ggplot2::theme(legend.position="none")
       )
+
     })
 
+    output[['data']] <- DT::renderDataTable(dataTable())
+
+    output[['downloadTable']] <- downloadHandler(
+      filename = function() {
+        paste(input[['tableFileName']])
+      },
+      content = function(file) {
+        utils::write.csv(x = get_ORA() |>
+                           dplyr::filter(FDR<input[['ora_pvalue_cutoff']]), file = file, row.names = FALSE)
+      }
+    )
+
+    output[['oraVolcano']] <- renderPlot({
+      ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']])
+    })
+
+    output[['downloadVolcano']] <- downloadHandler(
+      filename = function() { input[['volcanoFileName']] },
+      content = function(file) {
+        ggsave(file, plot = ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']]), dpi = 300,
+               width=input[['volcanoWidth']],height=input[['volcanoHeight']])
+      }
+    )
+
+    output[['oraVolcanoData']] <- renderTable({
+      req(input[['plot_click']])
+      data = get_ORA() |> dplyr::mutate(`-log10pval` = -log10(.data$FDR),
+                                        lfc = ifelse(.data$direction=='up',log2(.data$hits/.data$expected),-log2(.data$hits/.data$expected)))
+    }, digits = 4)
+
+    output[['pathwayCategories']] <- renderPlot({
+      pathwayCategories()
+    })
+
+    output[['downloadCategories']] <- downloadHandler(
+      filename = function() { input[['categoriesFileName']] },
+      content = function(file) {
+        ggsave(file, plot = pathwayCategories(), dpi = 300,
+               width=input[['categoriesWidth']],height=input[['categoriesHeight']])
+      }
+    )
+
     output[['ORAnetwork']] <- visNetwork::renderVisNetwork(oraNetwork())
+
+    output[['downloadNetwork']] <- downloadHandler(
+      filename = function() {input[['networkFileName']]},
+      content = function(file) {
+        oraNetwork() %>% visNetwork::visSave(file)
+      }
+    )
 
   })
 }

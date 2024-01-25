@@ -74,6 +74,34 @@ RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
                       choices = colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata)[1]))],
                       selected = colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata)[1]))][1],
                       multiple = FALSE),
+          div(style = "margin-top:10px"),
+          dropMenu(
+            circleButton(ns("downloads"), icon = icon("download"),status = "success"),
+            tags$div(
+              tags$h3("Downloads"),
+              fluidRow(
+                       column(5,offset=0,
+                              tags$h4("Barplot"),
+                              textInput(ns('spatialPlotFileName'),'File name for download', value ='spatialClusters.png', placeholder = 'spatialClusters.png'),
+                              numericInput(ns('spatialPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                              numericInput(ns('spatialPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                              downloadButton(ns('downloadSpatial'), 'Download clusters')),
+                       column(5,offset=0,
+                              tags$h4("Upset"),
+                              textInput(ns('barPlotFileName'),'File name for download', value ='bar.png', placeholder = 'bar.png'),
+                              numericInput(ns('barPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                              numericInput(ns('barPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                              downloadButton(ns('downloadBarPlot'), 'Download barplot'))),
+                fluidRow(
+                        column(10,offset=0,
+                               textInput(ns('boxPlotFileName'),'File name for download', value ='box.png', placeholder = 'box.png'),
+                               numericInput(ns('boxPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                               numericInput(ns('boxPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                               downloadButton(ns('downloadBoxPlot'), 'Download boxplot'))),
+              theme = "light-border",
+            placement = "right",
+            arrow = FALSE
+          )),
 
 
 
@@ -187,6 +215,26 @@ RegionClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, b
     output[['plotClusterPropsPerSample']] <- renderPlot({
       cluster_props_persample()
     })
+    output[['downloadSpatial']] <- downloadHandler(
+      filename = function() { input[['spatialPlotFileName']] },
+      content = function(file) {
+        ggsave(file, plot = cluster_plot(), width=input[['spatialPlotWidth']],height=input[['spatialPlotHeight']],units = 'in')
+      }
+    )
+
+    output[['downloadBarPlot']] <- downloadHandler(
+      filename = function() { input[['barPlotFileName']] },
+      content = function(file) {
+        ggsave(file, plot = cluster_props(), width=input[['barPlotWidth']],height=input[['barPlotHeight']],units = 'in')
+      }
+    )
+
+    output[['downloadBoxPlot']] <- downloadHandler(
+      filename = function() { input[['boxPlotFileName']] },
+      content = function(file) {
+        ggsave(file, plot = cluster_props_persample(), width=input[['boxPlotWidth']],height=input[['boxPlotHeight']],units = 'in')
+      }
+    )
 
     return(reactive(return_object()))
 

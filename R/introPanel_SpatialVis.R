@@ -38,10 +38,34 @@ IntroSpatialVisPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE
                       value = c(5,95)),
           checkboxInput(ns('splitDensity'),value = T,label = 'Split density plot by sample'),
           actionButton(ns("go_plot_peak"),'Show spatial visualisation'),
-        ),
+          div(style = "margin-top:10px"),
+          dropMenu(
+            circleButton(ns("downloadsMetadata"), icon = icon("download"),status = "success"),
+            tags$div(
+              tags$h3("Downloads"),
+              fluidRow(
+                column(5,offset=0,
+                       tags$h4("Spatial distribution"),
+                       textInput(ns('spatialFileName'),'File name for download', value ='spatial.png', placeholder = 'spatial.png'),
+                       numericInput(ns('spatialWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                       numericInput(ns('spatialHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                       downloadButton(ns('downloadSpatial'), 'Download spatial figure')),
+                column(5,offset=1,
+                       tags$h4("Density plot"),
+                       textInput(ns('densityFileName'),'File name for download', value ='density.png', placeholder = 'density.png'),
+                       numericInput(ns('densityWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                       numericInput(ns('densityHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                       downloadButton(ns('downloadDensity'), 'Download density plot')),
+
+                )),
+              theme = "light-border",
+              placement = "right",
+              arrow = FALSE
+            ),
+          ),
       mainPanel(
-        plotOutput(ns('peakDensity')))),
-      fluidRow(column=10,plotOutput(ns('plotPeak'),height = 600)),
+        plotOutput(ns('peakDensity')),
+      fluidRow(column=10,plotOutput(ns('plotPeak'),height = 600)))),
       sidebarLayout(
         sidebarPanel(
           dropMenu(
@@ -57,7 +81,24 @@ IntroSpatialVisPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE
             arrow = FALSE
           ),
             selectInput(ns("metadataName"), "Metadata to display:", multiple = FALSE, choices = colnames(full.metadata),selected=colnames(full.metadata)[length(colnames(full.metadata))]),
-            actionButton(ns("go_plot_metadata"),'Show spatial visualisation')),
+            actionButton(ns("go_plot_metadata"),'Show spatial visualisation'),
+          div(style = "margin-top:10px"),
+          dropMenu(
+            circleButton(ns("downloads"), icon = icon("download"),status = "success"),
+            tags$div(
+              tags$h3("Downloads"),
+              fluidRow(
+                column(10,offset=0,
+                       tags$h4("Metadata distribution"),
+                       textInput(ns('metaFileName'),'File name for download', value ='metadata.png', placeholder = 'metadata.png'),
+                       numericInput(ns('metaWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                       numericInput(ns('metaHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                       downloadButton(ns('downloadMeta'), 'Download metadata figure'))
+              )),
+            theme = "light-border",
+            placement = "right",
+            arrow = FALSE
+          )),
         mainPanel(
           plotOutput(ns('plotMetadata'))),
 
@@ -134,16 +175,37 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
 
     output[['plotPeak']] <- renderPlot({
       show_peak()$spatial},height=600)
+
+    output[['downloadSpatial']] <- downloadHandler(
+      filename = function() { input[['spatialFileName']] },
+      content = function(file) {
+        ggsave(file, plot = show_peak()$spatial, dpi = 300,
+               width=input[['spatialWidth']],height=input[['spatialHeight']])
+      }
+    )
     output[['peakDensity']] <- renderPlot({
       show_peak()$density
     })
+
+    output[['downloadDensity']] <- downloadHandler(
+      filename = function() { input[['densityFileName']] },
+      content = function(file) {
+        ggsave(file, plot = show_peak()$density, dpi = 300,
+               width=input[['densityWidth']],height=input[['densityHeight']])
+      }
+    )
     output[['plotMetadata']] <- renderPlot({
       show_metadata()
     })
 
-    # if (input[["pickShownSamples"]]){
-    #   return(input[["samplesToShow"]])
-    # } else {
+    output[['downloadMeta']] <- downloadHandler(
+      filename = function() { input[['metaFileName']] },
+      content = function(file) {
+        ggsave(file, plot = show_metadata(), dpi = 300,
+               width=input[['metaWidth']],height=input[['metaHeight']])
+      }
+    )
+
       return(unique(bulk.metadata[,1]))
  #   }
 

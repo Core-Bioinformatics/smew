@@ -37,8 +37,59 @@ PixelSVMPanelUI <- function(id, bulk.metadata, full.metadata, full.intensity.mat
           conditionalPanel(id=ns('upsetPlotPanel'),
                            ns = ns,
                            condition = "output.check > 1",
-                           selectInput(ns("metadataBarplot"), "Metadata to split barplot:", multiple = FALSE, choices = colnames(bulk.metadata),selected=colnames(bulk.metadata)[length(colnames(bulk.metadata))])),
+                           selectInput(ns("metadataBarplot"), "Metadata to split barplot:", multiple = FALSE, choices = colnames(bulk.metadata),selected=colnames(bulk.metadata)[length(colnames(bulk.metadata))]),
+          ),
           selectInput(ns("peakName"), "Peaks to display:", multiple = FALSE, choices = c()),
+          div(style = "margin-top:10px"),
+          dropMenu(
+            circleButton(ns("downloads"), icon = icon("download"),status = "success"),
+            tags$div(
+              tags$h3("Downloads"),
+              fluidRow(
+                conditionalPanel(id=ns('multipleSamplePlots'),
+                                 ns = ns,
+                                 condition = "output.check > 1",
+                                 column(5,offset=0,
+                                        tags$h4("Barplot"),
+                                        textInput(ns('barPlotFileName'),'File name for download', value ='SVMbar.png', placeholder = 'SVMbar.png'),
+                                        numericInput(ns('barPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                                        numericInput(ns('barPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                                        downloadButton(ns('downloadBar'), 'Download ORA table')),
+                                 column(5,offset=0,
+                                        tags$h4("Upset"),
+                                        textInput(ns('upsetFileName'),'File name for download', value ='SVMupset.png', placeholder = 'SVMupset.png'),
+                                        numericInput(ns('upsetPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                                        numericInput(ns('upsetPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                                        downloadButton(ns('downloadUpsetPlot'), 'Download ORA table'))),
+
+                 conditionalPanel(id=ns('oneSamplePlots'),
+                                  ns = ns,
+                                  condition = "output.check == 1",
+                                  column(10,offset=0,
+                                         textInput(ns('tableFileName'),'File name for download', value ='ORATable.csv', placeholder = 'ORATable.csv'),
+                                         downloadButton(ns('downloadTable'), 'Download ORA table')))),
+              fluidRow(
+                column(5,offset=0,
+                       tags$h4("Spatial distribution"),
+                       textInput(ns('spatialFileName'),'File name for download', value ='spatial.png', placeholder = 'spatial.png'),
+                       numericInput(ns('spatialWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                       numericInput(ns('spatialHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                       downloadButton(ns('downloadSpatial'), 'Download spatial figure')
+                ),
+                column(5,offset=1,
+                       tags$h4("Hierarchical Gene Clustering"),
+                       textInput(ns('HClustFileName'),'File name for download', value ='hclust.png', placeholder = 'hclust.png'),
+                       numericInput(ns('HClustWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                       numericInput(ns('HClustHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                       downloadButton(ns('downloadHClust'), 'Download clustering')
+
+                ),
+
+              )),
+            theme = "light-border",
+            placement = "right",
+            arrow = FALSE
+          ),
         ),
         mainPanel(
           conditionalPanel(id=ns('upsetPlotPanel'),
@@ -49,7 +100,8 @@ PixelSVMPanelUI <- function(id, bulk.metadata, full.metadata, full.intensity.mat
           conditionalPanel(id=ns('tablePanel'),
             ns = ns,
             condition = "output.check == 1",
-            DT::DTOutput(ns('SVMTable'))))),
+            DT::DTOutput(ns('SVMTable')),
+          ))),
           fluidRow(column=10,plotOutput(ns('plotPeak'),height = 600)),
           plotOutput(ns('plotHClust')),
     )
@@ -78,6 +130,7 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
       coords = current.metadata[,c('spot_id','x','y',colnames(bulk.metadata)[1])]
       colnames(coords)=c('barcode','x','y','sampleID')
       coords$barcode = as.character(coords$barcode)
+      print('doing something')
       coords = as.tibble(coords)
       coords$sampleID = as.numeric(as.factor(coords$sampleID))
       spatnet = GetSpatialNetwork(coords)
@@ -113,8 +166,8 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
         top.svm$label=''
       }
       top.svm$metadataBarplot = top.svm[,input[['metadataBarplot']]]
-      top.svm = top.svm %>% group_by(value,metadataBarplot,label) %>% summarise(n=n()) %>% arrange(desc(n))
-      top.svm.grouped = top.svm %>% group_by(value,label) %>% summarise(n=sum(n)) %>% arrange(desc(n))
+      top.svm = top.svm %>% group_by(value,metadataBarplot,label) %>% dplyr::summarise(n=n()) %>% arrange(desc(n))
+      top.svm.grouped = top.svm %>% group_by(value,label) %>% dplyr::summarise(n=sum(n)) %>% arrange(desc(n))
       top.svm$value = factor(top.svm$value,levels=top.svm.grouped$value)
       plot = ggplot(data=top.svm,aes(x=value, fill=metadataBarplot,y=n)) +
         geom_bar(stat='identity')+
@@ -152,8 +205,7 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
                        axis.title.y=ggplot2::element_blank(),
                        axis.text.y=ggplot2::element_blank(),
                        axis.ticks.y=ggplot2::element_blank(),
-                       axis.line.y = ggplot2::element_blank(),
-                       legend.title = ggplot2::element_text(input[['peakName']]))+
+                       axis.line.y = ggplot2::element_blank())+
         ggplot2::scale_fill_gradient(name=input[['peakName']],low = "lightgrey", high = "brown")+
         ggplot2::scale_color_gradient(name=input[['peakName']],low = "lightgrey", high = "brown")+
         ggplot2::theme(aspect.ratio = 1)
@@ -168,17 +220,34 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
       full.matrix = get_subset_exp()$exp[,top.svm]
       full.matrix = scale(full.matrix,center = T,scale=T)
       d = dist(t(full.matrix))
-      plot(hclust(d))
+      hclust(d)
     })
 
-    output[['plotPeak']] <- renderPlot({
-      show_peak()},height=600)
-    output[['plotHClust']] <- renderPlot({
-      hclust.spatgenes()})
     output[['SVMUpset']] <- renderPlot({
       svm_upset()
     })
-    output[['SVMTable']] <- DT::renderDT({
+
+    output[['downloadUpsetPlot']] <- downloadHandler(
+      filename = function() { input[['upsetFileName']] },
+      content = function(file) {
+        if (base::strsplit(input[['upsetFileName']], split="\\.")[[1]][-1] == 'pdf'){
+          grDevices::pdf(file, width = input[['upsetWidth']], height = input[['upsetHeight']])
+          print(svm_upset())
+          grDevices::dev.off()
+        } else if (base::strsplit(input[['upsetFileName']], split="\\.")[[1]][-1] == 'svg'){
+          grDevices::svg(file, width = input[['upsetWidth']], height = input[['upsetHeight']])
+          print(svm_upset())
+          grDevices::dev.off()
+        } else {
+          grDevices::png(file, width = input[['upsetWidth']], height = input[['upsetHeight']], units = "in",
+                        res = 300, bg = "white")
+          print(svm_upset())
+          grDevices::dev.off()
+        }
+      }
+    )
+
+    svmTable <- reactive({
       svm.table = svm_preprocess()[[1]]
       colnames(svm.table)=c('m_z','SVM_corr')
       svm.table = merge(svm.table,anno[,c('m_z','name')],all.x=T)
@@ -189,13 +258,73 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
       }
       svm.table = svm.table[order(-svm.table$SVM_corr),]
       svm.table
-    })%>% bindEvent(input[["run_SVM"]])
+    }) %>% bindEvent(input[["run_SVM"]])
+
+    output[['SVMTable']] <- DT::renderDT({
+      svmTable()
+    }) %>% bindEvent(input[["run_SVM"]])
+
+    output[['downloadTable']] <- downloadHandler(
+      filename = function() {
+        paste(input[['tableFileName']])
+      },
+      content = function(file) {
+        utils::write.csv(x = svmTable(), file = file, row.names = FALSE)
+      }
+    )
+
     output[['SVMBarPlot']] <- renderPlot({
       svm_barplot()$plot
     })
+
+    output[['downloadBar']] <- downloadHandler(
+      filename = function() { input[['barPlotFileName']] },
+      content = function(file) {
+        ggsave(file, plot = svm_barplot()$plot, dpi = 300,
+               width=input[['barPlotWidth']],height=input[['barPlotHeight']])
+      }
+    )
+
+    output[['plotPeak']] <- renderPlot({
+      show_peak()},height=600)
+
+    output[['downloadSpatial']] <- downloadHandler(
+      filename = function() { input[['spatialFileName']] },
+      content = function(file) {
+          ggsave(file, plot = show_peak(), dpi = 300,
+                 width=input[['spatialWidth']],height=input[['spatialHeight']],
+                 device=base::strsplit(input[['spatialFileName']], split="\\.")[[1]][-1])
+      }
+    )
     output$check <- reactive({
       length(input$samplesToInclude)
     })%>% bindEvent(input[["run_SVM"]])
     outputOptions(output, 'check', suspendWhenHidden=FALSE)
+
+    output[['plotHClust']] <- renderPlot({
+      plot(hclust.spatgenes())})
+
+    output[['downloadHClust']] <- downloadHandler(
+      filename = function() { input[['HClustFileName']] },
+      content = function(file) {
+        if (base::strsplit(input[['HClustFileName']], split="\\.")[[1]][-1] == 'pdf'){
+          grDevices::pdf(file, width = input[['HClustWidth']], height = input[['HClustHeight']])
+          plot(hclust.spatgenes())
+          grDevices::dev.off()
+        } else if (base::strsplit(input[['HClustFileName']], split="\\.")[[1]][-1] == 'svg'){
+          grDevices::svg(file, width = input[['HClustWidth']], height = input[['HClustHeight']])
+          plot(hclust.spatgenes())
+          grDevices::dev.off()
+        } else {
+          grDevices::png(file, width = input[['HClustWidth']], height = input[['HClustHeight']], units = "in",
+                         res = 300, bg = "white")
+          plot(hclust.spatgenes())
+          grDevices::dev.off()
+        }
+      }
+    )
+
+
   })
+
 }

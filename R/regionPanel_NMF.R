@@ -101,7 +101,57 @@ RegionDimRedPanelUI <- function(id, bulk.metadata, full.metadata, full.intensity
                       label = "Metadata to colour UMAP",
                       choices = c(colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y'))],colnames(full.intensity.matrix)),
                       selected = colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y'))][1],
-                      multiple = FALSE)
+                      multiple = FALSE),
+          div(style = "margin-top:10px"),
+          dropMenu(
+            circleButton(ns("downloads"), icon = icon("download"),status = "success"),
+            tags$div(
+              tags$h3("Downloads"),
+              fluidRow(
+                column(5,offset=0,
+                       tags$h4("Spatial distribution"),
+                       textInput(ns('spatialFileName'),'File name for download', value ='spatialDimRed.png', placeholder = 'spatialDimRed.png'),
+                       numericInput(ns('spatialWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                       numericInput(ns('spatialHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                       downloadButton(ns('downloadSpatial'), 'Download spatial figure'),
+                )),
+              fluidRow(
+                  column(5,offset=0,
+                       tags$h4("Top peaks"),
+                       textInput(ns('topPeakFileName'),'File name for download', value ='topPeaks.png', placeholder = 'topPeaks.png'),
+                       numericInput(ns('topPeakWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                       numericInput(ns('topPeakHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                       downloadButton(ns('downloadTopPeaks'), 'Download top peaks')
+                ),
+                    column(5,offset=1,
+                       tags$h4("Box plot"),
+                       textInput(ns('boxFileName'),'File name for download', value ='boxDimRed.png', placeholder = 'boxDimRed.png'),
+                       numericInput(ns('boxWidth'),value = 8,label = 'Width of downloaded figure (in inches)',min = 1,max = 50,step = 1),
+                       numericInput(ns('boxHeight'),value = 6,label = 'Height of downloaded figure (in inches)',min = 1,max = 50,step = 1),
+                       downloadButton(ns('downloadBox'), 'Download box plot'),
+                ),
+              ),
+              fluidRow(
+                column(5,offset=1,
+                       tags$h4("Spatial UMAP Colouring"),
+                       textInput(ns('spatialUMAPFileName'),'File name for download', value ='spatialUMAP.png', placeholder = 'spatialUMAP.png'),
+                       numericInput(ns('spatialUMAPWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                       numericInput(ns('spatialUMAPHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                       downloadButton(ns('downloadSpatialUMAP'), 'Download UMAP colouring')
+                ),
+                column(5,offset=1,
+                       tags$h4("UMAP"),
+                       textInput(ns('umapFileName'),'File name for download', value ='umap.png', placeholder = 'umap.png'),
+                       numericInput(ns('umapWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                       numericInput(ns('umapHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                       downloadButton(ns('downloadUMAP'), 'Download UMAP')
+                )),
+            theme = "light-border",
+            placement = "right",
+            arrow = FALSE
+          ),
+        ),
+
 
 
 
@@ -246,7 +296,8 @@ RegionDimRedPanelServer <- function(id, full.intensity.matrix, full.metadata, bu
       }
       return(list('SpatialView'=ggplot(current.metadata,aes(x=x,y=y))+
                     geom_tile(color=current.metadata$my.color,fill=current.metadata$my.color)+
-                    theme_classic()+facet_wrap(~current.metadata$Group,scales='free')+
+                    theme_classic() +
+                    facet_wrap(~current.metadata$Group,scales='free')+
                     ggplot2::theme(axis.title.x=ggplot2::element_blank(),
                                    axis.text.x=ggplot2::element_blank(),
                                    axis.ticks.x=ggplot2::element_blank(),
@@ -257,7 +308,8 @@ RegionDimRedPanelServer <- function(id, full.intensity.matrix, full.metadata, bu
                                    axis.line.y = ggplot2::element_blank()),
                   'UMAP'=ggplot(current.metadata,aes(x=UMAP_1,y=UMAP_2,color=selectedPeak))+
                     geom_point()+
-                    theme_classic()+colour.function))
+                    theme_classic()+
+                    colour.function))
 
     })
 
@@ -265,21 +317,61 @@ RegionDimRedPanelServer <- function(id, full.intensity.matrix, full.metadata, bu
       nmf_plot()
     })
 
+    output[['downloadSpatial']] <- downloadHandler(
+      filename = function() { input[['spatialFileName']] },
+      content = function(file) {
+        ggsave(file, plot = nmf_plot(), dpi = 300,
+               width=input[['spatialWidth']],height=input[['spatialHeight']])
+      }
+    )
+
     output[['plotPerSampleDimRed']] <- renderPlot({
       nmf_persample()
     })
+
+    output[['downloadBox']] <- downloadHandler(
+      filename = function() { input[['boxFileName']] },
+      content = function(file) {
+        ggsave(file, plot = nmf_persample(), dpi = 300,
+               width=input[['boxWidth']],height=input[['boxHeight']])
+      }
+    )
 
     output[['plotDimRedFeatureWeights']] <- renderPlot({
       nmf_featureweights()
     })
 
+    output[['downloadTopPeaks']] <- downloadHandler(
+      filename = function() { input[['topPeakFileName']] },
+      content = function(file) {
+        ggsave(file, plot = nmf_featureweights(), dpi = 300,
+               width=input[['topPeakWidth']],height=input[['topPeakHeight']])
+      }
+    )
+
     output[['DimRedUMAPSpatial']] <- renderPlot({
       nmf_umap()$SpatialView
     })
 
+    output[['downloadSpatialUMAP']] <- downloadHandler(
+      filename = function() { input[['spatialUMAPFileName']] },
+      content = function(file) {
+        ggsave(file, plot = nmf_umap()$SpatialView, dpi = 300,
+               width=input[['spatialUMAPWidth']],height=input[['spatialUMAPHeight']])
+      }
+    )
+
     output[['DimRedUMAP']] <- renderPlot({
       nmf_umap()$UMAP
     })
+
+    output[['downloadUMAP']] <- downloadHandler(
+      filename = function() { input[['umapFileName']] },
+      content = function(file) {
+        ggsave(file, plot = nmf_umap()$UMAP, dpi = 300,
+               width=input[['umapWidth']],height=input[['umapHeight']])
+      }
+    )
 
     # output[['plotClusterProps']] <- renderPlot({
     #   cluster_props()

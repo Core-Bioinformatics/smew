@@ -33,4 +33,6 @@ Depends:
     visNetwork,
     scales,
     stringr
+Suggests:
+    svglite
 RoxygenNote: 7.2.3

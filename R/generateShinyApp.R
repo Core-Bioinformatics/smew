@@ -123,6 +123,9 @@ generateAppFile <- function(
     "BulkORAPanelUI(id='RegionORA', bulk.metadata = bulk.metadata),",
     "RegionDimRedPanelUI(id='RegionNMF', bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix),",
     ")",
+    "),",
+    "tabPanel(title = 'Pixel-level Analysis',",
+    "PixelSVMPanelUI(id='PixelSVM',bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix)",
     ")",
     ")",
     "}"
@@ -142,6 +145,7 @@ generateAppFile <- function(
     "regionDEres <- RegionDEpanelServer(id='RegionDE', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, region.clusters = clusters, anno = anno)",
     "BulkORAPanelServer(id='RegionORA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno,DEresults = regionDEres)",
     "RegionDimRedPanelServer(id='RegionNMF', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno)",
+    "PixelSVMPanelServer(id='PixelSVM',bulk.metadata = bulk.metadata,full.metadata = metadata, full.intensity.matrix = intensity.matrix,anno = anno, DEresults = bulkDEres)",
     "}"
   )
   lines.out <- c(lines.out, code.server, "")

@@ -13,7 +13,7 @@ BulkDESummaryPanelUI <- function(id, bulk.metadata, show = TRUE){
           tags$li("Heatmap showing variation of intensity across samples for peaks selected in Differential analysis tab."),
           tags$li("Raw intensities, log2 intensities of Z-score intensities (default) can be shown for each peak."),
           tags$li("Peaks can be clustered to group by similar patterns using complete linkage hierarchical clustering based on Euclidean distance."),
-          tags$li("Extra peaks can be added to the heatmap using the search box below."),
+          tags$li("Extra peaks can be added to the heatmap using the search box below.")
         ),
         br(),
 
@@ -24,14 +24,26 @@ BulkDESummaryPanelUI <- function(id, bulk.metadata, show = TRUE){
         checkboxInput(ns("cluster.heatmap"), label = "Cluster heatmap rows", value = TRUE),
         selectInput(ns("peakName"), "Additional peaks to include:", multiple = TRUE, choices = character(0)),
         div("\nIf no peaks are selected in the DE panel or here then the top 50 DE peaks are chosen.\n"),
-        div(style="margin-bottom:10px"),
-        textInput(ns('plotHeatmapFileName'), 'File name for heatmap plot download', value ='HeatmapPlot.png'),
-        downloadButton(ns('downloadHeatmapPlot'), 'Download Heatmap Plot'),
 
-        status = "info",
+        status = "success",
         icon = icon("gear", verify_fa = FALSE),
         tooltip = shinyWidgets::tooltipOptions(title = "Click to see inputs!")
       ),
+      dropMenu(
+        circleButton(ns("downloads_heatmap"), icon = icon("download"),status = "success"),
+        tags$div(
+          tags$h3("Downloads"),
+          fluidRow(
+            column(10,offset=0,
+                   textInput(ns('plotHeatmapFileName'), 'File name for heatmap download', value ='heatmap.png'),
+                   numericInput(ns('heatmapPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                   numericInput(ns('heatmapPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                   downloadButton(ns('downloadHeatmapPlot'), 'Download heatmap plot')
+            )),
+          theme = "light-border",
+          placement = "right",
+          arrow = FALSE
+        )),
       plotOutput(ns('heatmap'), height = 800),
       tags$h1("Volcano/MA plot"),
       shinyWidgets::dropdownButton(
@@ -40,7 +52,7 @@ BulkDESummaryPanelUI <- function(id, bulk.metadata, show = TRUE){
           tags$li("Volcano/MA plots showing the log2FC, log10 BH-adjusted p-value and average intensity for each peak, colouring peaks showing significant changes."),
           tags$li("Peaks selected in Differential intensity analysis tab are highlighted."),
           tags$li("Extra peaks can be highlighted using the search box below."),
-          tags$li("The y-axis scale for volcano plots can be capped at log10(p-value) > 10."),
+          tags$li("The y-axis scale for volcano plots can be capped at log10(p-value) > 10.")
         ),
         br(),
         selectInput(ns('plotType'), 'Type of plot:', c('Volcano', 'MA')),
@@ -86,13 +98,26 @@ BulkDESummaryPanelUI <- function(id, bulk.metadata, show = TRUE){
           ),
         ),
         selectInput(ns("peakNameVolcano"), "Other peaks to highlight:", multiple = TRUE, choices = character(0)),
-        textInput(ns('plotFileNameVolcano'), 'File name for plot download', value ='DEPlot.png'),
-        downloadButton(ns('downloadVolcano'), 'Download Plot'),
 
-        status = "info",
+        status = "success",
         icon = icon("gear", verify_fa = FALSE),
         tooltip = shinyWidgets::tooltipOptions(title = "Click to see inputs!")
       ),
+      dropMenu(
+        circleButton(ns("downloads_volcano"), icon = icon("download"),status = "success"),
+        tags$div(
+          tags$h3("Downloads"),
+          fluidRow(
+            column(10,offset=0,
+                   textInput(ns('plotFileNameVolcano'), 'File name for plot download', value ='DEPlot.png'),
+                   numericInput(ns('volcanoPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                   numericInput(ns('volcanoPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                   downloadButton(ns('downloadVolcano'), 'Download Plot'),
+            )),
+          theme = "light-border",
+          placement = "right",
+          arrow = FALSE
+        )),
       plotOutput(ns('volcanoPlot'), click = ns('plot_click')),
       tableOutput(ns('volcanoData'))
 
@@ -221,16 +246,16 @@ BulkDESummaryPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, D
       filename = function() { input[['plotHeatmapFileName']] },
       content = function(file) {
         if (base::strsplit(input[['plotHeatmapFileName']], split="\\.")[[1]][-1] == 'pdf'){
-          grDevices::pdf(file, width = 10, height = 20, pointsize = 20)
+          grDevices::pdf(file, width=input[['heatmapPlotWidth']],height=input[['heatmapPlotHeight']])
           print(heatmap.plot())
           grDevices::dev.off()
         } else if (base::strsplit(input[['plotHeatmapFileName']], split="\\.")[[1]][-1] == 'svg'){
-          grDevices::svg(file, width = 10, height = 20, pointsize = 20)
+          grDevices::svg(file, width=input[['heatmapPlotWidth']],height=input[['heatmapPlotHeight']])
           print(heatmap.plot())
           grDevices::dev.off()
         } else {
-          grDevices::png(file, width = 480, height = 1000, units = "px",
-                         pointsize = 12, bg = "white", res = NA)
+          grDevices::png(file, width=input[['heatmapPlotWidth']],height=input[['heatmapPlotHeight']], units = "in",
+                         res = 300, bg = "white")
           print(heatmap.plot())
           grDevices::dev.off()
         }
@@ -238,9 +263,9 @@ BulkDESummaryPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, D
     )
 
     output[['downloadVolcano']] <- downloadHandler(
-      filename = function() { input[['volcanoPlotFileName']] },
+      filename = function() { input[['plotFileNameVolcano']] },
       content = function(file) {
-        ggsave(file, plot = DEplot(), dpi = 300)
+        ggsave(file, plot = DEplot(), width=input[['volcanoPlotWidth']],height=input[['volcanoPlotHeight']],units = 'in')
       }
     )
 

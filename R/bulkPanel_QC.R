@@ -7,7 +7,8 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
     tabPanel(
       'Quality checks',
       tags$h1("Principal Component Analysis (PCA)"),
-      shinyWidgets::dropdownButton(
+      shinyWidgets::dropMenu(
+        circleButton(ns("info_pca"), icon = icon("gear"),status = "success"),
         tags$h3("PCA"),
         tags$ul(
           tags$li("Distribution of samples across the first 2 principal components."),
@@ -21,17 +22,31 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
         checkboxInput(ns("pca.show.labels"), label = "Show sample labels", value = FALSE),
         checkboxInput(ns('pca.show.ellipses'),label = "Show ellipses around groups",value=TRUE),
         checkboxInput(ns('pca.show.confidence.ellipses'),label = "Show 95% confidence ellipses around groups",value=FALSE),
-        textInput(ns('plotPCAFileName'), 'File name for PCA plot download', value ='PCAPlot.png'),
-        downloadButton(ns('downloadPCAPlot'), 'Download PCA Plot'),
-
-        status = "info",
-        icon = icon("gear", verify_fa = FALSE),
-        tooltip = shinyWidgets::tooltipOptions(title = "Click to see information and options!")
+        theme = "light-border",
+        placement = "right",
+        arrow = FALSE
       ),
+      div(style = "margin-top:10px"),
+      dropMenu(
+        circleButton(ns("downloads_pca"), icon = icon("download"),status = "success"),
+        tags$div(
+          tags$h3("Downloads"),
+          fluidRow(
+            column(10,offset=0,
+                   textInput(ns('plotPCAFileName'), 'File name for PCA plot download', value ='PCAPlot.png'),
+                   numericInput(ns('PCAPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                   numericInput(ns('PCAPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                   downloadButton(ns('downloadPCAPlot'), 'Download PCA Plot'),
+            )),
+          theme = "light-border",
+          placement = "right",
+          arrow = FALSE
+        )),
       plotOutput(ns('pca')),
 
       tags$h1("Partial Least Squares Discriminant Analysis (PLS-DA)"),
-      shinyWidgets::dropdownButton(
+      shinyWidgets::dropMenu(
+        circleButton(ns("info_plsda"), icon = icon("gear"),status = "success"),
         tags$h3("PLS-DA"),
         tags$ul(
           tags$li("Distribution of samples across the first 2 PLS-DA components as computed using mixOmics."),
@@ -50,13 +65,30 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
         checkboxInput(ns('plsda.show.ellipses'),label = "Show ellipses around groups",value=TRUE),
         checkboxInput(ns('plsda.show.confidence.ellipses'),label = "Show 95% confidence ellipses around groups",value=FALSE),
         numericInput(ns('plsda.comp'),label = "PLS-DA component's contributions to show",min=1,max=2,step = 1,value = 1),
-        textInput(ns('plotPLSDAFileName'), 'File name for PLS-DA plot download', value ='PLSDAPlot.png'),
-        downloadButton(ns('downloadPLSDAPlot'), 'Download PLS-DA Plot'),
-
-        status = "info",
-        icon = icon("gear", verify_fa = FALSE),
-        tooltip = shinyWidgets::tooltipOptions(title = "Click to see information and options!")
+        theme = "light-border",
+        placement = "right",
+        arrow = FALSE
       ),
+      div(style = "margin-top:10px"),
+      dropMenu(
+        circleButton(ns("downloads_plsda"), icon = icon("download"),status = "success"),
+        tags$div(
+          tags$h3("Downloads"),
+          fluidRow(
+            column(10,offset=0,
+                   textInput(ns('plotPLSDAFileName'), 'File name for PLS-DA plot download', value ='PLSDAPlot.png'),
+                   numericInput(ns('PLSDAPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                   numericInput(ns('PLSDAPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                   downloadButton(ns('downloadPLSDAPlot'), 'Download PLS-DA Plot'),
+                   textInput(ns('plotPLSDAContribFileName'), 'File name for PLS-DA contribution plot download', value ='PLSDAContribPlot.png'),
+                   numericInput(ns('PLSDAContribPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                   numericInput(ns('PLSDAContribPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                   downloadButton(ns('downloadPLSDAContribPlot'), 'Download PLS-DA contribution plot'),
+            )),
+          theme = "light-border",
+          placement = "right",
+          arrow = FALSE
+        )),
       plotOutput(ns('plsda')),
       plotOutput(ns('plsda_contrib')),
 
@@ -79,10 +111,12 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
                    choices = colnames(bulk.metadata), selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
       shinyWidgets::dropdownButton(
         textInput(ns('plotBarFileName'), 'File name for bar plot download', value ='BarPlot.png'),
+        numericInput(ns('barPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+        numericInput(ns('barPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
         downloadButton(ns('downloadBarPlot'), 'Download Bar Plot'),
 
-        status = "info",
-        icon = icon("gear", verify_fa = FALSE),
+        status = "success",
+        icon = icon("download", verify_fa = FALSE),
         tooltip = shinyWidgets::tooltipOptions(title = "Click to see information and options!")
       ),
       plotOutput(ns('barplot')),
@@ -105,10 +139,12 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
                    choices = colnames(bulk.metadata), selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
       shinyWidgets::dropdownButton(
         textInput(ns('plotBoxFileName'), 'File name for box plot download', value ='BoxPlot.png'),
+        numericInput(ns('boxPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+        numericInput(ns('boxPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
         downloadButton(ns('downloadBoxPlot'), 'Download Box Plot'),
 
-        status = "info",
-        icon = icon("gear", verify_fa = FALSE),
+        status = "success",
+        icon = icon("download", verify_fa = FALSE),
         tooltip = shinyWidgets::tooltipOptions(title = "Click to see information and options!")
       ),
       plotOutput(ns('boxplot'),click = ns('boxplot_click')),
@@ -211,21 +247,35 @@ BulkQCpanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
     output[['downloadPCAPlot']] <- downloadHandler(
       filename = function() { input[['plotPCAFileName']] },
       content = function(file) {
-        ggsave(file, plot = pca.plot(), dpi = 300)
+        ggsave(file, plot = pca.plot(), width=input[['PCAPlotWidth']],height=input[['PCAPlotHeight']],units='in')
+      }
+    )
+
+    output[['downloadPLSDAPlot']] <- downloadHandler(
+      filename = function() { input[['plotPLSDAFileName']] },
+      content = function(file) {
+        ggsave(file, plot = plsda.plot(), , width=input[['PLSDAPlotWidth']],height=input[['PLSDAPlotHeight']],units='in')
+      }
+    )
+
+    output[['downloadPLSDAContribPlot']] <- downloadHandler(
+      filename = function() { input[['plotPLSDAContribFileName']] },
+      content = function(file) {
+        ggsave(file, plot = plsda.contrib(), , width=input[['PLSDAContribPlotWidth']],height=input[['PLSDAContribPlotHeight']],units='in')
       }
     )
 
     output[['downloadBarPlot']] <- downloadHandler(
       filename = function() { input[['plotBarFileName']] },
       content = function(file) {
-        ggsave(file, plot = bar.plot(), dpi = 300)
+        ggsave(file, plot = bar.plot(), , width=input[['barPlotWidth']],height=input[['barPlotHeight']],units='in')
       }
     )
 
     output[['downloadBoxPlot']] <- downloadHandler(
       filename = function() { input[['plotBoxFileName']] },
       content = function(file) {
-        ggsave(file, plot = box.plot(), dpi = 300)
+        ggsave(file, plot = box.plot()$plot, , width=input[['boxPlotWidth']],height=input[['boxPlotHeight']],units='in')
       }
     )
 
