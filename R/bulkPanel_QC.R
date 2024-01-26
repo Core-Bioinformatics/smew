@@ -90,7 +90,8 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
           arrow = FALSE
         )),
       plotOutput(ns('plsda')),
-      plotOutput(ns('plsda_contrib')),
+      plotOutput(ns('plsda_contrib'),click = ns("plsda_hover")),
+      tableOutput(ns("plsda_contrib_data")),
 
       tags$h1("Individual peak intensity barplots"),
       dropMenu(
@@ -148,7 +149,7 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
         tooltip = shinyWidgets::tooltipOptions(title = "Click to see information and options!")
       ),
       plotOutput(ns('boxplot'),click = ns('boxplot_click')),
-#      verbatimTextOutput(ns("data"))
+      tableOutput(ns("box_data"))
     )
   }else{
     NULL
@@ -206,7 +207,7 @@ BulkQCpanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
                               anno)
       myplot
     })
-    output[['plsda_contrib']] <- renderPlot(plsda.contrib())
+    output[['plsda_contrib']] <- renderPlot(plsda.contrib()$plot)
     bar.plot <- reactive({
       peak.ids <- anno$m_z[match(input[["barPeakName"]],anno$display_name)]
       if (length(peak.ids)==1){
@@ -244,6 +245,27 @@ BulkQCpanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
     #   nearPoints(box.plot()$table, input$boxplot_click)
     # })
 
+    output$plsda_contrib_data <- renderTable({
+      if (is.null(input$plsda_hover$y)) return()
+      selected.metadata = unique(sort(plsda.contrib()$table$metab))[round(input$plsda_hover$y)]
+      keeprows <- selected.metadata == plsda.contrib()$table$metab
+      keeprows <- as.data.frame(plsda.contrib()$table[keeprows, ])
+      keeprows <- keeprows[,c('PLSDAComp','metab','display_metab')]
+      colnames(keeprows)=c('PLSDA Contribution','m_z','Metabolite annotation')
+      keeprows
+    })
+
+    output$box_data <- renderTable({
+      if (is.null(input$boxplot_click$x)) return()
+      panel = input$boxplot_click$panelvar1
+      selected.metadata = sort(unique(box.plot()$table$metadata))[round(input$boxplot_click$x)]
+      keeprows <- selected.metadata == box.plot()$table$metadata & box.plot()$table$peak==panel
+      keeprows <- as.data.frame(box.plot()$table[keeprows, ])
+      keeprows$peak_name <- anno$name[match(keeprows$peak,anno$m_z)]
+      keeprows = keeprows[order(abs(input$boxplot_click$y-keeprows$value)),]
+      head(keeprows,5)
+    })
+
     output[['downloadPCAPlot']] <- downloadHandler(
       filename = function() { input[['plotPCAFileName']] },
       content = function(file) {
@@ -261,14 +283,14 @@ BulkQCpanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
     output[['downloadPLSDAContribPlot']] <- downloadHandler(
       filename = function() { input[['plotPLSDAContribFileName']] },
       content = function(file) {
-        ggsave(file, plot = plsda.contrib(), , width=input[['PLSDAContribPlotWidth']],height=input[['PLSDAContribPlotHeight']],units='in')
+        ggsave(file, plot = plsda.contrib()$plot, width=input[['PLSDAContribPlotWidth']],height=input[['PLSDAContribPlotHeight']],units='in')
       }
     )
 
     output[['downloadBarPlot']] <- downloadHandler(
       filename = function() { input[['plotBarFileName']] },
       content = function(file) {
-        ggsave(file, plot = bar.plot(), , width=input[['barPlotWidth']],height=input[['barPlotHeight']],units='in')
+        ggsave(file, plot = bar.plot() , width=input[['barPlotWidth']],height=input[['barPlotHeight']],units='in')
       }
     )
 

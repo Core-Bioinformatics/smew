@@ -137,7 +137,7 @@ plsda_contrib <- function(intensity.matrix,
     ggplot2::theme(legend.position = "none") +
     ggplot2::xlab('Contribution')+
     ggplot2::ylab('')
-  return(contrib.plot)
+  return(list('plot'=contrib.plot,'table'=head(contrib,30)))
 }
 
 peaks_barplot <- function(sub.intensity.matrix,
