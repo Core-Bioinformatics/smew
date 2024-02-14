@@ -54,7 +54,7 @@ shiny::runApp(shiny.dir)
 
 ## Installation guide
 
-To use *smew*, you need R >= 4.0. Currently, *smew* can only be installed from GitHub, either by cloning the repository and using *devtools::install()* or using *devtools::install_github(smew)*. You need to make sure all dependencies are installed using the following:
+To use *smew*, you need R >= 4.0. Currently, *smew* can only be installed from GitHub, either by cloning the repository and using *devtools::install()* or using *devtools::install_github("Core-Bioinformatics/MSIToolkit")*. You need to make sure all dependencies are installed using the following:
 
 ### Required CRAN packages (use *install.packages()*) ###
 
