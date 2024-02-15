@@ -143,53 +143,6 @@ GetSpatialNetwork.default <- function (
   return(knn_long.list)
 }
 
-#' @rdname get-network
-#'
-#' @importFrom dplyr select rename
-#'
-#' @examples
-#'
-#' library(semla)
-#'
-#' se_mbrain <- readRDS(system.file("extdata/mousebrain", "se_mbrain", package = "semla"))
-#'
-#' # Get spatial network from a Seurat object
-#' spatnet <- GetSpatialNetwork(se_mbrain)
-#'
-#' # Plot network
-#' ggplot(spatnet[["1"]], aes(x = x_start, xend = x_end, y = y_start, yend = y_end)) +
-#'   geom_segment() +
-#'   scale_y_reverse()
-#'
-#' @export
-#'
-GetSpatialNetwork.Seurat <- function (
-    object,
-    nNeighbors = 6,
-    maxDist = NULL,
-    minK = 0,
-    ...
-) {
-
-  # Set global variable to NULL
-  barcode <- pxl_col_in_fullres <- pxl_row_in_fullres <- sampleID <- NULL
-
-  # Check Seurat object
-  .check_seurat_object(object)
-
-  # Get coordinates
-  xys <- GetStaffli(object)@meta_data |>
-    select(barcode, pxl_col_in_fullres, pxl_row_in_fullres, sampleID) |>
-    rename(x = pxl_col_in_fullres, y = pxl_row_in_fullres)
-
-  # get spatial networks
-  spatnet <- GetSpatialNetwork(xys, nNeighbors = nNeighbors, maxDist = maxDist, minK = minK)
-
-  # Return spatial networks
-  return(spatnet)
-}
-
-
 #' Create Spatial Networks
 #'
 #' Create spatial networks from spatial coordinates. The spatial networks are provided in a long

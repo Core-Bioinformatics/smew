@@ -2,13 +2,10 @@
 % Please edit documentation in R/semla_spatial_network.R
 \name{GetSpatialNetwork.default}
 \alias{GetSpatialNetwork.default}
-\alias{GetSpatialNetwork.Seurat}
 \alias{GetSpatialNetwork}
 \title{Create Spatial Networks}
 \usage{
 \method{GetSpatialNetwork}{default}(object, nNeighbors = 6, maxDist = NULL, minK = 0, ...)
-
-\method{GetSpatialNetwork}{Seurat}(object, nNeighbors = 6, maxDist = NULL, minK = 0, ...)
 
 GetSpatialNetwork(object, ...)
 }
@@ -84,26 +81,10 @@ p2 <- ggplot(spatnet[["2"]], aes(x = x_start, xend = x_end, y = y_start, yend = 
 p1 + p2
 }
 
-
-library(semla)
-
-se_mbrain <- readRDS(system.file("extdata/mousebrain", "se_mbrain", package = "semla"))
-
-# Get spatial network from a Seurat object
-spatnet <- GetSpatialNetwork(se_mbrain)
-
-# Plot network
-ggplot(spatnet[["1"]], aes(x = x_start, xend = x_end, y = y_start, yend = y_end)) +
-  geom_segment() +
-  scale_y_reverse()
-
 }
 \seealso{
-Other spatial-methods: 
-\code{\link{CorSpatialFeatures.Seurat}()}
-
 Other network-methods: 
-\code{\link{CorSpatialFeatures.Seurat}()}
+\code{\link{CorSpatialFeatures}()}
 }
 \author{
 Ludvig Larsson
