@@ -87,7 +87,7 @@ RegionDEpanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
 
 #' @rdname RegionDEPanel
 #' @export
-RegionDEpanelServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, region.clusters, anno){
+RegionDEpanelServer <- function(id, full.intensity.matrix, full.metadata, bulk.intensity.matrix, bulk.metadata, region.clusters, anno){
   # check whether inputs (other than id) are reactive or not
   stopifnot({
     is.reactive(bulk.intensity.matrix)
