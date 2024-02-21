@@ -58,6 +58,7 @@ RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
                          step = 1)),
 
           # button to start clustering
+          tags$p("Warning: this analysis can take a few minutes to run and this will increase with the number of samples included."),
           actionButton(
             inputId = ns("run_clustering"),
             label = "Find clusters",

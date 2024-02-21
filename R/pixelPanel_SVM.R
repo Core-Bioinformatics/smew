@@ -30,6 +30,7 @@ PixelSVMPanelUI <- function(id, bulk.metadata, full.metadata, full.intensity.mat
         selected = unique(bulk.metadata[,1])[1],
         multiple = TRUE,width = '100%'
       ),
+      tags$p("Warning: this analysis can take a few minutes to run and this will increase with the number of samples included."),
       actionButton(ns("run_SVM"),'Identify spatially variable metabolites'),
       sidebarLayout(
         sidebarPanel(
