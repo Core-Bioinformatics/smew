@@ -79,6 +79,8 @@ To use *smew*, you need R >= 4.0. Currently, *smew* can only be installed from G
 * tidyr
 * RcppML
 * shinyjs
+* ggrastr
+* mixOmics
 
 ### Required Bioconductor packages (use *BiocManager::install()*) ###
 * ComplexHeatmap

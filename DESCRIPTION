@@ -33,7 +33,9 @@ Depends:
     visNetwork,
     scales,
     stringr,
-    shinyjs
+    shinyjs,
+    mixOmics,
+    ggrastr
 Suggests:
     svglite
 RoxygenNote: 7.2.3

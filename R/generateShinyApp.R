@@ -65,6 +65,7 @@ generateShinyApp <- function(shiny.dir='MSIToolKitApp',
   intensity.matrix.t.unique = unique(intensity.matrix.t)
   intensity.matrix = t(intensity.matrix.t.unique)
   bulk.intensity.matrix = bulk.intensity.matrix[colnames(intensity.matrix),]
+  anno = anno[anno$m_z %in% colnames(intensity.matrix)]
   return.list = c("intensity.matrix",
                      "bulk.intensity.matrix",
                      "metadata",
@@ -143,7 +144,7 @@ generateAppFile <- function(
     "BulkORAPanelServer(id='BulkORA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno,DEresults = bulkDEres)",
     "clusters <- RegionClusterPanelServer(id='RegionCluster', full.intensity.matrix = as.data.frame(t(intensity.matrix)), full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno)",
     "regionDEres <- RegionDEpanelServer(id='RegionDE', full.intensity.matrix = intensity.matrix, bulk.intensity.matrix = bulk.intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, region.clusters = clusters, anno = anno)",
-    "BulkORAPanelServer(id='RegionORA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno,DEresults = regionDEres)",
+    "BulkORAPanelServer(id='RegionORA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno,DEresults = regionDEres, organism = organism)",
     "RegionDimRedPanelServer(id='RegionNMF', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno)",
     "PixelSVMPanelServer(id='PixelSVM',bulk.metadata = bulk.metadata,full.metadata = metadata, full.intensity.matrix = intensity.matrix,anno = anno, DEresults = bulkDEres)",
     "}"

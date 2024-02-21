@@ -129,7 +129,7 @@ BulkORAPanelUI <- function(id, bulk.metadata, show = TRUE){
 
 #' @rdname BulkORAPanel
 #' @export
-BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresults, anno){
+BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresults, anno, organism){
 
   # check whether inputs (other than id) are reactive or not
   stopifnot({
@@ -147,7 +147,9 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
                   background = input[['background_selector']],
                   min_path_size = input[['min_pathway_size']],
                   ora_pvalue_cutoff = input[['ora_pvalue_cutoff']],
-                  min_pathway_hits = input[['min_pathway_hits']])
+                  min_pathway_hits = input[['min_pathway_hits']],
+                  organism=organism,
+                  anno=anno)
     }) %>% bindEvent(input[["submit_from_ora"]])
 
     dataTable <- reactive({

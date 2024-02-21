@@ -71,7 +71,7 @@ get_ORA = function (pathways, metabolites, universe, minSize = 1, maxSize = leng
 }
 
 
-execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalue_cutoff, min_pathway_hits, peak_direction) {
+execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalue_cutoff, min_pathway_hits, peak_direction,organism, anno) {
 
   # if (background == 'Whole metabolome') {
   #   background_peaks = unique(unlist(path_dict))
