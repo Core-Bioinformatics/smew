@@ -270,7 +270,7 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
     output[['downloadVolcano']] <- downloadHandler(
       filename = function() { input[['volcanoFileName']] },
       content = function(file) {
-        ggsave(file, plot = ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']]), dpi = 300,
+        ggsave(file, plot = ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']],selectedPathways()), dpi = 300,
                width=input[['volcanoWidth']],height=input[['volcanoHeight']])
       }
     )

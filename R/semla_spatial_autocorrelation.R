@@ -36,7 +36,7 @@ CorSpatialFeatures.default <- function (
   results <- lapply(seq_along(spatnet), function (i) {
 
     # pivot spatial network in long format to a wide format
-    wide_spatial_network <- pivot_wider(spatnet[[i]] |> select(from, to) |> mutate(value = 1),
+    wide_spatial_network <- pivot_wider(spatnet[[i]] |> dplyr::select(from, to) |> mutate(value = 1),
                                         names_from = "from", values_from = "value", values_fill = 0)
 
     # Convert wide spatial network to a matrix

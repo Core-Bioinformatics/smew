@@ -35,7 +35,8 @@ Depends:
     stringr,
     shinyjs,
     mixOmics,
-    ggrastr
+    ggrastr,
+    dbscan
 Suggests:
     svglite
 RoxygenNote: 7.2.3

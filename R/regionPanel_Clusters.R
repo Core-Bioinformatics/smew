@@ -110,7 +110,7 @@ RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
 
         #Main panel for displaying table of enriched pathways
         mainPanel(
-          fluidRow(column=10,plotOutput(ns('plotClusters'),height = 600)),
+          fluidRow(column=10,plotOutput(ns('plotClusters'),click = ns('cluster_click'),height = 600)),
           plotOutput(ns('plotClusterProps')),
           plotOutput(ns('plotClusterPropsPerSample')))
         )
@@ -170,6 +170,25 @@ RegionClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, b
       return(my_plot)
     }) %>% bindEvent(input[["run_clustering"]])
 
+    cluster_plot_zoom <- reactive({
+      current.metadata = get_clusters()
+      current.metadata = current.metadata[current.metadata$Sample==input$cluster_click$panelvar1,]
+      my_plot <- ggplot2::ggplot(current.metadata,ggplot2::aes(x = x, y = y, color = cluster, fill = cluster)) +
+        ggplot2::geom_tile() +
+        ggplot2::theme_classic() +
+        ggplot2::theme(axis.title.x=ggplot2::element_blank(),
+                       axis.text.x=ggplot2::element_blank(),
+                       axis.ticks.x=ggplot2::element_blank(),
+                       axis.line.x = ggplot2::element_blank(),
+                       axis.title.y=ggplot2::element_blank(),
+                       axis.text.y=ggplot2::element_blank(),
+                       axis.ticks.y=ggplot2::element_blank(),
+                       axis.line.y = ggplot2::element_blank(),
+                       aspect.ratio = 1)
+
+      return(my_plot)
+    }) %>% bindEvent(input[["run_clustering"]])
+
     cluster_props <- reactive({
       current.metadata = get_clusters()
       current.metadata$SelectedMetadata = current.metadata[,input[['groupingMetadataBarPlot']]]
@@ -209,6 +228,10 @@ RegionClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, b
       cluster_plot()
     },height=600)
 
+    output[['plotClustersZoom']] <- renderPlot({
+      cluster_plot_zoom()
+    })
+
     output[['plotClusterProps']] <- renderPlot({
       cluster_props()
     })
@@ -236,6 +259,16 @@ RegionClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, b
         ggsave(file, plot = cluster_props_persample(), width=input[['boxPlotWidth']],height=input[['boxPlotHeight']],units = 'in')
       }
     )
+    observeEvent(input$cluster_click, {
+      ns <- session$ns
+      showModal(
+        modalDialog(
+          plotOutput(ns('plotClustersZoom')),
+          easyClose = TRUE,
+          footer = NULL
+        )
+      )
+    })
 
     return(reactive(return_object()))
 

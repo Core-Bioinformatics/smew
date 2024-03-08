@@ -65,7 +65,7 @@ IntroSpatialVisPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE
           ),
       mainPanel(
         plotOutput(ns('peakDensity')),
-      fluidRow(column=10,plotOutput(ns('plotPeak'),height = 600)))),
+      fluidRow(column=10,plotOutput(ns('plotPeak'),click = ns('peak_click'))))),
       sidebarLayout(
         sidebarPanel(
           dropMenu(
@@ -100,7 +100,7 @@ IntroSpatialVisPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE
             arrow = FALSE
           )),
         mainPanel(
-          plotOutput(ns('plotMetadata'))),
+          plotOutput(ns('plotMetadata'),click = ns('metadata_click'))),
 
       ))
   }else{
@@ -136,7 +136,7 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
       }
       legend_title = ifelse(input[['log2_intensity']],paste0('log2 ',my_peak$m_z,'\n intensity'),paste0(my_peak$m_z,'\n intensity'))
       spatial.plot = ggplot2::ggplot(current.metadata,ggplot2::aes(x=x,y=y,color=peak,fill=peak))+geom_tile()+
-        ggplot2::facet_wrap(~current.metadata$Sample, scales = 'free',ncol=floor(2*sqrt(length(input[['samplesToShow']]))))  +
+        ggplot2::facet_wrap(~current.metadata$Sample, scales = 'free',nrow=max(1,floor(sqrt(length(input[['samplesToShow']])/2))))  +
         ggplot2::theme_classic() +
         ggplot2::theme(axis.title.x=ggplot2::element_blank(),
                        axis.text.x=ggplot2::element_blank(),
@@ -153,13 +153,45 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
       return(list('spatial'=spatial.plot,'density'=density.plot))
     }) %>% bindEvent(input[["go_plot_peak"]])
 
+    show_peak_zoom <- reactive({
+      my_peak = anno[anno$display_name==input[['peakName']],]
+      current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] == input$peak_click$panelvar1,]
+      current.intensity.matrix <- t(full.intensity.matrix)[,full.metadata[,colnames(bulk.metadata)[1]] == input$peak_click$panelvar1]
+      caps = quantile(current.intensity.matrix[my_peak$m_z,],probs=input[['capRange']]/100)
+      current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
+      current.metadata$peak = current.intensity.matrix[my_peak$m_z,]
+      current.metadata$peak = pmin(caps[2],current.metadata$peak)
+      current.metadata$peak = pmax(caps[1],current.metadata$peak)
+      if (input[['log2_intensity']]){
+        current.metadata$peak = log2(current.metadata$peak+1)
+      } else {
+        current.metadata$peak = current.metadata$peak
+      }
+      legend_title = ifelse(input[['log2_intensity']],paste0('log2 ',my_peak$m_z,'\n intensity'),paste0(my_peak$m_z,'\n intensity'))
+      return(ggplot2::ggplot(current.metadata,ggplot2::aes(x=x,y=y,color=peak,fill=peak))+geom_tile()+
+        ggplot2::theme_classic() +
+        ggplot2::theme(axis.title.x=ggplot2::element_blank(),
+                       axis.text.x=ggplot2::element_blank(),
+                       axis.ticks.x=ggplot2::element_blank(),
+                       axis.line.x = ggplot2::element_blank(),
+                       axis.title.y=ggplot2::element_blank(),
+                       axis.text.y=ggplot2::element_blank(),
+                       axis.ticks.y=ggplot2::element_blank(),
+                       axis.line.y = ggplot2::element_blank(),
+                       legend.title = ggplot2::element_text(legend_title))+
+        ggplot2::scale_fill_gradient(name=legend_title,low = "lightgrey", high = "brown")+
+        ggplot2::scale_color_gradient(name=legend_title,low = "lightgrey", high = "brown")+
+        ggplot2::theme(aspect.ratio = 1))
+    }) %>% bindEvent(input[["go_plot_peak"]])
+
+
     show_metadata <- reactive({
       current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToShow']],]
       current.metadata$metadata = current.metadata[,input[['metadataName']]]
       current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
       return(ggplot2::ggplot(current.metadata,ggplot2::aes(x=x,y=y,color=metadata,fill=metadata))+
                ggplot2::geom_tile()+
-               ggplot2::facet_wrap(~current.metadata$Sample, ncol = floor(2*sqrt(length(input[['samplesToShow']]))), scales = 'free')  +
+               ggplot2::facet_wrap(~current.metadata$Sample, nrow = max(1,floor(sqrt(length(input[['samplesToShow']])/2))), scales = 'free')  +
                ggplot2::theme_classic() +
                ggplot2::theme(axis.title.x=ggplot2::element_blank(),
                      axis.text.x=ggplot2::element_blank(),
@@ -172,9 +204,28 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
                ggplot2::theme(aspect.ratio = 1))
     }) %>% bindEvent(input[["go_plot_metadata"]])
 
-
+    show_metadata_zoom <- reactive({
+      current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] == input$metadata_click$panelvar1,]
+      current.metadata$metadata = current.metadata[,input[['metadataName']]]
+      current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
+      return(ggplot2::ggplot(current.metadata,ggplot2::aes(x=x,y=y,color=metadata,fill=metadata))+
+               ggplot2::geom_tile()+
+               ggplot2::theme_classic() +
+               ggplot2::theme(axis.title.x=ggplot2::element_blank(),
+                              axis.text.x=ggplot2::element_blank(),
+                              axis.ticks.x=ggplot2::element_blank(),
+                              axis.line.x = ggplot2::element_blank(),
+                              axis.title.y=ggplot2::element_blank(),
+                              axis.text.y=ggplot2::element_blank(),
+                              axis.ticks.y=ggplot2::element_blank(),
+                              axis.line.y = ggplot2::element_blank())+
+               ggplot2::theme(aspect.ratio = 1))
+    }) %>% bindEvent(input[["go_plot_metadata"]])
     output[['plotPeak']] <- renderPlot({
-      show_peak()$spatial},height=600)
+      show_peak()$spatial})
+
+    output[['plotPeakZoom']] <- renderPlot({
+      show_peak_zoom()})
 
     output[['downloadSpatial']] <- downloadHandler(
       filename = function() { input[['spatialFileName']] },
@@ -198,6 +249,10 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
       show_metadata()
     })
 
+    output[['plotMetadataZoom']] <- renderPlot({
+      show_metadata_zoom()
+    })
+
     output[['downloadMeta']] <- downloadHandler(
       filename = function() { input[['metaFileName']] },
       content = function(file) {
@@ -206,8 +261,27 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
       }
     )
 
-      return(unique(bulk.metadata[,1]))
- #   }
+    observeEvent(input$peak_click, {
+      ns <- session$ns
+      showModal(
+        modalDialog(
+          plotOutput(ns('plotPeakZoom')),
+          easyClose = TRUE,
+          footer = NULL
+        )
+      )
+    })
+
+    observeEvent(input$metadata_click, {
+      ns <- session$ns
+      showModal(
+        modalDialog(
+          plotOutput(ns('plotMetadataZoom')),
+          easyClose = TRUE,
+          footer = NULL
+        )
+      )
+    })
 
   })
 }

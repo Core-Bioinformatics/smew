@@ -91,11 +91,6 @@ GetSpatialNetwork.default <- function (
     abort(glue("Invalid column class(es)."))
   }
 
-  # install dbscan if not already installed
-  if (!requireNamespace("dbscan"))
-    abort(glue("Package {cli::col_br_magenta('dbscan')} is required. Please install it with: \n",
-               "install.packages('dbscan')"))
-
   # Set number of nearest neighbors if NULL
   nNeighbors <- nNeighbors %||% 6
   # Split coordinates by sample
@@ -121,7 +116,7 @@ GetSpatialNetwork.default <- function (
       add_count(from) |>
       filter(distance <= maxDist, n > minK) |>
       add_count(from, name = "nn") |>
-      select(-n)
+      dplyr::select(-n)
 
     # Merge with coordinates
     knn_long <-

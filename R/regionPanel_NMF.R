@@ -160,13 +160,15 @@ RegionDimRedPanelUI <- function(id, bulk.metadata, full.metadata, full.intensity
 
         #Main panel for displaying table of enriched pathways
         mainPanel(
-          plotOutput(ns('plotDimRed')),
+          tags$h3("Show dimensions in space"),
+          plotOutput(ns('plotDimRed'),click=ns('dimRed_click')),
+          tags$h3("Dimension distributions across metadata"),
           plotOutput(ns('plotPerSampleDimRed')),
+          tags$h3("Top peaks for each dimension"),
           plotOutput(ns('plotDimRedFeatureWeights')),
-          plotOutput(ns('DimRedUMAPSpatial')),
-          plotOutput(ns('DimRedUMAP')))
-        # plotOutput(ns('plotClusterProps')),
-        # plotOutput(ns('plotClusterPropsPerSample')))
+          tags$h3("UMAP on dimensions"),
+          plotOutput(ns('DimRedUMAPSpatial'),click=ns('umap_click')),
+          plotOutput(ns('DimRedUMAP'))),
       )
     )
   }else{
@@ -180,7 +182,7 @@ RegionDimRedPanelServer <- function(id, full.intensity.matrix, full.metadata, bu
 
   moduleServer(id, function(input, output, session){
     observe(
-      updateSelectizeInput(session, "focus_DimRed", choices = 1:input[['numDimensions']], server = TRUE, selected = 1)
+      updateSelectizeInput(session, "focus_dimension", choices = 1:input[['numDimensions']], server = TRUE, selected = 1)
     )
     get_subset_exp <- reactive({
       current.intensity.matrix <- full.intensity.matrix[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToFactor']],]
@@ -227,14 +229,17 @@ RegionDimRedPanelServer <- function(id, full.intensity.matrix, full.metadata, bu
       } else {
         return(get_pca())
       }
-    })
+    })  %>% bindEvent(input[["run_dimred"]])
+
     nmf_plot <- reactive({
       current.metadata = get_dimred()$metadata
+      print(input[['focus_dimension']])
       my_plot <- ggplot2::ggplot(current.metadata,ggplot2::aes(x = x, y = y, color = get(paste0(get_dimred()$dimRed,'_',input[['focus_dimension']])), fill = get(paste0(get_dimred()$dimRed,'_',input[['focus_dimension']])))) +
         ggplot2::geom_tile() +
         ggplot2::scale_fill_gradient2(low='darkblue',high='darkred',mid='white',name=paste0(get_dimred()$dimRed,'_',input[['focus_dimension']]))+
         ggplot2::scale_color_gradient2(low='darkblue',high='darkred',mid='white',name=paste0(get_dimred()$dimRed,'_',input[['focus_dimension']]))+
-        ggplot2::facet_wrap(~current.metadata$Sample, nrow = floor(sqrt(length(input[['samplesToFactor']]))), scales = 'free') +
+        ggplot2::facet_wrap(~current.metadata$Sample,
+                            nrow = max(1,floor(sqrt(length(unique(current.metadata$Sample))/2))), scales = 'free') +
         ggplot2::theme_classic() +
         ggplot2::theme(axis.title.x=ggplot2::element_blank(),
                        axis.text.x=ggplot2::element_blank(),
@@ -243,10 +248,32 @@ RegionDimRedPanelServer <- function(id, full.intensity.matrix, full.metadata, bu
                        axis.title.y=ggplot2::element_blank(),
                        axis.text.y=ggplot2::element_blank(),
                        axis.ticks.y=ggplot2::element_blank(),
-                       axis.line.y = ggplot2::element_blank())
+                       axis.line.y = ggplot2::element_blank())+
+        ggplot2::theme(aspect.ratio = 1)
 
       return(my_plot)
-    }) %>% bindEvent(input[["run_dimred"]])
+    })
+
+    nmf_plot_zoom <- reactive({
+      current.metadata = get_dimred()$metadata
+      current.metadata = current.metadata[current.metadata$Sample==input$dimRed_click$panelvar1,]
+      print('I am running!')
+      my_plot <- ggplot2::ggplot(current.metadata,ggplot2::aes(x = x, y = y, color = get(paste0(get_dimred()$dimRed,'_',input[['focus_dimension']])), fill = get(paste0(get_dimred()$dimRed,'_',input[['focus_dimension']])))) +
+        ggplot2::geom_tile() +
+        ggplot2::scale_fill_gradient2(low='darkblue',high='darkred',mid='white',name=paste0(get_dimred()$dimRed,'_',input[['focus_dimension']]))+
+        ggplot2::scale_color_gradient2(low='darkblue',high='darkred',mid='white',name=paste0(get_dimred()$dimRed,'_',input[['focus_dimension']]))+
+        ggplot2::theme_classic() +
+        ggplot2::theme(axis.title.x=ggplot2::element_blank(),
+                       axis.text.x=ggplot2::element_blank(),
+                       axis.ticks.x=ggplot2::element_blank(),
+                       axis.line.x = ggplot2::element_blank(),
+                       axis.title.y=ggplot2::element_blank(),
+                       axis.text.y=ggplot2::element_blank(),
+                       axis.ticks.y=ggplot2::element_blank(),
+                       axis.line.y = ggplot2::element_blank())+
+        ggplot2::theme(aspect.ratio = 1)
+    return(my_plot)
+    })
 
     nmf_persample <- reactive({
       current.metadata = get_dimred()$metadata
@@ -266,7 +293,11 @@ RegionDimRedPanelServer <- function(id, full.intensity.matrix, full.metadata, bu
       nmf.weights = head(nmf.weights,20)
       nmf.weights$peak = rownames(nmf.weights)
       nmf.weights$peak = factor(nmf.weights$peak,levels=rev(nmf.weights$peak))
-      ggplot(nmf.weights,aes(y=peak,x=get(paste0(get_dimred()$dimRed,'_',input[['focus_dimension']]))))+geom_bar(stat='identity')+theme_classic()+xlab(paste0(get_dimred()$dimRed,'_',input[['focus_dimension']]))
+      ggplot(nmf.weights,aes(y=peak,x=get(paste0(get_dimred()$dimRed,'_',input[['focus_dimension']]))))+
+        geom_bar(stat='identity')+
+        theme_classic()+
+        xlab(paste0(get_dimred()$dimRed,'_',input[['focus_dimension']])+
+        ggplot2::theme(aspect.ratio = 1))
     })
 
     nmf_umap_prep <- reactive({
@@ -289,7 +320,7 @@ RegionDimRedPanelServer <- function(id, full.intensity.matrix, full.metadata, bu
         current.metadata$selectedPeak = pmin(quantile(current.metadata$selectedPeak,0.95),current.metadata$selectedPeak)
         current.metadata$selectedPeak = pmax(quantile(current.metadata$selectedPeak,0.05),current.metadata$selectedPeak)
         current.metadata = current.metadata[order(current.metadata$selectedPeak),]
-        colour.function = ggplot2::scale_fill_gradient(name=input[['colourUMAP']],low = "lightgrey", high = "brown")
+        colour.function = ggplot2::scale_color_gradient(name=input[['colourUMAP']],low = "lightgrey", high = "brown")
 
       } else {
         current.metadata$selectedPeak = current.metadata[,input[['colourUMAP']]]
@@ -298,7 +329,9 @@ RegionDimRedPanelServer <- function(id, full.intensity.matrix, full.metadata, bu
       return(list('SpatialView'=ggplot(current.metadata,aes(x=x,y=y))+
                     geom_tile(color=current.metadata$my.color,fill=current.metadata$my.color)+
                     theme_classic() +
-                    facet_wrap(~current.metadata$Group,scales='free')+
+                    facet_wrap(~current.metadata$Sample,
+                               nrow = max(1,floor(sqrt(length(unique(current.metadata$Sample))/2))),
+                               scales='free')+
                     ggplot2::theme(axis.title.x=ggplot2::element_blank(),
                                    axis.text.x=ggplot2::element_blank(),
                                    axis.ticks.x=ggplot2::element_blank(),
@@ -306,16 +339,51 @@ RegionDimRedPanelServer <- function(id, full.intensity.matrix, full.metadata, bu
                                    axis.title.y=ggplot2::element_blank(),
                                    axis.text.y=ggplot2::element_blank(),
                                    axis.ticks.y=ggplot2::element_blank(),
-                                   axis.line.y = ggplot2::element_blank()),
+                                   axis.line.y = ggplot2::element_blank())+
+                    ggplot2::theme(aspect.ratio = 1),
                   'UMAP'=ggplot(current.metadata,aes(x=UMAP_1,y=UMAP_2,color=selectedPeak))+
                     geom_point()+
                     theme_classic()+
-                    colour.function))
+                    colour.function+
+                    ggplot2::theme(aspect.ratio = 1)))
+
+    })
+
+    nmf_umap_zoom <- reactive({
+      current.metadata = nmf_umap_prep()
+      current.metadata = current.metadata[current.metadata$Sample == input$umap_click$panelvar1,]
+      if (input[['colourUMAP']]%in%colnames(get_subset_exp()$exp)){
+        current.metadata$selectedPeak = get_subset_exp()$exp[,input[['colourUMAP']]]
+        current.metadata$selectedPeak = pmin(quantile(current.metadata$selectedPeak,0.95),current.metadata$selectedPeak)
+        current.metadata$selectedPeak = pmax(quantile(current.metadata$selectedPeak,0.05),current.metadata$selectedPeak)
+        current.metadata = current.metadata[order(current.metadata$selectedPeak),]
+        colour.function = ggplot2::scale_color_gradient(name=input[['colourUMAP']],low = "lightgrey", high = "brown")
+
+      } else {
+        current.metadata$selectedPeak = current.metadata[,input[['colourUMAP']]]
+        colour.function = ggplot2::scale_color_discrete(name=input[['colourUMAP']])
+      }
+      return(ggplot(current.metadata,aes(x=x,y=y))+
+                    geom_tile(color=current.metadata$my.color,fill=current.metadata$my.color)+
+                    theme_classic() +
+                    ggplot2::theme(axis.title.x=ggplot2::element_blank(),
+                                   axis.text.x=ggplot2::element_blank(),
+                                   axis.ticks.x=ggplot2::element_blank(),
+                                   axis.line.x = ggplot2::element_blank(),
+                                   axis.title.y=ggplot2::element_blank(),
+                                   axis.text.y=ggplot2::element_blank(),
+                                   axis.ticks.y=ggplot2::element_blank(),
+                                   axis.line.y = ggplot2::element_blank())+
+                    ggplot2::theme(aspect.ratio = 1))
 
     })
 
     output[['plotDimRed']] <- renderPlot({
       nmf_plot()
+    })
+
+    output[['plotDimRedZoom']] <- renderPlot({
+      nmf_plot_zoom()
     })
 
     output[['downloadSpatial']] <- downloadHandler(
@@ -354,6 +422,10 @@ RegionDimRedPanelServer <- function(id, full.intensity.matrix, full.metadata, bu
       nmf_umap()$SpatialView
     })
 
+    output[['DimRedUMAPSpatialZoom']] <- renderPlot({
+      nmf_umap_zoom()
+    })
+
     output[['downloadSpatialUMAP']] <- downloadHandler(
       filename = function() { input[['spatialUMAPFileName']] },
       content = function(file) {
@@ -374,6 +446,27 @@ RegionDimRedPanelServer <- function(id, full.intensity.matrix, full.metadata, bu
       }
     )
 
+    observeEvent(input$dimRed_click, {
+      ns <- session$ns
+      showModal(
+        modalDialog(
+          plotOutput(ns("plotDimRedZoom")),
+          easyClose = TRUE,
+          footer = NULL
+        )
+        )
+    })
+
+    observeEvent(input$umap_click, {
+      ns <- session$ns
+      showModal(
+        modalDialog(
+          plotOutput(ns('DimRedUMAPSpatialZoom')),
+          easyClose = TRUE,
+          footer = NULL
+        )
+      )
+    })
     # output[['plotClusterProps']] <- renderPlot({
     #   cluster_props()
     # })
@@ -382,7 +475,7 @@ RegionDimRedPanelServer <- function(id, full.intensity.matrix, full.metadata, bu
     #   cluster_props_persample()
     # })
     #
-    # return(reactive(return_object()))
+    return(reactive(return_object()))
 
   })
 }

@@ -39,7 +39,8 @@ plot_pca <- function(
     ggplot2::geom_point() +
     ggplot2::labs(x = paste0("PC1 (proportion of variance = ", summary(expr.PCA.list)$importance[2, 1] * 100, "%)"),
          y = paste0("PC2 (proportion of variance = ", summary(expr.PCA.list)$importance[2, 2] * 100, "%)"),
-         colour = annotation.name)
+         colour = annotation.name) +
+          theme(aspect.ratio=1)
   if(show.confidence.ellipses){
     pca.plot <- pca.plot +
       stat_ellipse(geom='polygon',alpha=0.3,aes(fill = .data$condition, colour = .data$condition), show.legend = FALSE)
@@ -95,7 +96,8 @@ plot_plsda <- function(
     ggplot2::geom_point() +
     ggplot2::labs(x = paste0("PLS-DA Comp1 (proportion of variance = ", round(my.plsda$prop_expl_var$X[1] * 100,digits = 1), "%)"),
          y = paste0("PLS-DA Comp2 (proportion of variance = ", round(my.plsda$prop_expl_var$X[2] * 100,digits=1), "%)"),
-         colour = annotation.name)
+         colour = annotation.name)+
+    theme(aspect.ratio=1)
   if(show.confidence.ellipses){
     plsda.plot <- plsda.plot +
       ggplot2::stat_ellipse(geom='polygon',alpha=0.3,aes(fill = .data$condition, colour = .data$condition), show.legend = FALSE)
