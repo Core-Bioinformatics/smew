@@ -39,8 +39,8 @@ RegionDEpanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
                        value = 10,
                        min = 1,
                        max = 1000),
-          selectInput(ns('condition'), 'Metadata column to use:', colnames(bulk.metadata)[-1],
-                      selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
+          selectInput(ns('condition'), 'Metadata column to use:', c('AllSamples',colnames(bulk.metadata)[-1]),
+                      selected = 'AllSamples'),
           actionButton(ns('pseudoBulk'), label = 'Start Pseudobulking'),
 
           # Input: Selector variables to compare

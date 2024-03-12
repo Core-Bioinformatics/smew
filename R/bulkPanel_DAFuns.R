@@ -1,6 +1,8 @@
 DEanalysis <-function(intensity.matrix,condition,var1,var2,test='t-test',anno){
 
   # calculate FC
+  group1_names = colnames(intensity.matrix[, condition==var1])
+  group2_names = colnames(intensity.matrix[, condition==var2])
   intensity.matrix = intensity.matrix[(matrixStats::rowMins(as.matrix(intensity.matrix))!=matrixStats::rowMaxs(as.matrix(intensity.matrix))) &
                                           ((matrixStats::rowMins(as.matrix(intensity.matrix[,condition==var1]))!=matrixStats::rowMaxs(as.matrix(intensity.matrix[,condition==var1]))) |
                                           (matrixStats::rowMins(as.matrix(intensity.matrix[,condition==var2]))!=matrixStats::rowMaxs(as.matrix(intensity.matrix[,condition==var2])))),]
@@ -14,9 +16,9 @@ DEanalysis <-function(intensity.matrix,condition,var1,var2,test='t-test',anno){
   na_index = apply(is.na(fc_results), 1, any)
   fc_results = fc_results[!na_index,]
   if (test=='t-test'){
-    fc_results$pvalue = sapply(1:nrow(fc_results), function(i) t.test(as.numeric(fc_results[i, condition==var1]), as.numeric(fc_results[i, condition==var2]), paired = FALSE)$p.value)
+    fc_results$pvalue = sapply(1:nrow(fc_results), function(i) t.test(as.numeric(fc_results[i, group1_names]), as.numeric(fc_results[i, group2_names]), paired = FALSE)$p.value)
   } else {
-    fc_results$pvalue = sapply(1:nrow(fc_results), function(i) wilcox.test(as.numeric(fc_results[i, condition==var1]), as.numeric(fc_results[i, condition==var2]), paired = FALSE)$p.value)
+    fc_results$pvalue = sapply(1:nrow(fc_results), function(i) wilcox.test(as.numeric(fc_results[i, group1_names]), as.numeric(fc_results[i, group2_names]), paired = FALSE)$p.value)
   }
   fc_results$pvalue_adj = p.adjust(fc_results$pvalue, method = "BH")
   names = rownames(fc_results)

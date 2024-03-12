@@ -16,13 +16,13 @@ create_bulk_exp_regions <- function(intensity.matrix,
   sample.names = paste0(intensity.matrix.mean$sample,'_',intensity.matrix.mean$region)
   intensity.matrix.mean <- intensity.matrix.mean[,!(colnames(intensity.matrix.mean)%in%c('sample','region'))]
   intensity.matrix.mean <- intensity.matrix.mean |>
-    dplyr::select(-dplyr::one_of(c('sample','region'))) |>
     as.matrix() |>
     t() |>
     as.data.frame() |>
     dplyr::rename_with(~sample.names)
   for (region in unique(region.ids)){
     current.metadata = bulk.metadata
+    current.metadata$AllSamples = 'AllSamples'
     current.metadata = data.frame(lapply(current.metadata, function(x) paste(x,region, sep="_")))
     if (region == unique(region.ids)[1]){
       metadata.mean = current.metadata
@@ -31,5 +31,6 @@ create_bulk_exp_regions <- function(intensity.matrix,
     }
   }
   metadata.mean = metadata.mean[metadata.mean[,1]%in%colnames(intensity.matrix.mean),]
+  intensity.matrix.mean = intensity.matrix.mean[,metadata.mean[,1]]
   return(list('intensity.matrix'=as.matrix(intensity.matrix.mean),'metadata'=metadata.mean))
 }
