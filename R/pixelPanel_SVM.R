@@ -125,25 +125,15 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
       return(list('exp'=current.intensity.matrix,'meta'=current.metadata))
     }) %>% bindEvent(input[["run_SVM"]])
 
-    svm_preprocess <- reactive({
-      current.intensity.matrix <- get_subset_exp()$exp
-      current.metadata <- get_subset_exp()$meta
-      coords = current.metadata[,c('spot_id','x','y',colnames(bulk.metadata)[1])]
-      colnames(coords)=c('barcode','x','y','sampleID')
-      coords$barcode = as.character(coords$barcode)
-      print('doing something')
-      coords = as.tibble(coords)
-      coords$sampleID = as.numeric(as.factor(coords$sampleID))
-      print('got here')
-      spatnet = GetSpatialNetwork(coords)
-      print('got here 2')
-      spatgenes = CorSpatialFeatures(current.intensity.matrix,spatnet,nCores=1)
+    svm_results <- reactive({
+      load('svm_identification.rda')
+      spatgenes <- svm_identification[input[['samplesToInclude']]]
       return(spatgenes)
-    })
+    }) %>% bindEvent(input[["run_SVM"]])
+
     run_svm <- reactive({
-      spatgenes <- svm_preprocess()
+      spatgenes <- svm_results()
       top.svm = lapply(spatgenes,FUN = function(x)head(x$gene,input[['topNumber']]))
-      names(top.svm)=unique(get_subset_exp()$meta[,colnames(bulk.metadata)[1]])
       return(top.svm)
     })
 
@@ -152,6 +142,7 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
       upset.plot <- UpSetR::upset(UpSetR::fromList(top.svm),nsets = length(names(top.svm)))
       return(upset.plot)
     })
+
     svm_barplot <- reactive({
  #     updateSelectInput(session, 'peakName', choices = svm_barplot()$names)
       top.svm <- run_svm()
@@ -187,7 +178,8 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
 
     observe({
       updateSelectInput(session, 'peakName', choices = svm_barplot()$names)
-    })
+    })  %>% bindEvent(input[["run_SVM"]])
+
     show_peak <- reactive({
       svm_results <- run_svm()
       my_peak = anno[anno$m_z==input[['peakName']],]
@@ -251,7 +243,7 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
     )
 
     svmTable <- reactive({
-      svm.table = svm_preprocess()[[1]]
+      svm.table = svm_results()[[input[['samplesToInclude']]]]
       colnames(svm.table)=c('m_z','SVM_corr')
       svm.table = merge(svm.table,anno[,c('m_z','name')],all.x=T)
       if (DEresults()$runDE==1){
@@ -265,7 +257,7 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
 
     output[['SVMTable']] <- DT::renderDT({
       svmTable()
-    }) %>% bindEvent(input[["run_SVM"]])
+    })
 
     output[['downloadTable']] <- downloadHandler(
       filename = function() {
@@ -302,6 +294,7 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
     output$check <- reactive({
       length(input$samplesToInclude)
     })%>% bindEvent(input[["run_SVM"]])
+
     outputOptions(output, 'check', suspendWhenHidden=FALSE)
 
     output[['plotHClust']] <- renderPlot({

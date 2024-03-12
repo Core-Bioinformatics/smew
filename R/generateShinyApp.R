@@ -66,12 +66,16 @@ generateShinyApp <- function(shiny.dir='MSIToolKitApp',
   intensity.matrix = t(intensity.matrix.t.unique)
   bulk.intensity.matrix = bulk.intensity.matrix[colnames(intensity.matrix),]
   anno = anno[anno$m_z %in% colnames(intensity.matrix)]
+
+  svm_identification <- run_svm(intensity.matrix,metadata,bulk.metadata)
+
   return.list = c("intensity.matrix",
                      "bulk.intensity.matrix",
                      "metadata",
                      "bulk.metadata",
                      "anno")
   save(list=return.list,file=file.path(shiny.dir,'data.rda'))
+  save("svm_identification",file=file.path(shiny.dir,'svm_identification.rda'))
   generateAppFile(shiny.dir,organism)
 }
 
@@ -87,8 +91,7 @@ generateAppFile <- function(
   lines.out <- c(lines.out, code.load.packages, "")
 
   code.source.objects <- c(
-    "rda.files <- list.files(path = getwd(),pattern = '\\.rda$')",
-    "for(fl in rda.files) load(fl)"
+    "load('data.rda')",
   )
 
   lines.out <- c(lines.out, code.source.objects, "")
