@@ -130,14 +130,14 @@ volcano_plot <- function(
     ...
 ){
   df = peaks.de.results %>%
-    dplyr::mutate(peak = .data$m_z, log10pval = log10(.data$pvalAdj)) %>%
+    dplyr::mutate(peak = .data$m_z, log10pval = log10(.data$pvalAdj), name = stringr::str_wrap(.data$display_name)) %>%
     dplyr::filter(!is.na(.data$log10pval))
 
   if(all(df$log10pval >= -10)) log10pval.cap <- FALSE
   if(log10pval.cap) df$log10pval[df$log10pval < -10] <- -10
 
   lfc <- NULL; log10pval <- NULL
-  vp <- ggplot(data = df, mapping = aes(x = lfc, y = -log10pval)) +
+  vp <- ggplot(data = df, mapping = aes(x = lfc, y = -log10pval,label=name)) +
     theme_minimal() +
     xlab("log2(FC)") +
     ylab("-log10(pval)")
@@ -350,14 +350,14 @@ volcano_enhance <- function(
     }
 
     set.seed(seed = seed)
-    vp <- vp +
-      ggrepel::geom_label_repel(
-        data = df.label,
-        mapping = aes(x = .data$lfc, y = -.data$log10pval, label = .data$name),
-        max.overlaps = Inf,
-        force = label.force,
-        point.size = NA
-      )
+    # vp <- vp +
+    #   ggrepel::geom_label_repel(
+    #     data = df.label,
+    #     mapping = aes(x = .data$lfc, y = -.data$log10pval, label = .data$name),
+    #     max.overlaps = Inf,
+    #     force = label.force,
+    #     point.size = NA
+    #   )
   }
 
   return(vp)
@@ -411,11 +411,10 @@ ma_plot <- function(
     ...
 ){
   df = peaks.de.results %>%
-    dplyr::mutate(peak = .data$m_z, log10pval = log10(.data$pvalAdj)) %>%
+    dplyr::mutate(peak = .data$m_z, log10pval = log10(.data$pvalAdj), name = stringr::str_wrap(.data$display_name)) %>%
     dplyr::filter(!is.na(.data$log10pval))
-
   log2_intensity <- NULL; lfc <- NULL
-  p <- ggplot(data = df, mapping = aes(x = log2_intensity, y = lfc)) +
+  p <- ggplot(data = df, mapping = aes(x = log2_intensity, y = lfc,label=name)) +
     ggplot2::theme_minimal() +
     xlab("Average log2(intensity)") +
     ylab("log2(FC)")
@@ -589,14 +588,14 @@ ma_enhance <- function(
     }
 
     set.seed(seed = seed)
-    p <- p +
-      ggrepel::geom_label_repel(
-        data = df.label,
-        mapping = aes(x = .data$log2_intensity, y = .data$lfc, label = .data$name),
-        max.overlaps = Inf,
-        force = label.force,
-        point.size = NA
-      )
+    # p <- p +
+    #   ggrepel::geom_label_repel(
+    #     data = df.label,
+    #     mapping = aes(x = .data$log2_intensity, y = .data$lfc, label = .data$name),
+    #     max.overlaps = Inf,
+    #     force = label.force,
+    #     point.size = NA
+    #   )
   }
   return(p)
 }

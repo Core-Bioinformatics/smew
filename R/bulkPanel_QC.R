@@ -13,15 +13,14 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
         tags$ul(
           tags$li("Distribution of samples across the first 2 principal components."),
           tags$li("Each sample is coloured by the selected sample-wide metadata information."),
-          tags$li("Metadata groups are surrounded by minimal ellipses containing all samples (ggplot2::stat_ellipse) or 95% confidence ellipses as selected in the options below."),
-          tags$li("Each sample can also be labelled.")
+          tags$li("Metadata groups are surrounded by 95% confidence ellipses as selected in the options below."),
+          tags$li("The top peaks contributing to the PCA are also shown below.")
         ),
         br(),
         radioButtons(ns('pca.annotation'), label = "Group by",
                      choices = colnames(bulk.metadata), selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
-        checkboxInput(ns("pca.show.labels"), label = "Show sample labels", value = FALSE),
-        checkboxInput(ns('pca.show.ellipses'),label = "Show ellipses around groups",value=TRUE),
-        checkboxInput(ns('pca.show.confidence.ellipses'),label = "Show 95% confidence ellipses around groups",value=FALSE),
+        checkboxInput(ns('pca.show.confidence.ellipses'),label = "Show 95% confidence ellipses around groups",value=TRUE),
+        numericInput(ns('pca.comp'),label = "PCA's contributions to show",min=1,max=2,step = 1,value = 1),
         theme = "light-border",
         placement = "right",
         arrow = FALSE
@@ -42,7 +41,8 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
           placement = "right",
           arrow = FALSE
         )),
-      plotOutput(ns('pca')),
+      plotly::plotlyOutput(ns('pca'),width='800px'),
+      plotly::plotlyOutput(ns('pca_contrib'),width='800px'),
 
       tags$h1("Partial Least Squares Discriminant Analysis (PLS-DA)"),
       shinyWidgets::dropMenu(
@@ -51,8 +51,7 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
         tags$ul(
           tags$li("Distribution of samples across the first 2 PLS-DA components as computed using mixOmics."),
           tags$li("The discriminating metadata (used to compute PLS-DA which maximises separation between these groups) and the metadata to colour samples by can both be selected below."),
-          tags$li("As with PCA, metadata groups are surrounded by minimal ellipses containing all samples (ggplot2::stat_ellipse) or 95% confidence ellipses as selected in the options below."),
-          tags$li("Each sample can also be labelled."),
+          tags$li("As with PCA, metadata groups are surrounded by 95% confidence ellipses as selected in the options below."),
           tags$li("The top peaks contributing to the PLS-DA are also shown below.")
         ),
         br(),
@@ -61,9 +60,7 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
                      choices = colnames(bulk.metadata), selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
         radioButtons(ns('plsda.annotation'), label = "Group by",
                      choices = colnames(bulk.metadata), selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
-        checkboxInput(ns("plsda.show.labels"), label = "Show sample labels", value = FALSE),
-        checkboxInput(ns('plsda.show.ellipses'),label = "Show ellipses around groups",value=TRUE),
-        checkboxInput(ns('plsda.show.confidence.ellipses'),label = "Show 95% confidence ellipses around groups",value=FALSE),
+        checkboxInput(ns('plsda.show.confidence.ellipses'),label = "Show 95% confidence ellipses around groups",value=TRUE),
         numericInput(ns('plsda.comp'),label = "PLS-DA component's contributions to show",min=1,max=2,step = 1,value = 1),
         theme = "light-border",
         placement = "right",
@@ -89,8 +86,10 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
           placement = "right",
           arrow = FALSE
         )),
-      plotOutput(ns('plsda')),
-      plotOutput(ns('plsda_contrib'),click = ns("plsda_hover")),
+      plotly::plotlyOutput(ns('plsda'),width='800px'),
+      plotly::plotlyOutput(ns('plsda_contrib'),width='800px',
+                           #click = ns("plsda_hover")
+                           ),
       tableOutput(ns("plsda_contrib_data")),
 
       tags$h1("Individual peak intensity barplots"),
@@ -120,7 +119,7 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
         icon = icon("download", verify_fa = FALSE),
         tooltip = shinyWidgets::tooltipOptions(title = "Click to see information and options!")
       ),
-      plotOutput(ns('barplot')),
+      plotly::plotlyOutput(ns('barplot')),
       tags$h1("Individual peak intensity box plots"),
       dropMenu(
         circleButton(ns("info_peak_boxplot"), icon = icon("info"),status = "success"),
@@ -148,7 +147,7 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
         icon = icon("download", verify_fa = FALSE),
         tooltip = shinyWidgets::tooltipOptions(title = "Click to see information and options!")
       ),
-      plotOutput(ns('boxplot'),click = ns('boxplot_click')),
+      plotly::plotlyOutput(ns('boxplot')),
       tableOutput(ns("box_data"))
     )
   }else{
@@ -171,19 +170,34 @@ BulkQCpanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
     #Set up server-side search for peak names
     updateSelectizeInput(session, "peakName", choices = anno$display_name, server = TRUE)
 
+    run_pca <- reactive({
+      expr.PCA.list <- bulk.intensity.matrix |>
+        as.data.frame() |>
+        t()
+      expr.PCA.res <- expr.PCA.list[, apply(expr.PCA.list, 2, function(x) max(x) != min(x))] %>%
+        stats::prcomp(center = TRUE, scale = TRUE)
+      return(expr.PCA.res)
+    })
     pca.plot <- reactive({
       myplot <- plot_pca(
-        intensity.matrix = bulk.intensity.matrix,
+        run_pca(),
         metadata = bulk.metadata,
         annotation.id = match(input[['pca.annotation']], colnames(bulk.metadata)),
-        n.abundant = nrow(bulk.intensity.matrix),
-        show.labels = input[['pca.show.labels']],
-        show.ellipses = input[['pca.show.ellipses']],
         show.confidence.ellipses = input[['pca.show.confidence.ellipses']]
       )
-      myplot
+      plotly::ggplotly(myplot$plot)
     })
-    output[['pca']] <- renderPlot(pca.plot())
+    output[['pca']] <- plotly::renderPlotly(pca.plot())
+
+    pca.contrib <- reactive({
+      myplot <- pca_contrib(
+        run_pca(),
+        comp = input[['pca.comp']],
+        anno = anno
+      )
+      plotly::ggplotly(myplot$plot)
+    })
+    output[['pca_contrib']] <- plotly::renderPlotly(pca.contrib())
 
     plsda.plot <- reactive({
       myplot <- plot_plsda(
@@ -191,13 +205,11 @@ BulkQCpanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
         metadata = bulk.metadata,
         separator.id = match(input[['plsda.separator']], colnames(bulk.metadata)),
         annotation.id = match(input[['plsda.annotation']], colnames(bulk.metadata)),
-        show.labels = input[['plsda.show.labels']],
-        show.ellipses = input[['plsda.show.ellipses']],
         show.confidence.ellipses = input[['plsda.show.confidence.ellipses']],
       )
-      myplot
+      plotly::ggplotly(myplot)
     })
-    output[['plsda']] <- renderPlot(plsda.plot())
+    output[['plsda']] <- plotly::renderPlotly(plsda.plot())
 
     plsda.contrib <- reactive({
       myplot <- plsda_contrib(intensity.matrix=bulk.intensity.matrix,
@@ -207,7 +219,7 @@ BulkQCpanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
                               anno)
       myplot
     })
-    output[['plsda_contrib']] <- renderPlot(plsda.contrib()$plot)
+    output[['plsda_contrib']] <- plotly::renderPlotly(plotly::ggplotly(plsda.contrib()$plot))
     bar.plot <- reactive({
       peak.ids <- anno$m_z[match(input[["barPeakName"]],anno$display_name)]
       if (length(peak.ids)==1){
@@ -220,9 +232,9 @@ BulkQCpanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
         sub.intensity.matrix = sub.intensity.matrix,
         log.transformation = F,
         condition.vector = bulk.metadata[,input[['peak.barplot.colour']]])
-      myplot
+      plotly::ggplotly(myplot)
     })
-    output[['barplot']] <- renderPlot(bar.plot())
+    output[['barplot']] <- plotly::renderPlotly(bar.plot())
 
     box.plot <- reactive({
       peak.ids <- anno$m_z[match(input[["boxPeakName"]],anno$display_name)]
@@ -239,7 +251,7 @@ BulkQCpanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
         metadata.column = input[['boxplot.metadata']])
       return(myplot)
     })
-    output[['boxplot']] <- renderPlot(box.plot()$plot)
+    output[['boxplot']] <- plotly::renderPlotly(plotly::ggplotly(box.plot()$plot))
 
     # output$data <- renderTable({
     #   nearPoints(box.plot()$table, input$boxplot_click)

@@ -1,66 +1,56 @@
 plot_pca <- function(
-    intensity.matrix,
+    pca.res,
     metadata,
     annotation.id,
-    n.abundant = NULL,
-    show.labels = FALSE,
-    show.ellipses = TRUE,
-    show.confidence.ellipses = FALSE,
+    show.confidence.ellipses = TRUE,
     label.force = 1
 ){
   annotation.name <- colnames(metadata)[annotation.id]
-  n.abundant <- min(n.abundant, nrow(intensity.matrix))
 
-  expr.PCA.list <- intensity.matrix |>
-    as.data.frame() |>
-    dplyr::filter(seq_len(nrow(intensity.matrix)) %in%
-                    utils::tail(order(rowSums(intensity.matrix)), n.abundant)) |>
-    t()
-  expr.PCA.list <- expr.PCA.list[, apply(expr.PCA.list, 2, function(x) max(x) != min(x))] %>%
-    stats::prcomp(center = TRUE, scale = TRUE)
-
+  # expr.PCA.list <- intensity.matrix |>
+  #   as.data.frame() |>
+  #   t()
+  # expr.PCA.res <- expr.PCA.list[, apply(expr.PCA.list, 2, function(x) max(x) != min(x))] %>%
+  #   stats::prcomp(center = TRUE, scale = TRUE)
   expr.PCA <- dplyr::mutate(
-                  as.data.frame(expr.PCA.list$x),
+                  as.data.frame(pca.res$x),
                   name = factor(metadata[, 1], levels = metadata[, 1]),
                   condition = if(!is.factor(metadata[,annotation.id])){
                     factor(metadata[, annotation.id], levels = unique(metadata[, annotation.id]))
                     }else{metadata[,annotation.id]}
 
   )
-  if(min(table(metadata[, annotation.id])) <= 2){
-    expr.PCA.2 <- expr.PCA
-    expr.PCA.2$PC1 <- expr.PCA.2$PC1 * 1.001
-    expr.PCA.2$PC2 <- expr.PCA.2$PC2 * 1.001
-    expr.PCA.full <- rbind(expr.PCA, expr.PCA.2)
-  }
-  else {expr.PCA.full <- expr.PCA}
-  pca.plot <- ggplot2::ggplot(expr.PCA.full, ggplot2::aes(x = .data$PC1, y = .data$PC2, colour = .data$condition)) +
+  pca.plot <- ggplot2::ggplot(expr.PCA, ggplot2::aes(x = .data$PC1, y = .data$PC2, colour = .data$condition, label = .data$name)) +
     ggplot2::theme_minimal() +
-    ggplot2::geom_point() +
-    ggplot2::labs(x = paste0("PC1 (proportion of variance = ", summary(expr.PCA.list)$importance[2, 1] * 100, "%)"),
-         y = paste0("PC2 (proportion of variance = ", summary(expr.PCA.list)$importance[2, 2] * 100, "%)"),
-         colour = annotation.name) +
-          theme(aspect.ratio=1)
+    ggplot2::labs(x = paste0("PC1 (proportion of variance = ", summary(pca.res)$importance[2, 1] * 100, "%)"),
+         y = paste0("PC2 (proportion of variance = ", summary(pca.res)$importance[2, 2] * 100, "%)"),
+         colour = annotation.name)
   if(show.confidence.ellipses){
     pca.plot <- pca.plot +
       stat_ellipse(geom='polygon',alpha=0.3,aes(fill = .data$condition, colour = .data$condition), show.legend = FALSE)
 
-  } else if(show.ellipses){
-    pca.plot <- pca.plot +
-      ggforce::geom_mark_ellipse(aes(fill = .data$condition, colour = .data$condition), show.legend = FALSE)
   }
-  if(show.labels){
-    pca.plot <- pca.plot +
-      ggrepel::geom_label_repel(
-        data = expr.PCA,
-        mapping = aes(x = .data$PC1, y = .data$PC2, colour = .data$condition, label = .data$name),
-        max.overlaps = nrow(expr.PCA),
-        force = label.force,
-        point.size = NA
-      )
-  }
+  pca.plot <- pca.plot + ggplot2::geom_point()
+  list('plot'=pca.plot,'loadings'=loadings)
+}
 
-  pca.plot
+pca_contrib <- function(pca.res,
+                        comp=1,
+                        anno){
+  contrib = as.data.frame(pca.res$rotation)
+  contrib$metab = rownames(contrib)
+  colnames(contrib)[comp]='PCAComp'
+  contrib = contrib[order(-abs(contrib$PCAComp)),]
+  contrib = data.frame(contrib)
+  contrib$display_metab = stringr::str_wrap(anno$display_name[match(contrib$metab,anno$m_z)],30)
+  contrib$metab = factor(contrib$metab,levels=rev(contrib$metab))
+  contrib.plot = ggplot2::ggplot(head(contrib,30),ggplot2::aes(x=PCAComp,y=metab,fill=PCAComp>0,label=display_metab))+
+    ggplot2::geom_bar(stat='identity') +
+    ggplot2::theme_minimal()+
+    ggplot2::theme(legend.position = "none") +
+    ggplot2::xlab('Contribution')+
+    ggplot2::ylab('')
+  return(list('plot'=contrib.plot,'table'=head(contrib,30)))
 }
 
 perform_plsda <- function(intensity.matrix,
@@ -75,10 +65,7 @@ plot_plsda <- function(
     metadata,
     separator.id,
     annotation.id,
-    n.abundant = NULL,
-    show.labels = FALSE,
-    show.ellipses = TRUE,
-    show.confidence.ellipses = FALSE,
+    show.confidence.ellipses = TRUE,
     label.force = 1
 ){
   annotation.name <- colnames(metadata)[annotation.id]
@@ -91,31 +78,16 @@ plot_plsda <- function(
       factor(metadata[, annotation.id], levels = unique(metadata[, annotation.id]))}else{metadata[,annotation.id]}
 
   )
-  plsda.plot <- ggplot2::ggplot(expr.plsda, ggplot2::aes(x = .data$comp1, y = .data$comp2, colour = .data$condition)) +
+  plsda.plot <- ggplot2::ggplot(expr.plsda, ggplot2::aes(x = .data$comp1, y = .data$comp2, colour = .data$condition, label = .data$name)) +
     ggplot2::theme_minimal() +
-    ggplot2::geom_point() +
     ggplot2::labs(x = paste0("PLS-DA Comp1 (proportion of variance = ", round(my.plsda$prop_expl_var$X[1] * 100,digits = 1), "%)"),
          y = paste0("PLS-DA Comp2 (proportion of variance = ", round(my.plsda$prop_expl_var$X[2] * 100,digits=1), "%)"),
-         colour = annotation.name)+
-    theme(aspect.ratio=1)
+         colour = annotation.name)
   if(show.confidence.ellipses){
     plsda.plot <- plsda.plot +
       ggplot2::stat_ellipse(geom='polygon',alpha=0.3,aes(fill = .data$condition, colour = .data$condition), show.legend = FALSE)
-
-  } else if(show.ellipses){
-    plsda.plot <- plsda.plot +
-      ggforce::geom_mark_ellipse(aes(fill = .data$condition, colour = .data$condition), show.legend = FALSE)
   }
-  if(show.labels){
-    plsda.plot <- plsda.plot +
-      ggrepel::geom_label_repel(
-        data = expr.plsda,
-        mapping = aes(x = .data$comp1, y = .data$comp2, colour = .data$condition, label = .data$name),
-        max.overlaps = nrow(expr.plsda),
-        force = label.force,
-        point.size = NA
-      )
-  }
+  plsda.plot <- plsda.plot + ggplot2::geom_point()
   plsda.plot
 }
 
@@ -131,9 +103,9 @@ plsda_contrib <- function(intensity.matrix,
   colnames(contrib)[comp]='PLSDAComp'
   contrib = contrib[order(-abs(contrib$PLSDAComp)),]
   contrib = data.frame(contrib)
-  contrib$display_metab = anno$display_name[match(contrib$metab,anno$m_z)]
+  contrib$display_metab = stringr::str_wrap(anno$display_name[match(contrib$metab,anno$m_z)],30)
   contrib$metab = factor(contrib$metab,levels=rev(contrib$metab))
-  contrib.plot = ggplot2::ggplot(head(contrib,30),ggplot2::aes(x=PLSDAComp,y=metab,fill=PLSDAComp>0))+
+  contrib.plot = ggplot2::ggplot(head(contrib,30),ggplot2::aes(x=PLSDAComp,y=metab,fill=PLSDAComp>0,label=display_metab))+
     ggplot2::geom_bar(stat='identity') +
     ggplot2::theme_minimal()+
     ggplot2::theme(legend.position = "none") +
@@ -181,9 +153,9 @@ peaks_boxplot <- function(sub.intensity.matrix,
   melted.intensity.matrix$sample = rep(metadata[,1],nrow(sub.intensity.matrix))
   p <- ggplot2::ggplot(melted.intensity.matrix, ggplot2::aes(fill = metadata,
                                             x = metadata,
-                                            y = value)) +
+                                            y = value,label=sample)) +
     ggplot2::geom_boxplot() +
-    ggplot2::geom_jitter(width=0.1) +
+    ggplot2::geom_jitter(width=0.1,color='black',fill='black') +
     ggplot2::theme_minimal() +
     ggplot2::ylab(ifelse(log.transformation,'log2 intensity','intensity')) +
     ggplot2::theme(legend.position = "bottom") +

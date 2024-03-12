@@ -50,39 +50,37 @@ BulkDESummaryPanelUI <- function(id, bulk.metadata, show = TRUE){
         tags$h3("Volcano/MA plots"),
         tags$ul(
           tags$li("Volcano/MA plots showing the log2FC, log10 BH-adjusted p-value and average intensity for each peak, colouring peaks showing significant changes."),
-          tags$li("Peaks selected in Differential intensity analysis tab are highlighted."),
-          tags$li("Extra peaks can be highlighted using the search box below."),
           tags$li("The y-axis scale for volcano plots can be capped at log10(p-value) > 10.")
         ),
         br(),
         selectInput(ns('plotType'), 'Type of plot:', c('Volcano', 'MA')),
-        shinyWidgets::switchInput(
-          inputId = ns('autoLabel'),
-          label = "Auto labels",
-          labelWidth = "80px",
-          onLabel = 'On',
-          offLabel = 'Off',
-          value = FALSE,
-          onStatus = FALSE
-        ),
-        shinyWidgets::switchInput(
-          inputId = ns("highlightSelected"),
-          label = "Highlight selected DE peaks?",
-          labelWidth = "80px",
-          onLabel = 'No',
-          offLabel = 'Yes',
-          value = FALSE,
-          onStatus = FALSE
-        ),
-        shinyWidgets::switchInput(
-          inputId = ns('allPeaks'),
-          label = "Showing on click:",
-          labelWidth = "80px",
-          onLabel = 'All peaks',
-          offLabel = 'Only DE peaks',
-          value = FALSE,
-          onStatus = FALSE
-        ),
+        # shinyWidgets::switchInput(
+        #   inputId = ns('autoLabel'),
+        #   label = "Auto labels",
+        #   labelWidth = "80px",
+        #   onLabel = 'On',
+        #   offLabel = 'Off',
+        #   value = FALSE,
+        #   onStatus = FALSE
+        # ),
+        # shinyWidgets::switchInput(
+        #   inputId = ns("highlightSelected"),
+        #   label = "Highlight selected DE peaks?",
+        #   labelWidth = "80px",
+        #   onLabel = 'No',
+        #   offLabel = 'Yes',
+        #   value = FALSE,
+        #   onStatus = FALSE
+        # ),
+        # shinyWidgets::switchInput(
+        #   inputId = ns('allPeaks'),
+        #   label = "Showing on click:",
+        #   labelWidth = "80px",
+        #   onLabel = 'All peaks',
+        #   offLabel = 'Only DE peaks',
+        #   value = FALSE,
+        #   onStatus = FALSE
+        # ),
         conditionalPanel(
           id = ns('conditionalVolcanoOption'),
           ns=ns,
@@ -97,7 +95,7 @@ BulkDESummaryPanelUI <- function(id, bulk.metadata, show = TRUE){
             onStatus = FALSE
           ),
         ),
-        selectInput(ns("peakNameVolcano"), "Other peaks to highlight:", multiple = TRUE, choices = character(0)),
+#        selectInput(ns("peakNameVolcano"), "Other peaks to highlight:", multiple = TRUE, choices = character(0)),
 
         status = "success",
         icon = icon("gear", verify_fa = FALSE),
@@ -118,7 +116,7 @@ BulkDESummaryPanelUI <- function(id, bulk.metadata, show = TRUE){
           placement = "right",
           arrow = FALSE
         )),
-      plotOutput(ns('volcanoPlot'), click = ns('plot_click')),
+      plotly::plotlyOutput(ns('volcanoPlot')),
       tableOutput(ns('volcanoData'))
 
     )
@@ -189,14 +187,14 @@ BulkDESummaryPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, D
 
     DEplot <- reactive({
       results = DEresults()$DE()
-      selectedPeaks = DEresults()$selectedPeaks()
-      if(!(input[["highlightSelected"]]) & length(selectedPeaks)){
-        selectedPeakNames <- selectedPeaks
-        highlightPeaks <- c(selectedPeakNames, input[["peakNameVolcano"]])
-      }
-      else{
-        highlightPeaks <- input[["peakNameVolcano"]]
-      }
+      selectedPeakNames = DEresults()$selectedPeaks()
+      # if(!(input[["highlightSelected"]]) & length(selectedPeaks)){
+      #   selectedPeakNames <- selectedPeaks
+      #   highlightPeaks <- c(selectedPeakNames, input[["peakNameVolcano"]])
+      # }
+      # else{
+      #   highlightPeaks <- input[["peakNameVolcano"]]
+      # }
 
       if(input[['plotType']] == 'Volcano'){
         myplot <- volcano_plot(
@@ -204,10 +202,10 @@ BulkDESummaryPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, D
           pval.threshold = results$pvalThreshold,
           lfc.threshold = results$lfcThreshold,
           raster = TRUE,
-          add.labels.auto = input[["autoLabel"]],
+          add.labels.auto = F,
           n.labels.auto = c(5, 5, 5),
-          add.labels.custom = length(highlightPeaks) > 0,
-          peaks.to.label = highlightPeaks,
+          add.labels.custom = F,
+          peaks.to.label = c(),
           log10pval.cap = !(input[['capPVal']])
         )
       }
@@ -217,17 +215,17 @@ BulkDESummaryPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, D
           pval.threshold = results$pvalThreshold,
           lfc.threshold = results$lfcThreshold,
           raster = TRUE,
-          add.labels.auto = input[["autoLabel"]],
+          add.labels.auto = F,
           n.labels.auto = c(5, 5, 5),
-          add.labels.custom = length(highlightPeaks) > 0,
-          peaks.to.label = highlightPeaks
+          add.labels.custom = F,
+          peaks.to.label = c()
         )
       }
       myplot
     })
 
     #Output MA/volcano plot
-    output[['volcanoPlot']] <- renderPlot(DEplot())
+    output[['volcanoPlot']] <- plotly::renderPlotly(plotly::ggplotly(DEplot()))
 
     #Define output table when you click on peak with all peaks or only DE
     output[['volcanoData']] <- renderTable({
