@@ -36,6 +36,11 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
                    numericInput(ns('PCAPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
                    numericInput(ns('PCAPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
                    downloadButton(ns('downloadPCAPlot'), 'Download PCA Plot'),
+                   textInput(ns('plotPCAContribFileName'), 'File name for PLS-DA contribution plot download', value ='PCAContribPlot.png'),
+                   numericInput(ns('PCAContribPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                   numericInput(ns('PCAContribPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                   downloadButton(ns('downloadPCAContribPlot'), 'Download PLS-DA contribution plot'),
+
             )),
           theme = "light-border",
           placement = "right",
@@ -185,9 +190,9 @@ BulkQCpanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
         annotation.id = match(input[['pca.annotation']], colnames(bulk.metadata)),
         show.confidence.ellipses = input[['pca.show.confidence.ellipses']]
       )
-      plotly::ggplotly(myplot$plot)
+      myplot$plot
     })
-    output[['pca']] <- plotly::renderPlotly(pca.plot())
+    output[['pca']] <- plotly::renderPlotly(plotly::ggplotly(pca.plot()))
 
     pca.contrib <- reactive({
       myplot <- pca_contrib(
@@ -195,9 +200,9 @@ BulkQCpanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
         comp = input[['pca.comp']],
         anno = anno
       )
-      plotly::ggplotly(myplot$plot)
+      myplot$plot
     })
-    output[['pca_contrib']] <- plotly::renderPlotly(pca.contrib())
+    output[['pca_contrib']] <- plotly::renderPlotly(plotly::ggplotly(pca.contrib()))
 
     plsda.plot <- reactive({
       myplot <- plot_plsda(
@@ -207,9 +212,9 @@ BulkQCpanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
         annotation.id = match(input[['plsda.annotation']], colnames(bulk.metadata)),
         show.confidence.ellipses = input[['plsda.show.confidence.ellipses']],
       )
-      plotly::ggplotly(myplot)
+      myplot
     })
-    output[['plsda']] <- plotly::renderPlotly(plsda.plot())
+    output[['plsda']] <- plotly::renderPlotly(plotly::ggplotly(plsda.plot()))
 
     plsda.contrib <- reactive({
       myplot <- plsda_contrib(intensity.matrix=bulk.intensity.matrix,
@@ -232,9 +237,9 @@ BulkQCpanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
         sub.intensity.matrix = sub.intensity.matrix,
         log.transformation = F,
         condition.vector = bulk.metadata[,input[['peak.barplot.colour']]])
-      plotly::ggplotly(myplot)
+      myplot
     })
-    output[['barplot']] <- plotly::renderPlotly(bar.plot())
+    output[['barplot']] <- plotly::renderPlotly(plotly::ggplotly(bar.plot()))
 
     box.plot <- reactive({
       peak.ids <- anno$m_z[match(input[["boxPeakName"]],anno$display_name)]
@@ -282,6 +287,13 @@ BulkQCpanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
       filename = function() { input[['plotPCAFileName']] },
       content = function(file) {
         ggsave(file, plot = pca.plot(), width=input[['PCAPlotWidth']],height=input[['PCAPlotHeight']],units='in')
+      }
+    )
+
+    output[['downloadPCAContribPlot']] <- downloadHandler(
+      filename = function() { input[['plotPCAContribFileName']] },
+      content = function(file) {
+        ggsave(file, plot = pca.contrib(), width=input[['PCAContribPlotWidth']],height=input[['PCAContribPlotHeight']],units='in')
       }
     )
 
