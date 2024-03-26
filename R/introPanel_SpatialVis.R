@@ -182,7 +182,8 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
         ggplot2::scale_fill_gradient(name=legend_title,low = "lightgrey", high = "brown")+
         ggplot2::scale_color_gradient(name=legend_title,low = "lightgrey", high = "brown")+
         ggplot2::theme(aspect.ratio = 1))
-    }) %>% bindEvent(input[["go_plot_peak"]])
+    })
+    #%>% bindEvent(input[["go_plot_peak"]])
 
 
     show_metadata <- reactive({
@@ -220,7 +221,8 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
                               axis.ticks.y=ggplot2::element_blank(),
                               axis.line.y = ggplot2::element_blank())+
                ggplot2::theme(aspect.ratio = 1))
-    }) %>% bindEvent(input[["go_plot_metadata"]])
+    })
+    #%>% bindEvent(input[["go_plot_metadata"]])
     output[['plotPeak']] <- renderPlot({
       show_peak()$spatial})
 

@@ -187,7 +187,8 @@ RegionClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, b
                        aspect.ratio = 1)
 
       return(my_plot)
-    }) %>% bindEvent(input[["run_clustering"]])
+    })
+    #%>% bindEvent(input[["run_clustering"]])
 
     cluster_props <- reactive({
       current.metadata = get_clusters()
