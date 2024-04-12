@@ -22,25 +22,31 @@ PixelSVMPanelUI <- function(id, bulk.metadata, full.metadata, full.intensity.mat
         placement = "right",
         arrow = FALSE
       ),
-
-      selectInput(
-        inputId = ns("samplesToInclude"),
-        label = "Select samples to include",
-        choices = unique(bulk.metadata[,1]),
-        selected = unique(bulk.metadata[,1])[1],
-        multiple = TRUE,width = '100%'
-      ),
-      tags$p("Warning: this analysis can take a few minutes to run and this will increase with the number of samples included."),
-      actionButton(ns("run_SVM"),'Identify spatially variable metabolites'),
       sidebarLayout(
         sidebarPanel(
-          numericInput(ns("topNumber"),label = 'Pick top n spatially variable metabolites',value = 20,min = 1,max = 100,step = 1),
-          conditionalPanel(id=ns('upsetPlotPanel'),
-                           ns = ns,
-                           condition = "output.check > 1",
-                           selectInput(ns("metadataBarplot"), "Metadata to split barplot:", multiple = FALSE, choices = colnames(bulk.metadata),selected=colnames(bulk.metadata)[length(colnames(bulk.metadata))]),
+      numericInput(ns("topNumPeaksHeatmap"),label = 'Pick top n spatially variable metabolites',value = 20,min = 1,max = 100,step = 1),),
+      mainPanel(
+        tags$h3('Auto-correlation levels for top peaks'),
+        plotly::plotlyOutput(ns('AutoCorHeatmap'),height='1000px'))),
+
+      sidebarLayout(
+        sidebarPanel(
+
+          selectInput(
+            inputId = ns("samplesToIncludeTopN"),
+            label = "Select samples to show upset plot",
+            choices = unique(bulk.metadata[,1]),
+            selected = unique(bulk.metadata[,1]),
+            multiple = TRUE,width = '100%'
           ),
-          selectInput(ns("peakName"), "Peaks to display:", multiple = FALSE, choices = c()),
+
+          numericInput(ns("topNumber"),label = 'Pick top n spatially variable metabolites',value = 20,min = 1,max = 100,step = 1),
+          # conditionalPanel(id=ns('upsetPlotPanel'),
+          #                  ns = ns,
+          #                  condition = "output.check > 1",
+          selectInput(ns("metadataBarplot"), "Metadata to split barplot:", multiple = FALSE, choices = colnames(bulk.metadata),selected=colnames(bulk.metadata)[length(colnames(bulk.metadata))]),
+          # ),
+#          selectInput(ns("peakName"), "Peaks to display:", multiple = FALSE, choices = c()),
           div(style = "margin-top:10px"),
           dropMenu(
             circleButton(ns("downloads"), icon = icon("download"),status = "success"),
@@ -93,18 +99,40 @@ PixelSVMPanelUI <- function(id, bulk.metadata, full.metadata, full.intensity.mat
           ),
         ),
         mainPanel(
-          conditionalPanel(id=ns('upsetPlotPanel'),
-            ns = ns,
-            condition = "output.check > 1",
-            plotOutput(ns('SVMUpset')),
-            plotOutput(ns('SVMBarPlot'))),
-          conditionalPanel(id=ns('tablePanel'),
-            ns = ns,
-            condition = "output.check == 1",
-            DT::DTOutput(ns('SVMTable')),
-          ))),
-          fluidRow(column=10,plotOutput(ns('plotPeak'),height = 600)),
-          plotOutput(ns('plotHClust')),
+          tags$h3('Similarity in top peaks between selected samples'),
+          # conditionalPanel(id=ns('upsetPlotPanel'),
+          #   ns = ns,
+          #   condition = "output.check > 1",
+            plotOutput(ns('SVMUpset'),height=600),
+            plotOutput(ns('SVMBarPlot'),height=600))),
+          # conditionalPanel(id=ns('tablePanel'),
+          #   ns = ns,
+          #   condition = "output.check == 1",
+
+    sidebarLayout(
+      sidebarPanel(
+      selectInput(
+        inputId = ns("tableSample"),
+        label = "Select samples to show top peaks",
+        choices = unique(bulk.metadata[,1]),
+        selected = unique(bulk.metadata[,1])[1],
+        multiple = FALSE,width = '100%'
+      )),
+    mainPanel(
+      tags$h3('Individual sample top peaks'),
+      DT::DTOutput(ns('SVMTable')))),
+
+    sidebarLayout(
+      sidebarPanel(
+        numericInput(ns('numClusters'),'Number of peak modules',min=2,max=20,step=1,value=10),
+        numericInput(ns('selectedCluster'),'Cluster to show',min=2,max=20,step=1,value=10)),
+      mainPanel(
+        tags$h3('Spatial cross-correlation to define peak modules'),
+        plotly::plotlyOutput(ns('CoexpHeatmap'),height='1000px'),
+        textOutput(ns('selectedPeaks')),
+        plotOutput(ns('CoexpSpatial'),height=600)))
+#          fluidRow(column=10,plotOutput(ns('plotPeak'),height = 600)),
+#          plotOutput(ns('plotHClust')),
     )
   }else{
     NULL
@@ -113,23 +141,37 @@ PixelSVMPanelUI <- function(id, bulk.metadata, full.metadata, full.intensity.mat
 
 #' @rdname IntroSpatialVisPanel
 #' @export
-PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, anno, DEresults){
+PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, anno, DEresults, svm_identification, spatial.cross.cor){
 
   moduleServer(id, function(input, output, session){
 
-    get_subset_exp <- reactive({
-      current.intensity.matrix <- full.intensity.matrix[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToInclude']],]
-      current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToInclude']],]
-      current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
-      rownames(current.intensity.matrix)=current.metadata[,1]
-      return(list('exp'=current.intensity.matrix,'meta'=current.metadata))
-    }) %>% bindEvent(input[["run_SVM"]])
+    autocor_heatmap <- reactive({
+      svm.peaks = Reduce(union,lapply(FUN = function(x)head(x$gene,input[['topNumPeaksHeatmap']]),X=svm_identification))
+
+      svm_identification_sub = lapply(svm_identification,function(x)x[x$gene%in%svm.peaks,])
+      svm_identification_sub = dplyr::bind_rows(svm_identification_sub,.id = 'sample')
+      svm_identification_sub_square = as.data.frame(tidyr::pivot_wider(svm_identification_sub,id_cols = 'sample',names_from = 'gene',values_from = 'cor'))
+      rownames(svm_identification_sub_square)=svm_identification_sub_square$sample
+      svm_identification_sub_square = as.data.frame(t(svm_identification_sub_square[,2:ncol(svm_identification_sub_square)]))
+      peaks = rownames(svm_identification_sub_square)
+      peaks = stringr::str_wrap(anno[match(peaks,anno$m_z),]$name,30)
+      mat <- svm_identification_sub_square
+      mat[] <- peaks
+      return(heatmaply::heatmaply_cor(svm_identification_sub_square,limits = c(min(svm_identification_sub_square),1),custom_hovertext=mat))
+    })
+    # get_subset_exp <- reactive({
+    #   current.intensity.matrix <- full.intensity.matrix[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToInclude']],]
+    #   current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToInclude']],]
+    #   current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
+    #   rownames(current.intensity.matrix)=current.metadata[,1]
+    #   return(list('exp'=current.intensity.matrix,'meta'=current.metadata))
+    # }) #%>% bindEvent(input[["run_SVM"]])
 
     svm_results <- reactive({
       load('svm_identification.rda')
       spatgenes <- svm_identification[input[['samplesToInclude']]]
       return(spatgenes)
-    }) %>% bindEvent(input[["run_SVM"]])
+    }) #%>% bindEvent(input[["run_SVM"]])
 
     run_svm <- reactive({
       spatgenes <- svm_results()
@@ -138,14 +180,20 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
     })
 
     svm_upset <- reactive({
-      top.svm <- run_svm()
+      svm.peaks = Reduce(union,lapply(FUN = function(x)head(x$gene,input[['topNumber']]),X=svm_identification[input[['samplesToIncludeTopN']]]))
+
+      top.svm = lapply(FUN = function(x)x[x$gene%in%head(x$gene,input[['topNumber']]),],X=svm_identification[input[['samplesToIncludeTopN']]])
+      top.svm = lapply(top.svm,function(x)x$gene[x$gene%in%svm.peaks])
       upset.plot <- UpSetR::upset(UpSetR::fromList(top.svm),nsets = length(names(top.svm)))
       return(upset.plot)
     })
 
     svm_barplot <- reactive({
  #     updateSelectInput(session, 'peakName', choices = svm_barplot()$names)
-      top.svm <- run_svm()
+#      top.svm <- run_svm()
+      svm.peaks = Reduce(union,lapply(FUN = function(x)head(x$gene,input[['topNumPeaksHeatmap']]),X=svm_identification[input[['samplesToIncludeTopN']]]))
+      top.svm = lapply(FUN = function(x)x[x$gene%in%head(x$gene,input[['topNumPeaksHeatmap']]),],X=svm_identification[input[['samplesToIncludeTopN']]])
+      top.svm = lapply(top.svm,function(x)x$gene[x$gene%in%svm.peaks])
       top.svm = bind_rows(top.svm, .id = "column_label")
       top.svm = tidyr::pivot_longer(top.svm,cols=colnames(top.svm))
       colnames(top.svm)[1]=colnames(bulk.metadata)[1]
@@ -173,25 +221,43 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
         geom_text(data = top.svm.grouped,aes(x=value,y=n,label = label,fill=NULL),size=10)
 
       return(list('plot'=plot,'names'=top.svm.grouped$value))
-
     })
 
-    observe({
-      updateSelectInput(session, 'peakName', choices = svm_barplot()$names)
-    })  %>% bindEvent(input[["run_SVM"]])
+    coexp_heatmap <- reactive({
+      peaks = rownames(spatial.cross.cor)
+      peaks = stringr::str_wrap(anno[match(peaks,anno$m_z),]$name,30)
+      peaks.combo = expand.grid(peaks,peaks,stringsAsFactors = F)
+      peaks.combo = paste0('row:',peaks.combo$Var1,',\ncol:',peaks.combo$Var2)
+      mat <- spatial.cross.cor
+      mat[] <- peaks.combo
+      return(heatmaply::heatmaply_cor(spatial.cross.cor,custom_hovertext = mat,k_col=input[['numClusters']]))
+    })
 
-    show_peak <- reactive({
-      svm_results <- run_svm()
-      my_peak = anno[anno$m_z==input[['peakName']],]
-      current.intensity.matrix <- get_subset_exp()$exp
-      current.metadata <- get_subset_exp()$meta
-      caps = quantile(current.intensity.matrix[,my_peak$m_z],probs=c(0.05,0.95))
+    cexp_clusters <- reactive({
+      d <- dist(spatial.cross.cor, method = "euclidean")
+      clusters = cutree(hclust(d), k = input[['numClusters']])
+      dend <- as.dendrogram(hclust(d, method = "complete"))
+      dend <- dendextend::seriate_dendrogram(dend, d)
+      clusters = clusters[rev(rownames(spatial.cross.cor[order.dendrogram(dend),]))]
+      cluster.names = names(clusters)
+      clusters = as.numeric(factor(clusters,levels=unique(clusters)))
+      names(clusters)=cluster.names
+      return(clusters)
+    })
+    selected_peaks <- reactive({
+      return(names(clusters[clusters==input[['selectedCluster']]]))
+    })
+
+    output[['selectedPeaks']] <- renderText({paste('Selected peaks:',paste(selected_peaks(),collapse = ', '))})
+
+    cexp_cluster_spatial <- reactive({
+      clusters = cexp_clusters()
+      cluster.peaks = names(clusters[clusters==input[['selectedCluster']]])
+      current.metadata = metadata
       current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
-      current.metadata$peak = current.intensity.matrix[,my_peak$m_z]
-      current.metadata$peak = pmin(caps[2],current.metadata$peak)
-      current.metadata$peak = pmax(caps[1],current.metadata$peak)
-      spatial.plot = ggplot2::ggplot(current.metadata,ggplot2::aes(x=x,y=y,color=peak,fill=peak))+geom_tile()+
-        ggplot2::facet_wrap(~current.metadata$Sample, scales = 'free',ncol=floor(2*sqrt(length(input[['samplesToInclude']]))))  +
+      current.metadata$combined_cluster = rowMeans(scale(intensity.matrix[,cluster.peaks]))
+      spatial.plot = ggplot2::ggplot(current.metadata,ggplot2::aes(x=x,y=y,color=combined_cluster,fill=combined_cluster))+geom_tile()+
+        ggplot2::facet_wrap(~current.metadata$Sample, scales = 'free',ncol=floor(2*sqrt(length(unique(current.metadata$Sample)))))  +
         ggplot2::theme_classic() +
         ggplot2::theme(axis.title.x=ggplot2::element_blank(),
                        axis.text.x=ggplot2::element_blank(),
@@ -201,26 +267,64 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
                        axis.text.y=ggplot2::element_blank(),
                        axis.ticks.y=ggplot2::element_blank(),
                        axis.line.y = ggplot2::element_blank())+
-        ggplot2::scale_fill_gradient(name=input[['peakName']],low = "lightgrey", high = "brown")+
-        ggplot2::scale_color_gradient(name=input[['peakName']],low = "lightgrey", high = "brown")+
+        ggplot2::scale_fill_gradient2(name=paste0('Cluster ',input[['selectedCluster']]))+
+        ggplot2::scale_color_gradient2(name=paste0('Cluster ',input[['selectedCluster']]))+
         ggplot2::theme(aspect.ratio = 1)
       return(spatial.plot)
     })
 
-    hclust.spatgenes <- reactive({
-      top.svm <- run_svm()
-      top.svm = bind_rows(top.svm, .id = "column_label")
-      top.svm = tidyr::pivot_longer(top.svm,cols=colnames(top.svm))
-      top.svm = unique(top.svm$value)
-      full.matrix = get_subset_exp()$exp[,top.svm]
-      full.matrix = scale(full.matrix,center = T,scale=T)
-      d = dist(t(full.matrix))
-      hclust(d)
+    observe({
+      updateSelectInput(session, 'peakName', choices = svm_barplot()$names)
+      updateNumericInput(session, 'selectedCluster', min = 1,max = input[['numClusters']],value = 1,step=1)
+    })  #%>% bindEvent(input[["run_SVM"]])
+
+    # show_peak <- reactive({
+    #   svm_results <- run_svm()
+    #   my_peak = anno[anno$m_z==input[['peakName']],]
+    #   current.intensity.matrix <- get_subset_exp()$exp
+    #   current.metadata <- get_subset_exp()$meta
+    #   caps = quantile(current.intensity.matrix[,my_peak$m_z],probs=c(0.05,0.95))
+    #   current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
+    #   current.metadata$peak = current.intensity.matrix[,my_peak$m_z]
+    #   current.metadata$peak = pmin(caps[2],current.metadata$peak)
+    #   current.metadata$peak = pmax(caps[1],current.metadata$peak)
+    #   spatial.plot = ggplot2::ggplot(current.metadata,ggplot2::aes(x=x,y=y,color=peak,fill=peak))+geom_tile()+
+    #     ggplot2::facet_wrap(~current.metadata$Sample, scales = 'free',ncol=floor(2*sqrt(length(input[['samplesToInclude']]))))  +
+    #     ggplot2::theme_classic() +
+    #     ggplot2::theme(axis.title.x=ggplot2::element_blank(),
+    #                    axis.text.x=ggplot2::element_blank(),
+    #                    axis.ticks.x=ggplot2::element_blank(),
+    #                    axis.line.x = ggplot2::element_blank(),
+    #                    axis.title.y=ggplot2::element_blank(),
+    #                    axis.text.y=ggplot2::element_blank(),
+    #                    axis.ticks.y=ggplot2::element_blank(),
+    #                    axis.line.y = ggplot2::element_blank())+
+    #     ggplot2::scale_fill_gradient(name=input[['peakName']],low = "lightgrey", high = "brown")+
+    #     ggplot2::scale_color_gradient(name=input[['peakName']],low = "lightgrey", high = "brown")+
+    #     ggplot2::theme(aspect.ratio = 1)
+    #   return(spatial.plot)
+    # })
+
+    # hclust.spatgenes <- reactive({
+    #   top.svm <- run_svm()
+    #   top.svm = bind_rows(top.svm, .id = "column_label")
+    #   top.svm = tidyr::pivot_longer(top.svm,cols=colnames(top.svm))
+    #   top.svm = unique(top.svm$value)
+    #   full.matrix = get_subset_exp()$exp[,top.svm]
+    #   full.matrix = scale(full.matrix,center = T,scale=T)
+    #   d = dist(t(full.matrix))
+    #   hclust(d)
+    # })
+    output[['AutoCorHeatmap']] <- plotly::renderPlotly({
+      autocor_heatmap()
     })
 
+    output[['CoexpHeatmap']] <- plotly::renderPlotly({
+      coexp_heatmap()
+    })
     output[['SVMUpset']] <- renderPlot({
       svm_upset()
-    })
+    },height=600)
 
     output[['downloadUpsetPlot']] <- downloadHandler(
       filename = function() { input[['upsetFileName']] },
@@ -243,7 +347,8 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
     )
 
     svmTable <- reactive({
-      svm.table = svm_results()[[input[['samplesToInclude']]]]
+      svm.table = svm_identification[[input[['tableSample']]]]
+      print(svm.table)
       colnames(svm.table)=c('m_z','SVM_corr')
       svm.table = merge(svm.table,anno[,c('m_z','name')],all.x=T)
       if (DEresults()$runDE==1){
@@ -253,7 +358,7 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
       }
       svm.table = svm.table[order(-svm.table$SVM_corr),]
       svm.table
-    }) %>% bindEvent(input[["run_SVM"]])
+    }) #%>% bindEvent(input[["run_SVM"]])
 
     output[['SVMTable']] <- DT::renderDT({
       svmTable()
@@ -270,7 +375,7 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
 
     output[['SVMBarPlot']] <- renderPlot({
       svm_barplot()$plot
-    })
+    },height=600)
 
     output[['downloadBar']] <- downloadHandler(
       filename = function() { input[['barPlotFileName']] },
@@ -280,8 +385,8 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
       }
     )
 
-    output[['plotPeak']] <- renderPlot({
-      show_peak()},height=600)
+    output[['CoexpSpatial']] <- renderPlot({
+      cexp_cluster_spatial()},height=600)
 
     output[['downloadSpatial']] <- downloadHandler(
       filename = function() { input[['spatialFileName']] },
@@ -293,7 +398,7 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
     )
     output$check <- reactive({
       length(input$samplesToInclude)
-    })%>% bindEvent(input[["run_SVM"]])
+    })#%>% bindEvent(input[["run_SVM"]])
 
     outputOptions(output, 'check', suspendWhenHidden=FALSE)
 

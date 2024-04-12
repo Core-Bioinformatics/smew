@@ -91,7 +91,8 @@ generateAppFile <- function(
   lines.out <- c(lines.out, code.load.packages, "")
 
   code.source.objects <- c(
-    "load('data.rda')",
+    "rda.files <- list.files(pattern = '\\.rda$')",
+    "for(fl in rda.files) load(fl)"
   )
 
   lines.out <- c(lines.out, code.source.objects, "")
@@ -149,7 +150,7 @@ generateAppFile <- function(
     "regionDEres <- RegionDEpanelServer(id='RegionDE', full.intensity.matrix = intensity.matrix, bulk.intensity.matrix = bulk.intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, region.clusters = clusters, anno = anno)",
     "BulkORAPanelServer(id='RegionORA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno,DEresults = regionDEres, organism = organism)",
     "RegionDimRedPanelServer(id='RegionNMF', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno)",
-    "PixelSVMPanelServer(id='PixelSVM',bulk.metadata = bulk.metadata,full.metadata = metadata, full.intensity.matrix = intensity.matrix,anno = anno, DEresults = bulkDEres)",
+    "PixelSVMPanelServer(id='PixelSVM',bulk.metadata = bulk.metadata,full.metadata = metadata, full.intensity.matrix = intensity.matrix,anno = anno, DEresults = bulkDEres, svm_identification = svm_identification,spatial.cross.cor = spatial.cross.cor)",
     "}"
   )
   lines.out <- c(lines.out, code.server, "")
