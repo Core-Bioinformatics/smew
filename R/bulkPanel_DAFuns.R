@@ -7,7 +7,7 @@ DEanalysis <-function(intensity.matrix,condition,var1,var2,test='t-test',anno){
                                           ((matrixStats::rowMins(as.matrix(intensity.matrix[,condition==var1]))!=matrixStats::rowMaxs(as.matrix(intensity.matrix[,condition==var1]))) |
                                           (matrixStats::rowMins(as.matrix(intensity.matrix[,condition==var2]))!=matrixStats::rowMaxs(as.matrix(intensity.matrix[,condition==var2])))),]
   fc_results=as.data.frame(intensity.matrix)
-  fc_results$log2_intensity = log2(rowMeans(intensity.matrix))
+  fc_results$log2_intensity = log2(rowMeans(intensity.matrix)+1)
   fc_results$group1_mean = as.numeric(rowMeans(intensity.matrix[, condition==var1]))
   fc_results$group2_mean = as.numeric(rowMeans(intensity.matrix[, condition==var2]))
   fc_results$fc = fc_results$group1_mean / fc_results$group2_mean
@@ -15,6 +15,7 @@ DEanalysis <-function(intensity.matrix,condition,var1,var2,test='t-test',anno){
   # drop NA
   na_index = apply(is.na(fc_results), 1, any)
   fc_results = fc_results[!na_index,]
+
   if (test=='t-test'){
     fc_results$pvalue = sapply(1:nrow(fc_results), function(i) t.test(as.numeric(fc_results[i, group1_names]), as.numeric(fc_results[i, group2_names]), paired = FALSE)$p.value)
   } else {

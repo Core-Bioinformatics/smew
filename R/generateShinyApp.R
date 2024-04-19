@@ -67,13 +67,34 @@ generateShinyApp <- function(shiny.dir='MSIToolKitApp',
   bulk.intensity.matrix = bulk.intensity.matrix[colnames(intensity.matrix),]
   anno = anno[anno$m_z %in% colnames(intensity.matrix)]
 
+  gcd.values = list()
+  for (sample in unique(metadata$Group)){
+    metadata.sub = metadata |> dplyr::filter(Group==sample)
+    pos <- metadata.sub[,c('x','y')]
+    rownames(pos)=metadata.sub$spot_id
+    rownames(metadata.sub)=metadata.sub$spot_id
+    # calculating spacing between points
+    min.x = min(pos$x)
+    min.y = min(pos$y)
+    pos$x = pos$x - min.x
+    pos$y = pos$y - min.y
+    gcd.x = GCD(round(unique(pos$x)[unique(pos$x)!=0]))
+    gcd.y = GCD(round(unique(pos$y)[unique(pos$y)!=0]))
+    if (gcd.x!=gcd.y){
+      message('Mismatching gap!')
+    } else {
+      gcd.values[[sample]]<-gcd.x
+    }
+  }
+
   svm_identification <- run_svm(intensity.matrix,metadata,bulk.metadata)
 
   return.list = c("intensity.matrix",
                      "bulk.intensity.matrix",
                      "metadata",
                      "bulk.metadata",
-                     "anno")
+                     "anno",
+                     "gcd.values")
   save(list=return.list,file=file.path(shiny.dir,'data.rda'))
   save("svm_identification",file=file.path(shiny.dir,'svm_identification.rda'))
   generateAppFile(shiny.dir,organism)
