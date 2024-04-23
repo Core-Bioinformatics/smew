@@ -81,7 +81,13 @@ To use *smew*, you need R >= 4.0. Currently, *smew* can only be installed from G
 * shinyjs
 * ggrastr
 * dbscan
+* plotly
+* pbapply
 
 ### Required Bioconductor packages (use *BiocManager::install()*) ###
 * ComplexHeatmap
 * mixOmics
+* BiocSingular
+* SingleCellExperiment
+* BayesSpace
+* scater

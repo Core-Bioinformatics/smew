@@ -223,7 +223,6 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
                                           'shape'='box','color'='grey',font.color='white')
         classification_nodes = classification_nodes[!(classification_nodes$id %in% nodes$id),]
         nodes = rbind(nodes,classification_nodes)
-        print(tail(nodes))
 
       }
       return(visNetwork::visNetwork(nodes,edges) |>

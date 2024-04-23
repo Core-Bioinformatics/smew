@@ -64,7 +64,22 @@ RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
             label = "Find clusters",
             icon = icon("play")
           ),
-
+          conditionalPanel(
+            id = ns('smoothingEnabled'),
+            ns=ns,
+            condition = "input.run_clustering != 0",
+            actionButton(
+              inputId = ns("run_smoothing"),
+              label = "Smooth clusters",
+              icon = icon("play")
+            ),
+          ),
+          conditionalPanel(
+            id = ns('smoothingRun'),
+            ns=ns,
+            condition = "input.run_smoothing != 0",
+            checkboxInput(inputId = ns('smoothClusters'),label = 'Use spatially smoothed clusters?',value = TRUE)
+          ),
           selectInput(inputId = ns("groupingMetadataBarPlot"),
                       label = "Metadata to group barplot on",
                       choices = colnames(full.metadata)[!(colnames(full.metadata)%in%c('spot_id','x','y'))],
@@ -111,7 +126,11 @@ RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
 
         #Main panel for displaying table of enriched pathways
         mainPanel(
+          tags$h3("Cluster visualisation"),
           fluidRow(column=10,plotOutput(ns('plotClusters'),click = ns('cluster_click'),height = 600)),
+          tags$h3("Spatially smoothed cluster visualisation"),
+          fluidRow(column=10,plotOutput(ns('plotSmoothClusters'),height = 600)),
+          tags$h3("Explore cluster distribution"),
           plotOutput(ns('plotClusterProps')),
           plotOutput(ns('plotClusterPropsPerSample')))
         )
@@ -123,7 +142,7 @@ RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
 
 #' @rdname RegionClusterPanel
 #' @export
-RegionClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, anno){
+RegionClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, anno,gcd.values){
 
   moduleServer(id, function(input, output, session){
     updateSelectizeInput(session, "peakToThreshold", choices = anno$display_name, server = TRUE, selected = anno$display_name[1])
@@ -138,6 +157,9 @@ RegionClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, b
       quantiles = quantile(my_peak_expression, prob=c(input[['thresholdLow']]/100,(100-input[['thresholdHigh']])/100), type=1)
       current.metadata$cluster = factor(ifelse(my_peak_expression<=quantiles[1],'Low',
                                         ifelse(my_peak_expression>=quantiles[2],'High','Medium')),levels=c('Low','Medium','High'))
+      # if (input[['smoothClusters']]){
+      #   current.metadata$cluster = smoothed.cluster(current.metadata,gcd.values = gcd.values)
+      # }
       }
       if (input[['clusteringApproach']]=='k-means'){
 
@@ -152,7 +174,20 @@ RegionClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, b
       return(current.metadata)
     })  %>% bindEvent(input[["run_clustering"]])
 
+    smoothed_clusters <- reactive({
+      current.metadata = get_clusters()
+      current.metadata = current.metadata[order(current.metadata$Group),]
+      smoothed.clusters = c()
+      for (my.sample in unique(current.metadata$Group)){
+        smoothed.clusters = c(smoothed.clusters,smoothed.cluster(current.metadata[current.metadata$Group==my.sample,],gcd.values = gcd.values))
+      }
+#      current.metadata$smoothed_cluster = smoothed.cluster(current.metadata,gcd.values = gcd.values)
+      current.metadata$smoothed_cluster = factor(smoothed.clusters,levels = levels(current.metadata$cluster))
+      return(current.metadata)
+    }) %>% bindEvent(input[["run_smoothing"]])
+
     cluster_plot <- reactive({
+
       current.metadata = get_clusters()
       my_plot <- ggplot2::ggplot(current.metadata,ggplot2::aes(x = x, y = y, color = cluster, fill = cluster)) +
         ggplot2::geom_tile() +
@@ -170,6 +205,26 @@ RegionClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, b
 
       return(my_plot)
     }) %>% bindEvent(input[["run_clustering"]])
+
+    smooth_cluster_plot <- reactive({
+      current.metadata = smoothed_clusters()
+      my_plot <- ggplot2::ggplot(current.metadata,ggplot2::aes(x = x, y = y, color = smoothed_cluster, fill = smoothed_cluster)) +
+        ggplot2::geom_tile() +
+        ggplot2::facet_wrap(~current.metadata$Sample, nrow = floor(sqrt(length(input[['samplesToCluster']]))), scales = 'free') +
+        ggplot2::theme_classic() +
+        ggplot2::theme(axis.title.x=ggplot2::element_blank(),
+                       axis.text.x=ggplot2::element_blank(),
+                       axis.ticks.x=ggplot2::element_blank(),
+                       axis.line.x = ggplot2::element_blank(),
+                       axis.title.y=ggplot2::element_blank(),
+                       axis.text.y=ggplot2::element_blank(),
+                       axis.ticks.y=ggplot2::element_blank(),
+                       axis.line.y = ggplot2::element_blank(),
+                       aspect.ratio = 1)
+
+      return(my_plot)
+    }) %>% bindEvent(input[["run_smoothing"]])
+
 
     cluster_plot_zoom <- reactive({
       current.metadata = get_clusters()
@@ -192,35 +247,64 @@ RegionClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, b
     #%>% bindEvent(input[["run_clustering"]])
 
     cluster_props <- reactive({
-      current.metadata = get_clusters()
+      if (input[["run_smoothing"]] != 0 & input[['smoothClusters']]){
+        current.metadata = smoothed_clusters()
+        cluster.label = 'smoothed_cluster'
+      } else {
+        current.metadata = get_clusters()
+        cluster.label = 'cluster'
+      }
+#      current.metadata = get_clusters()
       current.metadata$SelectedMetadata = current.metadata[,input[['groupingMetadataBarPlot']]]
-      ggplot2::ggplot(current.metadata,ggplot2::aes(y=SelectedMetadata,fill=cluster)) +
+      ggplot2::ggplot(current.metadata,ggplot2::aes(y=SelectedMetadata,fill=get(cluster.label))) +
         ggplot2::geom_bar(position = 'fill') +
         ggplot2::ylab(input[['groupingMetadataBarPlot']]) +
         ggplot2::xlab('Proportion of spots')+
-        ggplot2::theme_classic()
+        ggplot2::theme_classic()+
+        ggplot2::scale_fill_discrete(name=cluster.label)
     })
 
     cluster_props_persample <- reactive({
-      current.metadata = get_clusters()
+
+      if (input[["run_smoothing"]] != 0 & input[['smoothClusters']]){
+        current.metadata = smoothed_clusters()
+        cluster.label = 'smoothed_cluster'
+      } else {
+        current.metadata = get_clusters()
+        cluster.label = 'cluster'
+      }
+
       current.metadata$SelectedMetadata = current.metadata[,input[['groupingMetadataBox']]]
       current.metadata.count = current.metadata |>
-        dplyr::group_by(Sample, cluster) |>
+        dplyr::group_by(dplyr::across(dplyr::all_of(c("Sample", cluster.label)))) |>
         dplyr::summarise(n = dplyr::n()) |>
         dplyr::mutate(freq = n / sum(n))
       current.metadata.count = merge(data.frame(current.metadata.count),unique(current.metadata[,c('Sample','SelectedMetadata')]))
-      ggplot2::ggplot(current.metadata.count,ggplot2::aes(fill=SelectedMetadata,y=freq,x=cluster)) +
+      ggplot2::ggplot(current.metadata.count,ggplot2::aes(fill=SelectedMetadata,y=freq,x=get(cluster.label))) +
         ggplot2::geom_boxplot() +
         ggplot2::scale_fill_discrete(name=input[['groupingMetadataBox']]) +
         ggplot2::ylab('Proportion of spots per sample') +
-        ggplot2::theme_classic()
+        ggplot2::theme_classic()+
+        ggplot2::xlab(cluster.label)
     })
 
     return_object <- reactive({
       rownames(full.metadata)<-full.metadata$spot_id
-      merged.metadata = merge(full.metadata,get_clusters(),all.x=T,sort=F)
+      if (input[["run_smoothing"]] != 0 & input[['smoothClusters']]){
+        current.metadata = smoothed_clusters()
+        cluster.label = 'smoothed_cluster'
+      } else {
+        current.metadata = get_clusters()
+        cluster.label = 'cluster'
+      }
+
+      merged.metadata = merge(full.metadata,current.metadata,all.x=T,sort=F)
       rownames(merged.metadata)=merged.metadata$spot_id
       merged.metadata = merged.metadata[rownames(full.metadata),]
+      if (input[["run_smoothing"]] != 0){
+        merged.metadata$smoothed_cluster = as.character(merged.metadata$smoothed_cluster)
+        merged.metadata <- tidyr::replace_na(merged.metadata, list(smoothed_cluster = 'None'))
+      }
       merged.metadata$cluster = as.character(merged.metadata$cluster)
       merged.metadata <- tidyr::replace_na(merged.metadata, list(cluster = 'None'))
       return(merged.metadata)
@@ -228,6 +312,10 @@ RegionClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, b
 
     output[['plotClusters']] <- renderPlot({
       cluster_plot()
+    },height=600)
+
+    output[['plotSmoothClusters']] <- renderPlot({
+      smooth_cluster_plot()
     },height=600)
 
     output[['plotClustersZoom']] <- renderPlot({

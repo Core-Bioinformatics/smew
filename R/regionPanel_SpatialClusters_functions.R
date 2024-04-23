@@ -13,22 +13,23 @@ select.label = function(i,current.metadata){
     if (top.cluster > 0.5*nrow(neighbour.clusters)){
       return(names(top.cluster))
     } else {
-      return(selected.cluster)
+      return(selected.cluster$cluster)
     }
   }
 }
 
-smoothed.cluster <- function(metadata,gcd.values){
-  if (!is.factor(metadata$cluster)){
-    metadata$cluster = factor(metadata$cluster)
-  }
-  rownames(metadata)=metadata$spot_id
-  smoothed.clusters = c()
-  for (sample in unique(metadata$Group)){
-    metadata.sub = metadata[metadata$Group==sample,]
+smoothed.cluster <- function(metadata.sub,gcd.values){
+  # this should only be 1 sample
+  # if (!is.factor(metadata$cluster)){
+  #   metadata$cluster = factor(metadata$cluster)
+  # }
+  sample = unique(metadata.sub$Group)
+  metadata.sub$cluster = as.character(metadata.sub$cluster)
+  rownames(metadata.sub)=metadata.sub$spot_id
+#  smoothed.clusters = c()
+#  for (sample in unique(metadata$Group)){
+#    metadata.sub = metadata[metadata$Group==sample,]
     pos <- metadata.sub[,c('x','y','Group')]
-    rownames(pos)=metadata.sub$spot_id
-    rownames(metadata.sub)=metadata.sub$spot_id
     # calculating spacing between points
     min.x = min(pos$x)
     min.y = min(pos$y)
@@ -41,13 +42,13 @@ smoothed.cluster <- function(metadata,gcd.values){
     metadata.sub$y = pos$y
     cl <- parallel::makeCluster(parallel::detectCores()-1)
     parallel::clusterExport(cl, c('metadata.sub','select.label'),envir=environment())
-    new.clusters = pbapply::pbsapply(rownames(metadata.sub),FUN=function(x)select.label(x,metadata.sub),simplify = T,cl=cl)
-    #    print(new.clusters)
+    smoothed.clusters = pbapply::pbsapply(rownames(metadata.sub),FUN=function(x)select.label(x,metadata.sub),simplify = T,cl=cl)
     parallel::stopCluster(cl)
-    names(new.clusters)=rownames(pos)
-    smoothed.clusters = c(smoothed.clusters,new.clusters)
-  }
-  return(factor(smoothed.clusters,levels=levels(metadata$cluster)))
+    names(smoothed.clusters)=rownames(pos)
+ #   smoothed.clusters = c(smoothed.clusters,new.clusters)
+ # }
+#  return(factor(smoothed.clusters,levels=levels(metadata$cluster)))
+  return(smoothed.clusters)
   # group each square of 9 points into 1
 }
 

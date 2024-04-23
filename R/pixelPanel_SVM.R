@@ -245,6 +245,7 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
       return(clusters)
     })
     selected_peaks <- reactive({
+      clusters = cexp_clusters()
       return(names(clusters[clusters==input[['selectedCluster']]]))
     })
 
@@ -253,9 +254,9 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
     cexp_cluster_spatial <- reactive({
       clusters = cexp_clusters()
       cluster.peaks = names(clusters[clusters==input[['selectedCluster']]])
-      current.metadata = metadata
+      current.metadata = full.metadata
       current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
-      current.metadata$combined_cluster = rowMeans(scale(intensity.matrix[,cluster.peaks]))
+      current.metadata$combined_cluster = rowMeans(scale(full.intensity.matrix[,cluster.peaks]))
       spatial.plot = ggplot2::ggplot(current.metadata,ggplot2::aes(x=x,y=y,color=combined_cluster,fill=combined_cluster))+geom_tile()+
         ggplot2::facet_wrap(~current.metadata$Sample, scales = 'free',ncol=floor(2*sqrt(length(unique(current.metadata$Sample)))))  +
         ggplot2::theme_classic() +
@@ -348,7 +349,6 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
 
     svmTable <- reactive({
       svm.table = svm_identification[[input[['tableSample']]]]
-      print(svm.table)
       colnames(svm.table)=c('m_z','SVM_corr')
       svm.table = merge(svm.table,anno[,c('m_z','name')],all.x=T)
       if (DEresults()$runDE==1){

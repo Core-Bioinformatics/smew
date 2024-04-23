@@ -36,7 +36,14 @@ Depends:
     shinyjs,
     mixOmics,
     ggrastr,
-    dbscan
+    dbscan,
+    plotly,
+    parallel,
+    BayesSpace,
+    pbapply,
+    SingleCellExperiment,
+    BiocSingular,
+    scater
 Suggests:
     svglite
 RoxygenNote: 7.2.3
