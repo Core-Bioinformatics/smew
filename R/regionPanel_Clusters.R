@@ -301,7 +301,7 @@ RegionClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, b
       merged.metadata = merge(full.metadata,current.metadata,all.x=T,sort=F)
       rownames(merged.metadata)=merged.metadata$spot_id
       merged.metadata = merged.metadata[rownames(full.metadata),]
-      if (input[["run_smoothing"]] != 0){
+      if (input[["run_smoothing"]] != 0  & input[['smoothClusters']]){
         merged.metadata$smoothed_cluster = as.character(merged.metadata$smoothed_cluster)
         merged.metadata <- tidyr::replace_na(merged.metadata, list(smoothed_cluster = 'None'))
       }

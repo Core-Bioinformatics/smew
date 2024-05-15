@@ -116,7 +116,6 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
 
   # keep only pathways with < 500 and > 1 entries
   pathway2peaks = pathway2peaks[which(lapply(pathway2peaks, length) < 500 & lapply(pathway2peaks, length) > 1)]
-
   ora_up = get_ORA(
     pathways = pathway2peaks,
     metabolites = up_peaks,
@@ -124,7 +123,7 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
     minSize = min_path_size,
     maxSize = 500,
     direction = 'up'
-  ) %>% as.data.frame()
+  ) |> as.data.frame()
 
   ora_down = get_ORA(
     pathways = pathway2peaks,
@@ -133,7 +132,7 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
     minSize = min_path_size,
     maxSize = 500,
     direction = 'down'
-  ) %>% as.data.frame()
+  ) |> as.data.frame()
 
   ora_combined = rbind(ora_up,ora_down)
   # calculate fc, log2fc
@@ -143,6 +142,7 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
   # # change the sign of the fc and log2fc for downregulated pathways
   # ora_combined$FC[ora_combined$direction == 'down'] = -ora_combined$FC[ora_combined$direction == 'down']
   # ora_combined$log2FC[ora_combined$direction == 'down'] = -ora_combined$log2FC[ora_combined$direction == 'down']
+# could move this further up to make more efficient!
   if (min_pathway_hits) {
     ora_combined = ora_combined[ora_combined$hits >= min_pathway_hits,]
   }
