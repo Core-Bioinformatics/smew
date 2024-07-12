@@ -14,6 +14,7 @@ IntroSpatialVisPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE
             selected = unique(bulk.metadata[,1])[1],
             multiple = TRUE
           ),
+      h2('Visualise individual peaks'),
       sidebarLayout(
         sidebarPanel(
           dropMenu(
@@ -64,8 +65,9 @@ IntroSpatialVisPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE
             ),
           ),
       mainPanel(
-        plotOutput(ns('peakDensity')),
-      fluidRow(column=10,plotOutput(ns('plotPeak'),click = ns('peak_click'))))),
+        plotly::plotlyOutput(ns('peakDensity')),
+        fluidRow(column=10,plotOutput(ns('plotPeak'),click = ns('peak_click'),height='600px')))),
+      h2('Visualise multiple peaks as colour channels'),
        sidebarLayout(
          sidebarPanel(
            dropMenu(
@@ -83,42 +85,32 @@ IntroSpatialVisPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE
              placement = "right",
              arrow = FALSE
            ),
-           selectInput(ns("peakName1"), "Peaks to include:", multiple = FALSE, choices = character(0)),
-           selectInput(ns("peakName2"), "Peaks to include:", multiple = FALSE, choices = character(0)),
-           selectInput(ns("peakName3"), "Peaks to include:", multiple = FALSE, choices = character(0)),
+           selectInput(ns("peakName1"), "Peak 1:", multiple = FALSE, choices = character(0)),
+           selectInput(ns("peakName2"), "Peak 2:", multiple = FALSE, choices = character(0)),
+           selectInput(ns("peakName3"), "Peak 3:", multiple = FALSE, choices = character(0)),
            checkboxInput(ns("log2_intensity_multiple"),label = 'Show log2 intensity',value = FALSE),
            sliderInput(ns("capRange_multiple"), "Cap scale on percentiles:",
                        min = 0, max = 100,
                        value = c(5,95)),
-# #          checkboxInput(ns('splitDensity'),value = T,label = 'Split density plot by sample'),
            actionButton(ns("go_plot_multiple_peaks"),'Show spatial visualisation'),
-#           div(style = "margin-top:10px"),
-#           # dropMenu(
-#           #   circleButton(ns("downloadsMetadata"), icon = icon("download"),status = "success"),
-#           #   tags$div(
-#           #     tags$h3("Downloads"),
-#           #     fluidRow(
-#           #       column(5,offset=0,
-#           #              tags$h4("Spatial distribution"),
-#           #              textInput(ns('spatialFileName'),'File name for download', value ='spatial.png', placeholder = 'spatial.png'),
-#           #              numericInput(ns('spatialWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
-#           #              numericInput(ns('spatialHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
-#           #              downloadButton(ns('downloadSpatial'), 'Download spatial figure')),
-#           #       column(5,offset=1,
-#           #              tags$h4("Density plot"),
-#           #              textInput(ns('densityFileName'),'File name for download', value ='density.png', placeholder = 'density.png'),
-#           #              numericInput(ns('densityWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
-#           #              numericInput(ns('densityHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
-#           #              downloadButton(ns('downloadDensity'), 'Download density plot')),
-#           #
-#           #     )),
-#           #   theme = "light-border",
-#           #   placement = "right",
-#           #   arrow = FALSE
-#           # ),
+           div(style = "margin-top:10px"),
+           dropMenu(
+             circleButton(ns("downloads_multiple"), icon = icon("download"),status = "success"),
+             tags$div(
+               tags$h3("Downloads"),
+               tags$h4("Multiple peak distribution"),
+               textInput(ns('multiPeakFileName'),'File name for download', value ='multiPeak.png', placeholder = 'multiPeak.png'),
+               numericInput(ns('multiPeakWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+               numericInput(ns('multiPeakHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+               downloadButton(ns('downloadMultiPeak'), 'Download multiple peak figure')),
+             theme = "light-border",
+             placement = "right",
+             arrow = FALSE
+           )
          ),
          mainPanel(
-           fluidRow(column=10,plotOutput(ns('plotMultiplePeaks'),click = ns('peak_multiple_click'))))),
+           fluidRow(column=10,plotOutput(ns('plotMultiplePeaks'),click = ns('peak_multiple_click'),height='600px')))),
+      h2('Visualise annotations'),
       sidebarLayout(
         sidebarPanel(
           dropMenu(
@@ -153,7 +145,7 @@ IntroSpatialVisPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE
             arrow = FALSE
           )),
         mainPanel(
-          plotOutput(ns('plotMetadata'),click = ns('metadata_click'))),
+          plotOutput(ns('plotMetadata'),click = ns('metadata_click'),height='600px')),
 
       ))
   }else{
@@ -171,6 +163,7 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
     updateSelectizeInput(session, "peakName1", choices = anno$display_name, server = TRUE, selected = anno$display_name[1])
     updateSelectizeInput(session, "peakName2", choices = anno$display_name, server = TRUE, selected = anno$display_name[2])
     updateSelectizeInput(session, "peakName3", choices = anno$display_name, server = TRUE, selected = anno$display_name[3])
+
 
     show_peak <- reactive({
       my_peak = anno[anno$display_name==input[['peakName']],]
@@ -191,9 +184,11 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
       } else {
         current.metadata$peak = current.metadata$peak
       }
+      upper.lim = max(current.metadata$peak)
       legend_title = ifelse(input[['log2_intensity']],paste0('log2 ',my_peak$m_z,'\n intensity'),paste0(my_peak$m_z,'\n intensity'))
       spatial.plot = ggplot2::ggplot(current.metadata,ggplot2::aes(x=x,y=y,color=peak,fill=peak))+geom_tile()+
-        ggplot2::facet_wrap(~current.metadata$Sample, scales = 'free',nrow=max(1,floor(sqrt(length(input[['samplesToShow']])/2))))  +
+        ggplot2::facet_wrap(~current.metadata$Sample, scales = 'free',nrow=max(1,floor(sqrt(length(input[['samplesToShow']])/1.5))))  +
+#        thematic::thematic_shiny() +
         ggplot2::theme_classic() +
         ggplot2::theme(axis.title.x=ggplot2::element_blank(),
                        axis.text.x=ggplot2::element_blank(),
@@ -203,14 +198,16 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
                        axis.text.y=ggplot2::element_blank(),
                        axis.ticks.y=ggplot2::element_blank(),
                        axis.line.y = ggplot2::element_blank(),
-                       legend.title = ggplot2::element_text(legend_title))+
-        ggplot2::scale_fill_gradient(name=legend_title,low = "lightgrey", high = "brown")+
-        ggplot2::scale_color_gradient(name=legend_title,low = "lightgrey", high = "brown")+
-        ggplot2::theme(aspect.ratio = 1)
-      return(list('spatial'=spatial.plot,'density'=density.plot))
+                       legend.title = ggplot2::element_text(legend_title),
+                       strip.text = element_text(size=10),
+                       aspect.ratio = 1)+
+        ggplot2::scale_fill_gradient(name=legend_title,low = "lightgrey", high = "brown",limits=c(0,upper.lim))+
+        ggplot2::scale_color_gradient(name=legend_title,low = "lightgrey", high = "brown",limits=c(0,upper.lim))
+      return(list('spatial'=spatial.plot,'density'=density.plot,'upper_lim'=upper.lim))
     }) %>% bindEvent(input[["go_plot_peak"]])
 
     show_peak_zoom <- reactive({
+      upper.lim = show_peak()$upper_lim
       my_peak = anno[anno$display_name==input[['peakName']],]
       current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] == input$peak_click$panelvar1,]
       current.intensity.matrix <- t(full.intensity.matrix)[,full.metadata[,colnames(bulk.metadata)[1]] == input$peak_click$panelvar1]
@@ -235,10 +232,10 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
                        axis.text.y=ggplot2::element_blank(),
                        axis.ticks.y=ggplot2::element_blank(),
                        axis.line.y = ggplot2::element_blank(),
-                       legend.title = ggplot2::element_text(legend_title))+
-        ggplot2::scale_fill_gradient(name=legend_title,low = "lightgrey", high = "brown")+
-        ggplot2::scale_color_gradient(name=legend_title,low = "lightgrey", high = "brown")+
-        ggplot2::theme(aspect.ratio = 1))
+                       legend.title = ggplot2::element_text(legend_title),
+                       aspect.ratio = 1)+
+        ggplot2::scale_fill_gradient(name=legend_title,low = "lightgrey", high = "brown",limits=c(0,upper.lim))+
+        ggplot2::scale_color_gradient(name=legend_title,low = "lightgrey", high = "brown",limits=c(0,upper.lim)))
     })
     #%>% bindEvent(input[["go_plot_peak"]])
 
@@ -271,11 +268,13 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
         current.metadata$green = current.metadata$green
         current.metadata$blue = current.metadata$blue
       }
-
+      caps = c(red.caps,green.caps,blue.caps)
+      minima = c(min(current.metadata$red),min(current.metadata$green),min(current.metadata$blue))
+      maxima = c(max(current.metadata$red),max(current.metadata$green),max(current.metadata$blue))
       current.metadata$red = (current.metadata$red-min(current.metadata$red))/(max(current.metadata$red)-min(current.metadata$red))
       current.metadata$green = (current.metadata$green-min(current.metadata$green))/(max(current.metadata$green)-min(current.metadata$green))
       current.metadata$blue = (current.metadata$blue-min(current.metadata$blue))/(max(current.metadata$blue)-min(current.metadata$blue))
-
+      upper.lims = c(max(current.metadata$red),max(current.metadata$green),max(current.metadata$blue))
       p <-
         ggplot() +
         geom_tile(data = current.metadata, aes(
@@ -313,10 +312,11 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
                        axis.title.y=ggplot2::element_blank(),
                        axis.text.y=ggplot2::element_blank(),
                        axis.ticks.y=ggplot2::element_blank(),
-                       axis.line.y = ggplot2::element_blank())+
+                       axis.line.y = ggplot2::element_blank(),
+                       strip.text = element_text(size=10))+
         # Fix coordinates so that plot cannot be stretched
         facet_wrap(~current.metadata$Group,scales='free',
-                   nrow=max(1,floor(sqrt(length(input[['samplesToShow']])/2))))+
+                   nrow=max(1,floor(sqrt(length(input[['samplesToShow']])/1.5))))+
         ggplot2::theme(aspect.ratio = 1)
       # Add new color scales
       p <- p +
@@ -356,33 +356,122 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
                                                      draw.llim = FALSE,
                                                      label=FALSE,
                                                      title = stringr::word(input[['peakName3']],sep='_',start=1,end=1)))
-      return(p)
-#       current.metadata$red = (current.metadata$red-min(current.metadata$red))/(max(current.metadata$red)-min(current.metadata$red))
-#       current.metadata$green = (current.metadata$green-min(current.metadata$green))/(max(current.metadata$green)-min(current.metadata$green))
-#       current.metadata$blue = (current.metadata$blue-min(current.metadata$blue))/(max(current.metadata$blue)-min(current.metadata$blue))
-#       current.metadata$color = rgb(current.metadata$red,current.metadata$green,current.metadata$blue,maxColorValue = 1)
-#       print(head(current.metadata$color))
-#       color.list = unique(current.metadata$color)
-#       print(str(color.list))
-#       names(color.list) = color.list
-#       print(str(color.list))
-# #      legend_title = ifelse(input[['log2_intensity']],paste0('log2 ',my_peak$m_z,'\n intensity'),paste0(my_peak$m_z,'\n intensity'))
-#       spatial.plot = ggplot2::ggplot(current.metadata,ggplot2::aes(x=x,y=y,color=color,fill=color))+geom_tile()+
-#         ggplot2::facet_wrap(~current.metadata$Sample, scales = 'free',nrow=max(1,floor(sqrt(length(input[['samplesToShow']])/2))))  +
-#         ggplot2::theme_classic() +
-#         ggplot2::theme(axis.title.x=ggplot2::element_blank(),
-#                        axis.text.x=ggplot2::element_blank(),
-#                        axis.ticks.x=ggplot2::element_blank(),
-#                        axis.line.x = ggplot2::element_blank(),
-#                        axis.title.y=ggplot2::element_blank(),
-#                        axis.text.y=ggplot2::element_blank(),
-#                        axis.ticks.y=ggplot2::element_blank(),
-#                        axis.line.y = ggplot2::element_blank())+
-#         ggplot2::scale_fill_manual(values = color.list)+
-#         ggplot2::scale_color_manual(values = color.list)+
-#         ggplot2::theme(aspect.ratio = 1,legend.position=NULL)
-      # return(spatial.plot)
+
+      return(list('plot'=p,'minima'=minima,'maxima'=maxima,'upper_lim'=upper.lims,'caps'=caps))
     }) %>% bindEvent(input[["go_plot_multiple_peaks"]])
+
+    show_multiple_peaks_zoom <- reactive({
+      multiple_peaks = show_multiple_peaks()
+      red_peak = anno[anno$display_name==input[['peakName1']],]
+      green_peak = anno[anno$display_name==input[['peakName2']],]
+      blue_peak = anno[anno$display_name==input[['peakName3']],]
+      current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] == input$peak_multiple_click$panelvar1,]
+      current.intensity.matrix <- t(full.intensity.matrix)[,full.metadata[,colnames(bulk.metadata)[1]] == input$peak_multiple_click$panelvar1]
+
+      current.metadata$red = current.intensity.matrix[red_peak$m_z,]
+      current.metadata$red = pmin(multiple_peaks$caps[2],current.metadata$red)
+      current.metadata$red = pmax(multiple_peaks$caps[1],current.metadata$red)
+      current.metadata$green = current.intensity.matrix[green_peak$m_z,]
+      current.metadata$green = pmin(multiple_peaks$caps[4],current.metadata$green)
+      current.metadata$green = pmax(multiple_peaks$caps[3],current.metadata$green)
+      current.metadata$blue = current.intensity.matrix[blue_peak$m_z,]
+      current.metadata$blue = pmin(multiple_peaks$caps[6],current.metadata$blue)
+      current.metadata$blue = pmax(multiple_peaks$caps[5],current.metadata$blue)
+      if (input[['log2_intensity_multiple']]){
+        current.metadata$red = log2(current.metadata$red+1)
+        current.metadata$green = log2(current.metadata$green+1)
+        current.metadata$blue = log2(current.metadata$blue+1)
+      } else {
+        current.metadata$red = current.metadata$red
+        current.metadata$green = current.metadata$green
+        current.metadata$blue = current.metadata$blue
+      }
+
+      current.metadata$red = (current.metadata$red-multiple_peaks$minima[1])/(multiple_peaks$maxima[1]-multiple_peaks$minima[1])
+      current.metadata$green = (current.metadata$green-multiple_peaks$minima[2])/(multiple_peaks$maxima[2]-multiple_peaks$minima[2])
+      current.metadata$blue = (current.metadata$blue-multiple_peaks$minima[3])/(multiple_peaks$maxima[3]-multiple_peaks$minima[3])
+
+      p <-
+        ggplot() +
+        geom_tile(data = current.metadata, aes(
+          x = x,
+          y = y, # If blended colors are provided, add color outside aesthetic
+          fill=red,
+          alpha=red
+        ),
+        ) +
+        # Add themes
+        theme_classic() +
+        guides(alpha = "none") +
+        # Add color gradient for first feature
+        scale_fill_gradientn(colours = c("white", "brown"),limits=c(0,multiple_peaks$upper_lim[1]),
+                             guide = guide_colourbar(title.position = "right",
+                                                     order = 1,
+                                                     frame.colour = "black",
+                                                     frame.linewidth = 1,
+                                                     draw.ulim = FALSE,
+                                                     draw.llim = FALSE,
+                                                     label = FALSE,
+                                                     title = stringr::word(input[['peakName1']],sep='_',start=1,end=1))) +
+        scale_alpha_continuous(range=c(0,0.7))+
+        ggplot2::theme_classic() +
+        ggplot2::theme(legend.position = "right",
+                       legend.direction = "horizontal",
+                       legend.title.align = 0,
+                       legend.margin = margin(0, 0, 0, 0),
+                       plot.margin = margin(0, 10, 20, 10),
+                       legend.title = element_text(vjust = 0.8),
+                       axis.title.x=ggplot2::element_blank(),
+                       axis.text.x=ggplot2::element_blank(),
+                       axis.ticks.x=ggplot2::element_blank(),
+                       axis.line.x = ggplot2::element_blank(),
+                       axis.title.y=ggplot2::element_blank(),
+                       axis.text.y=ggplot2::element_blank(),
+                       axis.ticks.y=ggplot2::element_blank(),
+                       axis.line.y = ggplot2::element_blank(),
+                       strip.text = element_text(size=10))+
+        # Fix coordinates so that plot cannot be stretched
+        ggplot2::theme(aspect.ratio = 1)
+      # Add new color scales
+      p <- p +
+        ggnewscale::new_scale_fill() +
+        geom_tile(data = current.metadata, aes(
+          x = x,
+          y = y,
+          fill = green,
+          alpha=green) # If blended colors are provided, add color outside aesthetic
+        ) +
+        guides(alpha = "none") +
+        scale_fill_gradientn(colours = c("white", "darkgreen"),limits=c(0,multiple_peaks$upper_lim[2]),
+                             guide = guide_colourbar(title.position = "right",
+                                                     order = 2,
+                                                     frame.colour = "black",
+                                                     frame.linewidth = 1,
+                                                     draw.ulim = FALSE,
+                                                     draw.llim = FALSE,
+                                                     label=FALSE,
+                                                     title = stringr::word(input[['peakName2']],sep='_',start=1,end=1)))
+
+      p <- p +
+        ggnewscale::new_scale_fill() +
+        geom_tile(data = current.metadata, aes(
+          x = x,
+          y = y,
+          fill = blue,
+          alpha=blue) # If blended colors are provided, add color outside aesthetic
+        ) +
+        guides(alpha = "none") +
+        scale_fill_gradientn(colours = c("white", "navy"),limits=c(0,multiple_peaks$upper_lim[3]),
+                             guide = guide_colourbar(title.position = "right",
+                                                     order = 3,
+                                                     frame.colour = "black",
+                                                     frame.linewidth = 1,
+                                                     draw.ulim = FALSE,
+                                                     draw.llim = FALSE,
+                                                     label=FALSE,
+                                                     title = stringr::word(input[['peakName3']],sep='_',start=1,end=1)))
+      return(p)
+    })
 
     show_metadata <- reactive({
       current.metadata <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] %in% input[['samplesToShow']],]
@@ -390,16 +479,16 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
       current.metadata$Sample = current.metadata[,colnames(bulk.metadata)[1]]
       return(ggplot2::ggplot(current.metadata,ggplot2::aes(x=x,y=y,color=metadata,fill=metadata))+
                ggplot2::geom_tile()+
-               ggplot2::facet_wrap(~current.metadata$Sample, nrow = max(1,floor(sqrt(length(input[['samplesToShow']])/2))), scales = 'free')  +
+               ggplot2::facet_wrap(~current.metadata$Sample, nrow = max(1,floor(sqrt(length(input[['samplesToShow']]))/1.5)), scales = 'free')  +
                ggplot2::theme_classic() +
                ggplot2::theme(axis.title.x=ggplot2::element_blank(),
-                     axis.text.x=ggplot2::element_blank(),
-                     axis.ticks.x=ggplot2::element_blank(),
-                     axis.line.x = ggplot2::element_blank(),
-                     axis.title.y=ggplot2::element_blank(),
-                     axis.text.y=ggplot2::element_blank(),
-                     axis.ticks.y=ggplot2::element_blank(),
-                     axis.line.y = ggplot2::element_blank())+
+                              axis.text.x=ggplot2::element_blank(),
+                              axis.ticks.x=ggplot2::element_blank(),
+                              axis.line.x = ggplot2::element_blank(),
+                              axis.title.y=ggplot2::element_blank(),
+                              axis.text.y=ggplot2::element_blank(),
+                              axis.ticks.y=ggplot2::element_blank(),
+                              axis.line.y = ggplot2::element_blank())+
                ggplot2::theme(aspect.ratio = 1))
     }) %>% bindEvent(input[["go_plot_metadata"]])
 
@@ -422,13 +511,19 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
     })
     #%>% bindEvent(input[["go_plot_metadata"]])
     output[['plotPeak']] <- renderPlot({
-      show_peak()$spatial})
+      show_peak()$spatial}
+      #, height = function() {plot_height()}
+      )
 
     output[['plotMultiplePeaks']] <- renderPlot({
-      show_multiple_peaks()})
+      show_multiple_peaks()$plot}#, height = function() {plot_height_multiple()}
+      )
 
     output[['plotPeakZoom']] <- renderPlot({
       show_peak_zoom()})
+
+    output[['plotMultiplePeakZoom']] <- renderPlot({
+      show_multiple_peaks_zoom()})
 
     output[['downloadSpatial']] <- downloadHandler(
       filename = function() { input[['spatialFileName']] },
@@ -437,8 +532,17 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
                width=input[['spatialWidth']],height=input[['spatialHeight']])
       }
     )
-    output[['peakDensity']] <- renderPlot({
-      show_peak()$density
+
+    output[['downloadMultiPeak']] <- downloadHandler(
+      filename = function() { input[['multiPeakFileName']] },
+      content = function(file) {
+        ggsave(file, plot = show_multiple_peaks()$plot, dpi = 300,
+               width=input[['multiPeakWidth']],height=input[['multiPeakHeight']])
+      }
+    )
+
+    output[['peakDensity']] <- plotly::renderPlotly({
+      plotly::ggplotly(show_peak()$density)
     })
 
     output[['downloadDensity']] <- downloadHandler(
@@ -450,7 +554,8 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
     )
     output[['plotMetadata']] <- renderPlot({
       show_metadata()
-    })
+    }#, height = function() {plot_height()}
+    )
 
     output[['plotMetadataZoom']] <- renderPlot({
       show_metadata_zoom()
@@ -474,6 +579,18 @@ IntroSpatialVisPanelServer <- function(id, bulk.metadata, full.metadata, full.in
         )
       )
     })
+
+    observeEvent(input$peak_multiple_click, {
+      ns <- session$ns
+      showModal(
+        modalDialog(
+          plotOutput(ns('plotMultiplePeakZoom')),
+          easyClose = TRUE,
+          footer = NULL
+        )
+      )
+    })
+
 
     observeEvent(input$metadata_click, {
       ns <- session$ns

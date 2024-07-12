@@ -154,7 +154,7 @@ peaks_boxplot <- function(sub.intensity.matrix,
   p <- ggplot2::ggplot(melted.intensity.matrix, ggplot2::aes(fill = metadata,
                                             x = metadata,
                                             y = value,label=sample)) +
-    ggplot2::geom_boxplot() +
+    ggplot2::geom_boxplot(outlier.shape = NA) +
     ggplot2::geom_jitter(width=0.1,color='black',fill='black') +
     ggplot2::theme_minimal() +
     ggplot2::ylab(ifelse(log.transformation,'log2 intensity','intensity')) +

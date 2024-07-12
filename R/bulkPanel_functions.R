@@ -76,29 +76,29 @@ get_matched_peaks = function(
     adducts = NULL, neg_adduct_formulas = NULL, pos_adduct_formulas = NULL){
 
   if (is.null(kegg_db)) {
-    print('Provide kegg db')
+    message('Provide kegg db')
     stop()
   }
   if (is.null(peak_list)) {
-    print('Provide the list of peaks')
+    message('Provide the list of peaks')
     stop()
   }
 
   if (is.null(ppm)) {
-    print('Provide ppm')
+    message('Provide ppm')
     stop()
   }
-  print(paste0('Using ppm = ', ppm))
+#  print(paste0('Using ppm = ', ppm))
 
   if (is.null(mode)) {
-    print('Provide mode')
+    message('Provide mode')
     stop()
   }
   if (!mode %in% c('Negative', 'Positive')) {
-    print('Mode has to be either "Positive" or "Negative".')
+    message('Mode has to be either "Positive" or "Negative".')
     stop()
   }
-  print(paste0('Using mode = ', mode))
+#  print(paste0('Using mode = ', mode))
 
   exp_peak_list = unique(as.numeric(peak_list))
 
@@ -118,21 +118,21 @@ get_matched_peaks = function(
   filt_kegg_db = filt_kegg_db |> tidyr::drop_na(complete_compound_mass)
   nafter = n_distinct(filt_kegg_db$compound_id)
 
-  print(paste('Dropped', nbefore - nafter, 'compounds without mass.'))
+#  print(paste('Dropped', nbefore - nafter, 'compounds without mass.'))
 
-  print('Computing adduct masses...')
+#  print('Computing adduct masses...')
   # compute theoretical masses for all compounds+adducts in the kegg dataset
   adducts_computed = compute_adduct_weights(my_adduct_formulas,filt_kegg_db$complete_compound_mass)
 
-  print('Computing adduct masses...done')
+#  print('Computing adduct masses...done')
 
-  print('Matching peaks to computed adducts...')
+#  print('Matching peaks to computed adducts...')
 
   # match experimental peaks to calculated adducts
   matched_comps = get_matched_comps(adducts_table = adducts_computed,
                                     mz_list = exp_peak_list,
                                     allowed_dppm = ppm)
-  print('Matching peaks to computed adducts...done')
+#  print('Matching peaks to computed adducts...done')
 
   # merge with kegg data for complete annotation (join on theoretical mass)
   matched_comps_annot = left_join(matched_comps, filt_kegg_db, by = c('theoretical_mass' = 'complete_compound_mass'))
@@ -140,17 +140,17 @@ get_matched_peaks = function(
   # convert theoretical_mass to numeric
   matched_comps_annot$theoretical_mass = as.numeric(matched_comps_annot$theoretical_mass)
 
-  print(paste("Unique peaks mapped:", n_distinct(matched_comps_annot$exp_peak)))
-  print(paste(
-    "Unique compounds mapped:",
-    n_distinct(matched_comps_annot$compound_id)
-  ))
-  print(paste(
-    "Unique compounds in LIPIDMAPS:",
-    dplyr::n_distinct(
-      matched_comps_annot |> dplyr::filter(is_lm == 'True') |> dplyr::pull(compound_id)
-    )
-  ))
+#  print(paste("Unique peaks mapped:", n_distinct(matched_comps_annot$exp_peak)))
+  # print(paste(
+  #   "Unique compounds mapped:",
+  #   n_distinct(matched_comps_annot$compound_id)
+  # ))
+  # print(paste(
+  #   "Unique compounds in LIPIDMAPS:",
+  #   dplyr::n_distinct(
+  #     matched_comps_annot |> dplyr::filter(is_lm == 'True') |> dplyr::pull(compound_id)
+  #   )
+  # ))
 
   # NOTE: some compounds have exactly the same molecular formula, hence they match the same peak.
   # This can inflate some pathway representation.
@@ -236,7 +236,6 @@ create_bulk_exp <- function(intensity.matrix,
                                     adducts = adducts,
                                     neg_adduct_formulas = neg_adduct_table,
                                     pos_adduct_formulas = pos_adduct_table)
-  matched_peaks = matched_peaks[matched_peaks$mouse_pathway=='True',]
   if (organism == 'Human'){
     matched_peaks = matched_peaks[matched_peaks$human_pathway == 'True',]
   } else if (organism == 'Mouse'){
@@ -244,7 +243,7 @@ create_bulk_exp <- function(intensity.matrix,
   } else if (organism == 'Rat'){
     matched_peaks = matched_peaks[matched_peaks$rat_pathway == 'True',]
   } else {
-    print('Organism not supported')
+    message('Organism supplied is not supported, no filtering applied')
     return(NULL)
   }
   annotation_table = matched_peaks[,c(1,6,8,9)]

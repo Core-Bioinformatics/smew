@@ -84,6 +84,8 @@ To use *smew*, you need R >= 4.0. Currently, *smew* can only be installed from G
 * plotly
 * pbapply
 
+To download plotly outputs to file, you may also need to run *webshot::install_phantomjs()*
+
 ### Required Bioconductor packages (use *BiocManager::install()*) ###
 * ComplexHeatmap
 * mixOmics
@@ -91,3 +93,4 @@ To use *smew*, you need R >= 4.0. Currently, *smew* can only be installed from G
 * SingleCellExperiment
 * BayesSpace
 * scater
+* S4Vectors

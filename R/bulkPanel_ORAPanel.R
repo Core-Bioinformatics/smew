@@ -61,13 +61,13 @@ BulkORAPanelUI <- function(id, bulk.metadata, show = TRUE){
             icon = icon("play")
           ),
           div(style = "margin-top:10px"),
-          tags$b("Pathway selection"),
-          div("\nSelect pathways of interest by clicking on the corresponds rows in the table\n"),
-          div(style="margin-bottom:10px"),
-          actionButton(ns('resetSelection'), label = "Reset row selection"),
-          div(style="margin-bottom:10px"),
-          actionButton(ns('selectTop10'), label = "Select top 10 pathways"),
-          div(style = "margin-top:10px"),
+          # tags$b("Pathway selection"),
+          # div("\nSelect pathways of interest by clicking on the corresponds rows in the table\n"),
+          # div(style="margin-bottom:10px"),
+#          actionButton(ns('resetSelection'), label = "Reset row selection"),
+#          div(style="margin-bottom:10px"),
+#          actionButton(ns('selectTop10'), label = "Select top 10 pathways"),
+#          div(style = "margin-top:10px"),
           tags$b("Pathway network"),
           selectInput(ns('selectedClassification'),label = 'Select pathway categories to show in network',choices = c('None','Top Level','More Granular'),selected = 'Top Level',multiple = F),
           div(style = "margin-top:10px"),
@@ -115,7 +115,7 @@ BulkORAPanelUI <- function(id, bulk.metadata, show = TRUE){
         #Main panel for displaying table of enriched pathways
         mainPanel(
           DT::dataTableOutput(ns('data')),
-          plotOutput(ns('oraVolcano'),click=ns('plot_click')),
+          plotly::plotlyOutput(ns('oraVolcano')),
           tableOutput(ns('oraVolcanoData')),
           plotOutput(ns('pathwayCategories')),
           visNetwork::visNetworkOutput(ns('ORAnetwork'),height="600")
@@ -158,7 +158,7 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
         dplyr::select(-metabolites) |>
         DT::datatable() %>%
         DT::formatSignif(columns = c('Raw.p', 'Holm.p','FDR'), digits = 3)
-    })
+    }) %>% bindEvent(input[["submit_from_ora"]])
 
     #Output selected pathways
     selectedPathways <- reactive({
@@ -169,12 +169,12 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
 
     proxy = DT::dataTableProxy('data')
 
-    observe({proxy %>% DT::selectRows(NULL)}) %>%
-      bindEvent(input[['resetSelection']])
-
-    observe({proxy %>% DT::selectRows(selected = 1:10)}) %>%
-      bindEvent(input[['selectTop10']])
-
+    # observe({proxy %>% DT::selectRows(NULL)}) %>%
+    #   bindEvent(input[['resetSelection']])
+    #
+    # observe({proxy %>% DT::selectRows(selected = 1:10)}) %>%
+    #   bindEvent(input[['selectTop10']])
+    #
 
     oraNetwork <- reactive({
       ora <- get_ORA() |>
@@ -182,9 +182,11 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
         dplyr::mutate(`-log10pval` = -log10(.data$FDR),
                       lfc = ifelse(.data$direction=='up',log2(.data$hits/.data$expected),-log2(.data$hits/.data$expected)))
       pathway.list = list()
+      # could consider switching to overlap in the DE metabolites rather than just overall
       for (pathway in unique(kegg_db$pathway_name)){
         pathway.list[[pathway]]=unique(kegg_db[kegg_db$pathway_name==pathway,]$compound_id)
       }
+      # might be issues here if a pathway comes up as up and down
       nodes = data.frame(label=ora$pathway,id=ora$pathway,shape='circle',color=ora$lfc,font.color='white')
       nodes$label = stringr::str_wrap(nodes$label,10)
       edges = data.frame(t(combn(names(pathway.list), 2)))
@@ -200,14 +202,16 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
       edges$value = weight.vector
       edges = edges[edges$value!=0,]
       nodes$color = scales::col_numeric('RdYlBu',-ceiling(max(abs(nodes$color))):ceiling(max(abs(nodes$color))))(nodes$color)
-      return(list('nodes'=nodes,'edges'=edges))
-    })
+      return(list('nodes'=nodes,'edges'=edges,'ora'=ora))
+    }) %>% bindEvent(input[["submit_from_ora"]])
+
     oraNetworkCategories <- reactive({
-      ora <- get_ORA() |>
+      network = oraNetwork()
+      ora <- network$ora |>
         dplyr::filter(FDR<input[['ora_pvalue_cutoff']]) |>
         dplyr::mutate(`-log10pval` = -log10(.data$FDR),
                       lfc = ifelse(.data$direction=='up',log2(.data$hits/.data$expected),-log2(.data$hits/.data$expected)))
-      network = oraNetwork()
+
       nodes = network$nodes
       edges = network$edges
       if (input[['selectedClassification']]!='None'){
@@ -250,6 +254,12 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
 
     })
 
+    volcano <- reactive({
+      print(head(ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']],selectedPathways())$data))
+      return(ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']],selectedPathways()))
+
+    }) %>% bindEvent(input[["submit_from_ora"]])
+
     output[['data']] <- DT::renderDataTable(dataTable())
 
     output[['downloadTable']] <- downloadHandler(
@@ -262,9 +272,9 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
       }
     )
 
-    output[['oraVolcano']] <- renderPlot({
-      ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']],selectedPathways())
-    })
+
+    output[['oraVolcano']] <-
+      plotly::renderPlotly(volcano()$volcano)
 
     output[['downloadVolcano']] <- downloadHandler(
       filename = function() { input[['volcanoFileName']] },
@@ -274,11 +284,13 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
       }
     )
 
-    output[['oraVolcanoData']] <- renderTable({
-      req(input[['plot_click']])
-      data = get_ORA() |> dplyr::mutate(`-log10pval` = -log10(.data$FDR),
-                                        lfc = ifelse(.data$direction=='up',log2(.data$hits/.data$expected),-log2(.data$hits/.data$expected)))
-    }, digits = 4)
+    # output[['oraVolcanoData']] <- renderTable({
+    #   req(input[['plot_click']])
+
+#      data = nearPoints(get_ORA(),coordinfo = input$plot_click,maxpoints=1) |> dplyr::mutate(`-log10pval` = -log10(.data$FDR),
+#                                        lfc = ifelse(.data$direction=='up',log2(.data$hits/.data$expected),-log2(.data$hits/.data$expected)))
+    # nearPoints(volcano()$data,coordinfo = input$plot_click, maxpoints=1)
+    # }, digits = 4)
 
     output[['pathwayCategories']] <- renderPlot({
       pathwayCategories()

@@ -11,10 +11,13 @@ generateShinyApp(
   sample.id.column,
   sample.wide.columns,
   only.annotated = TRUE,
+  extra.annotation = NULL,
   organism = "Mouse",
   adducts = c("M-H [1-]", "M-H20-H [1-]", "M+Cl [1-]"),
   mode = "Negative",
-  ppm = 5
+  ppm = 5,
+  run.svm = F,
+  run.spe = F
 )
 }
 \arguments{

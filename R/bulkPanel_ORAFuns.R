@@ -163,15 +163,15 @@ ora_volcano_plot <- function(
   df$significance <- ifelse(df$FDR<pval.threshold,'Significant','Non-significant')
   df.label = df[df$pathway %in% selectedPathways,]
   lfc <- NULL; log10pval <- NULL; significance <- NULL
-  vp <- ggplot2::ggplot(data = df, mapping = ggplot2::aes(x = lfc, y = -log10pval,color=significance)) +
+  vp <- ggplot2::ggplot(data = df, mapping = ggplot2::aes(x = lfc, y = -log10pval,color=significance,label = pathway)) +
     ggplot2::geom_point() +
     ggplot2::theme_minimal() +
     ggplot2::xlab("log2(FC)") +
     ggplot2::ylab("-log10(pval)") +
     ggplot2::scale_color_manual(values=c("Non-significant"="#999999", "Significant"="#FF0000"))+
-    ggrepel::geom_text_repel(data = df.label, mapping = aes(x = lfc, y = -log10pval,label = pathway))
+    geom_text(data = df.label, mapping = aes(x = lfc, y = -log10pval,label = pathway))
+  df[,'-log10pval']=-df$log10pval
 
-
-  return(vp)
+  return(list('volcano'=vp,'data'=df))
 }
 

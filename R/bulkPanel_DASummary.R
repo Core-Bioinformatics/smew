@@ -11,16 +11,12 @@ BulkDESummaryPanelUI <- function(id, bulk.metadata, show = TRUE){
         tags$h3("Peak heatmap"),
         tags$ul(
           tags$li("Heatmap showing variation of intensity across samples for peaks selected in Differential analysis tab."),
-          tags$li("Raw intensities, log2 intensities of Z-score intensities (default) can be shown for each peak."),
           tags$li("Peaks can be clustered to group by similar patterns using complete linkage hierarchical clustering based on Euclidean distance."),
           tags$li("Extra peaks can be added to the heatmap using the search box below.")
         ),
         br(),
 
-        radioButtons(ns('heatmap.processing'), label = "Heatmap values",
-                     choices = c('Expression','Log2 Expression','Z-score'),
-                     selected = 'Z-score'),
-        shinyjqui::orderInput(ns('heatmap.annotations'), label = "Show annotations", items = colnames(bulk.metadata)),
+        shinyjqui::orderInput(ns('heatmap.annotations'), label = "Show annotations", items = colnames(bulk.metadata[,sapply(bulk.metadata,n_distinct)!=nrow(bulk.metadata)])),
         checkboxInput(ns("cluster.heatmap"), label = "Cluster heatmap rows", value = TRUE),
         selectInput(ns("peakName"), "Additional peaks to include:", multiple = TRUE, choices = character(0)),
         div("\nIf no peaks are selected in the DE panel or here then the top 50 DE peaks are chosen.\n"),
@@ -36,15 +32,15 @@ BulkDESummaryPanelUI <- function(id, bulk.metadata, show = TRUE){
           fluidRow(
             column(10,offset=0,
                    textInput(ns('plotHeatmapFileName'), 'File name for heatmap download', value ='heatmap.png'),
-                   numericInput(ns('heatmapPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
-                   numericInput(ns('heatmapPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                   numericInput(ns('heatmapPlotWidth'),value = 500,label = 'Width (px)',min = 50,max = 5000,step = 10),
+                   numericInput(ns('heatmapPlotHeight'),value =800,label = 'Height (px)',min = 50,max = 5000,step = 10),
                    downloadButton(ns('downloadHeatmapPlot'), 'Download heatmap plot')
             )),
           theme = "light-border",
           placement = "right",
           arrow = FALSE
         )),
-      plotOutput(ns('heatmap'), height = 800),
+      plotly::plotlyOutput(ns('heatmap'), height = 800),
       tags$h1("Volcano/MA plot"),
       shinyWidgets::dropdownButton(
         tags$h3("Volcano/MA plots"),
@@ -154,7 +150,8 @@ BulkDESummaryPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, D
       } else {items = colnames(bulk.metadata)[2:ncol(bulk.metadata)]}
       shinyjqui::updateOrderInput(session, "heatmap.annotations", items = items)
     })
-    heatmap.plot <- reactive({
+
+    heatmap.prep <- reactive({
       selectedPeaks = DEresults()$selectedPeaks()
       if(length(selectedPeaks)){
         selectedPeakNames <- selectedPeaks
@@ -171,17 +168,42 @@ BulkDESummaryPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, D
       meta <- lapply(bulk.metadata, function(x)if(!is.factor(x)){factor(x, levels = unique(x))}else{x}) |>
         as.data.frame() |>
         dplyr::arrange(dplyr::across(input[['heatmap.annotations']]))
-      myplot <- expression_heatmap_met(
-        intensity.matrix.subset = subsetExpression[, as.character(meta[, 1]), drop = FALSE],
-        top.annotation.ids = match(input[['heatmap.annotations']], colnames(meta)),
-        metadata = meta,
-        type = input[["heatmap.processing"]],
-        show.column.names = (nrow(meta) <= 20),
-        cluster.peaks = input[['cluster.heatmap']]
-      )
-      return(myplot)
+      scaled = t(scale(t(subsetExpression[, as.character(meta[, 1]), drop = FALSE])))
+      return(scaled)
     })
-    output[['heatmap']] <- renderPlot(heatmap.plot(), height = 800)
+    heatmap.plot <- reactive({
+      print(input[['heatmap.annotations']])
+      print(head(bulk.metadata[,colnames(bulk.metadata[,sapply(bulk.metadata,n_distinct)!=nrow(bulk.metadata)])]))
+      scaled = heatmap.prep()
+      peaks = rownames(scaled)
+      peaks = stringr::str_wrap(anno[match(peaks,anno$m_z),]$name,30)
+      meta <- lapply(bulk.metadata[,colnames(bulk.metadata[,sapply(bulk.metadata,n_distinct)!=nrow(bulk.metadata)])], function(x)if(!is.factor(x)){factor(x, levels = unique(x))}else{x}) |>
+        as.data.frame() |>
+        dplyr::arrange(dplyr::across(input[['heatmap.annotations']]))
+      mat <- scaled
+      mat[] <- peaks
+      return(heatmaply::heatmaply_cor(
+        scaled,
+        Colv = FALSE,
+        Rowv = input[['cluster.heatmap']],
+        limits = c(-max(abs(scaled)),max(abs(scaled))),
+        col_side_colors = meta,
+        height=800,
+        custom_hovertext = mat
+      ))
+    })
+
+      # myplot <- expression_heatmap_met(
+      #   intensity.matrix.subset = subsetExpression[, as.character(meta[, 1]), drop = FALSE],
+      #   top.annotation.ids = match(input[['heatmap.annotations']], colnames(meta)),
+      #   metadata = meta,
+      #   type = input[["heatmap.processing"]],
+      #   show.column.names = (nrow(meta) <= 20),
+      #   cluster.peaks = input[['cluster.heatmap']]
+      # )
+#      return(myplot)
+
+    output[['heatmap']] <- plotly::renderPlotly(heatmap.plot())
 
     updateSelectizeInput(session, "peakNameVolcano", choices = anno$m_z, server = TRUE)
 
@@ -241,22 +263,29 @@ BulkDESummaryPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, D
     }, digits = 4)
 
     output[['downloadHeatmapPlot']] <- downloadHandler(
+      # for this phantomjs has to be available
       filename = function() { input[['plotHeatmapFileName']] },
       content = function(file) {
-        if (base::strsplit(input[['plotHeatmapFileName']], split="\\.")[[1]][-1] == 'pdf'){
-          grDevices::pdf(file, width=input[['heatmapPlotWidth']],height=input[['heatmapPlotHeight']])
-          print(heatmap.plot())
-          grDevices::dev.off()
-        } else if (base::strsplit(input[['plotHeatmapFileName']], split="\\.")[[1]][-1] == 'svg'){
-          grDevices::svg(file, width=input[['heatmapPlotWidth']],height=input[['heatmapPlotHeight']])
-          print(heatmap.plot())
-          grDevices::dev.off()
-        } else {
-          grDevices::png(file, width=input[['heatmapPlotWidth']],height=input[['heatmapPlotHeight']], units = "in",
-                         res = 300, bg = "white")
-          print(heatmap.plot())
-          grDevices::dev.off()
-        }
+        scaled = heatmap.prep()
+        peaks = rownames(scaled)
+        peaks = stringr::str_wrap(anno[match(peaks,anno$m_z),]$name,30)
+        meta <- lapply(bulk.metadata, function(x)if(!is.factor(x)){factor(x, levels = unique(x))}else{x}) |>
+          as.data.frame() |>
+          dplyr::arrange(dplyr::across(input[['heatmap.annotations']]))
+        mat <- scaled
+        mat[] <- peaks
+        my.plot = heatmaply::heatmaply_cor(
+          scaled,
+          Colv = FALSE,
+          Rowv = input[['cluster.heatmap']],
+          limits = c(-max(abs(scaled)),max(abs(scaled))),
+          col_side_colors = meta[,2:4],
+          custom_hovertext = mat,
+          file = file,
+          height = input[['heatmapPlotHeight']],
+          width = input[['heatmapPlotWidth']]
+        )
+        rm(my.plot)
       }
     )
 

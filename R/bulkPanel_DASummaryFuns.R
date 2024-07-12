@@ -1,69 +1,77 @@
-expression_heatmap_met <- function(
-    intensity.matrix.subset,
-    top.annotation.ids = NULL,
-    metadata,
-    type = c('Z-score', 'Log2 Intensity', 'Intensity'),
-    show.column.names = TRUE,
-    cluster.peaks = TRUE
-){
-  heatmat <- as.matrix(intensity.matrix.subset)
-
-  type <- type[1]
-  heatmat <- rescale_matrix(heatmat, type)
-  if(!show.column.names){colnames(heatmat) <- NULL}
-
-  if(!is.null(top.annotation.ids)){
-    qual.col.pals = dplyr::filter(RColorBrewer::brewer.pal.info, .data$category == 'qual')
-    col.vector = unique(unlist(mapply(RColorBrewer::brewer.pal,
-                                      qual.col.pals$maxcolors,
-                                      rownames(qual.col.pals))))
-    top.annotation.colour.list=list()
-    colind <- 1
-    for(annos in seq_len(length(top.annotation.ids))){
-      values <- as.character(unique(metadata[, top.annotation.ids[annos]]))
-      vec <- vector(mode="character")
-      for(i in seq_len(length(values))){
-        vec <- c(vec, col.vector[colind])
-        names(vec)[i] <- values[i]
-        colind <- colind + 1
-      }
-      top.annotation.colour.list[[colnames(metadata)[top.annotation.ids[annos]]]] <- vec
-    }
-    top.annotation.df <- as.data.frame(metadata[, top.annotation.ids])
-    colnames(top.annotation.df) <- colnames(metadata)[top.annotation.ids]
-    top.annotation <- ComplexHeatmap::HeatmapAnnotation(df = top.annotation.df,
-                                                        col = top.annotation.colour.list,
-                                                        show_annotation_name = FALSE)
-  }else{
-    top.annotation <- NULL
-  }
-  if (type != 'Z-score'){
-    breaks <- seq(min(heatmat), max(heatmat), (max(heatmat) - min(heatmat)) / 9)
-    colours = c("#FFFFFF", RColorBrewer::brewer.pal(n = 9, name = "YlOrRd"))
-  }else{
-    breaks <- seq(-3, 3, 6 / 9)
-    colours = rev(RColorBrewer::brewer.pal(n = 10, name = "RdBu"))
-    heatmat[heatmat > 3] <- 3
-    heatmat[heatmat < (-3)] <- (-3)
-  }
-  ComplexHeatmap::draw(ComplexHeatmap::Heatmap(
-    matrix = heatmat,
-    name = "Scale",
-    col = circlize::colorRamp2(
-      breaks = breaks,
-      colors = colours
-    ),
-    cluster_rows = cluster.peaks,
-    cluster_columns = FALSE,
-    row_names_side = "right",
-    top_annotation = top.annotation,
-    heatmap_legend_param = list(
-      legend_direction = "horizontal",
-      legend_width = unit(6, "cm")),
-  ),
-  heatmap_legend_side='bottom',
-  annotation_legend_side = "bottom")
-}
+# expression_heatmap_met <- function(
+#     intensity.matrix.subset,
+#     top.annotation.ids = NULL,
+#     metadata,
+#     type = c('Z-score', 'Log2 Intensity', 'Intensity'),
+#     show.column.names = TRUE,
+#     cluster.peaks = TRUE,
+#     anno
+# ){
+#   heatmat <- as.matrix(intensity.matrix.subset)
+#
+#   # type <- type[1]
+#   # heatmat <- rescale_matrix(heatmat, type)
+#   # if(!show.column.names){colnames(heatmat) <- NULL}
+#   #
+#   # if(!is.null(top.annotation.ids)){
+#   #   qual.col.pals = dplyr::filter(RColorBrewer::brewer.pal.info, .data$category == 'qual')
+#   #   col.vector = unique(unlist(mapply(RColorBrewer::brewer.pal,
+#   #                                     qual.col.pals$maxcolors,
+#   #                                     rownames(qual.col.pals))))
+#   #   top.annotation.colour.list=list()
+#   #   colind <- 1
+#   #   for(annos in seq_len(length(top.annotation.ids))){
+#   #     values <- as.character(unique(metadata[, top.annotation.ids[annos]]))
+#   #     vec <- vector(mode="character")
+#   #     for(i in seq_len(length(values))){
+#   #       vec <- c(vec, col.vector[colind])
+#   #       names(vec)[i] <- values[i]
+#   #       colind <- colind + 1
+#   #     }
+#   #     top.annotation.colour.list[[colnames(metadata)[top.annotation.ids[annos]]]] <- vec
+#   #   }
+#   #   top.annotation.df <- as.data.frame(metadata[, top.annotation.ids])
+#   #   colnames(top.annotation.df) <- colnames(metadata)[top.annotation.ids]
+#   #   top.annotation <- ComplexHeatmap::HeatmapAnnotation(df = top.annotation.df,
+#   #                                                       col = top.annotation.colour.list,
+#   #                                                       show_annotation_name = FALSE)
+#   # }else{
+#   #   top.annotation <- NULL
+#   # }
+#   # if (type != 'Z-score'){
+#   #   breaks <- seq(min(heatmat), max(heatmat), (max(heatmat) - min(heatmat)) / 9)
+#   #   colours = c("#FFFFFF", RColorBrewer::brewer.pal(n = 9, name = "YlOrRd"))
+#   # }else{
+#   #   breaks <- seq(-3, 3, 6 / 9)
+#   #   colours = rev(RColorBrewer::brewer.pal(n = 10, name = "RdBu"))
+#   #   heatmat[heatmat > 3] <- 3
+#   #   heatmat[heatmat < (-3)] <- (-3)
+#   # }
+#   # ComplexHeatmap::draw(ComplexHeatmap::Heatmap(
+#   #   matrix = heatmat,
+#   #   name = "Scale",
+#   #   col = circlize::colorRamp2(
+#   #     breaks = breaks,
+#   #     colors = colours
+#   #   ),
+#   #   cluster_rows = cluster.peaks,
+#   #   cluster_columns = FALSE,
+#   #   row_names_side = "right",
+#   #   top_annotation = top.annotation,
+#   #   heatmap_legend_param = list(
+#   #     legend_direction = "horizontal",
+#   #     legend_width = unit(6, "cm")),
+#   # ),
+#   # heatmap_legend_side='bottom',
+#   # annotation_legend_side = "bottom")
+#   return(heatmaply::heatmaply_cor(
+#     heatmat,
+#     scale = 'row',
+#     Colv = FALSE,
+#     limits = c(-max(abs(heatmat)),max(abs(heatmat))),
+#     col_side_colors = c('Treatment'=metadata$Treatment,'Timepoint'=metadata$Timepoint,'Rep'=metadata$Rep)
+#   ))
+#}
 
 #' Create a volcano plot visualising differential expression (DE) results
 #' @description This function creates a volcano plot to visualise the results

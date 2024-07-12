@@ -18,7 +18,7 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
         ),
         br(),
         radioButtons(ns('pca.annotation'), label = "Group by",
-                     choices = colnames(bulk.metadata), selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
+                     choices = colnames(bulk.metadata[,sapply(bulk.metadata,n_distinct)!=nrow(bulk.metadata)]), selected = colnames(bulk.metadata[,sapply(bulk.metadata,n_distinct)!=nrow(bulk.metadata)])[1]),
         checkboxInput(ns('pca.show.confidence.ellipses'),label = "Show 95% confidence ellipses around groups",value=TRUE),
         numericInput(ns('pca.comp'),label = "PCA's contributions to show",min=1,max=2,step = 1,value = 1),
         theme = "light-border",
@@ -62,9 +62,9 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
         br(),
 
         radioButtons(ns('plsda.separator'), label = "Discriminating bulk.metadata",
-                     choices = colnames(bulk.metadata), selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
+                     choices = colnames(bulk.metadata[,sapply(bulk.metadata,n_distinct)!=nrow(bulk.metadata)]), selected = colnames(bulk.metadata[,sapply(bulk.metadata,n_distinct)!=nrow(bulk.metadata)])[1]),
         radioButtons(ns('plsda.annotation'), label = "Group by",
-                     choices = colnames(bulk.metadata), selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
+                     choices = colnames(bulk.metadata[,sapply(bulk.metadata,n_distinct)!=nrow(bulk.metadata)]), selected = colnames(bulk.metadata[,sapply(bulk.metadata,n_distinct)!=nrow(bulk.metadata)])[1]),
         checkboxInput(ns('plsda.show.confidence.ellipses'),label = "Show 95% confidence ellipses around groups",value=TRUE),
         numericInput(ns('plsda.comp'),label = "PLS-DA component's contributions to show",min=1,max=2,step = 1,value = 1),
         theme = "light-border",
@@ -113,7 +113,7 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
       ),
       selectInput(ns("barPeakName"), "Peaks to include:", multiple = TRUE, choices = character(0)),
       radioButtons(ns('peak.barplot.colour'), label = "Group by",
-                   choices = colnames(bulk.metadata), selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
+                   choices = colnames(bulk.metadata[,sapply(bulk.metadata,n_distinct)!=nrow(bulk.metadata)]), selected = colnames(bulk.metadata[,sapply(bulk.metadata,n_distinct)!=nrow(bulk.metadata)])[1]),
       shinyWidgets::dropdownButton(
         textInput(ns('plotBarFileName'), 'File name for bar plot download', value ='BarPlot.png'),
         numericInput(ns('barPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
@@ -141,7 +141,7 @@ BulkQCpanelUI <- function(id, bulk.metadata, show = TRUE){
 
       selectInput(ns("boxPeakName"), "Peaks to include:", multiple = TRUE, choices = character(0)),
       radioButtons(ns('boxplot.metadata'), label = "Group by",
-                   choices = colnames(bulk.metadata), selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
+                   choices = colnames(bulk.metadata[,sapply(bulk.metadata,n_distinct)!=nrow(bulk.metadata)]), selected = colnames(bulk.metadata[,sapply(bulk.metadata,n_distinct)!=nrow(bulk.metadata)])[1]),
       shinyWidgets::dropdownButton(
         textInput(ns('plotBoxFileName'), 'File name for box plot download', value ='BoxPlot.png'),
         numericInput(ns('boxPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),

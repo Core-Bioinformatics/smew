@@ -31,8 +31,8 @@ BulkDEpanelUI <- function(id, bulk.metadata, show = TRUE){
             arrow = FALSE
           ),
 
-          selectInput(ns('condition'), 'Metadata column to use:', colnames(bulk.metadata)[-1],
-                      selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
+          selectInput(ns('condition'), 'Metadata column to use:',
+                      choices = colnames(bulk.metadata[,sapply(bulk.metadata,n_distinct)!=nrow(bulk.metadata)]), selected = colnames(bulk.metadata[,sapply(bulk.metadata,n_distinct)!=nrow(bulk.metadata)])[1]),
 
           # Input: Selector variables to compare
           selectInput(ns('variable1'), 'Condition 1:', unique(bulk.metadata[[ncol(bulk.metadata)]])),

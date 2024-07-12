@@ -43,7 +43,8 @@ Depends:
     pbapply,
     SingleCellExperiment,
     BiocSingular,
-    scater
+    scater,
+    S4Vectors
 Suggests:
     svglite
 RoxygenNote: 7.2.3

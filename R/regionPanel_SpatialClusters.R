@@ -34,7 +34,7 @@ RegionSpatialClusterPanelUI <- function(id, bulk.metadata, full.metadata, show =
           ),
           selectInput(inputId = ns("clusteringApproach"),
                       "Clustering method",
-                      choices = c("BayesSpace")),
+                      choices = c("BayesSpace","Lasso selection")),
           conditionalPanel(
             id = ns('bayesSpaceOptions'),
             ns=ns,
@@ -42,14 +42,19 @@ RegionSpatialClusterPanelUI <- function(id, bulk.metadata, full.metadata, show =
             selectInput(ns('numClusters'), 'Number of spatial clusters to infer', multiple = FALSE, choices = 2:10),
             numericInput(ns('nRep'),'The number of MCMC iterations for BayesSpace',min = 100,max = 100000,value = 10000,step = 10),
             numericInput(ns('burnIn'),'The number of MCMC iterations to exclude as burn-in period for BayesSpace (must be less than number of iterations above)',min = 10,max = 1000,value = 1000,step = 10),
+            # button to start clustering
+            tags$p("Warning: this analysis can take a few minutes to run."),
+            actionButton(
+              inputId = ns("run_clustering"),
+              label = "Find clusters",
+              icon = icon("play")
+            ),
           ),
-          # button to start clustering
-          tags$p("Warning: this analysis can take a few minutes to run."),
-          actionButton(
-            inputId = ns("run_clustering"),
-            label = "Find clusters",
-            icon = icon("play")
-          ),
+          # conditionalPanel(
+          #   id = ns('lassoOptions'),
+          #   ns=ns,
+          #   condition = "input.clusteringApproach == 'Lasso selection'"
+          # ),
 
           div(style = "margin-top:10px"),
           dropMenu(
@@ -64,18 +69,26 @@ RegionSpatialClusterPanelUI <- function(id, bulk.metadata, full.metadata, show =
                        numericInput(ns('spatialPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
                        downloadButton(ns('downloadSpatial'), 'Download clusters')),
                 column(5,offset=0,
-                       tags$h4("Bar plot"),
-                       textInput(ns('barPlotFileName'),'File name for download', value ='bar.png', placeholder = 'bar.png'),
-                       numericInput(ns('barPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
-                       numericInput(ns('barPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
-                       downloadButton(ns('downloadBarPlot'), 'Download barplot'))),
-              fluidRow(
-                column(10,offset=0,
-                       tags$h4("Box plot"),
-                       textInput(ns('boxPlotFileName'),'File name for download', value ='box.png', placeholder = 'box.png'),
-                       numericInput(ns('boxPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
-                       numericInput(ns('boxPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
-                       downloadButton(ns('downloadBoxPlot'), 'Download boxplot'))),
+                       tags$h4("Smoothed spatial visualisation"),
+                       textInput(ns('spatialSmoothPlotFileName'),'File name for download', value ='spatialSmoothClusters.png', placeholder = 'spatialSmoothClusters.png'),
+                       numericInput(ns('spatialSmoothPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                       numericInput(ns('spatialSmoothPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                       downloadButton(ns('downloadSmoothSpatial'), 'Download clusters'))),
+              # fluidRow(
+              #   column(5,offset=0,
+              #          tags$h4("Bar plot"),
+              #          textInput(ns('barPlotFileName'),'File name for download', value ='bar.png', placeholder = 'bar.png'),
+              #          numericInput(ns('barPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+              #          numericInput(ns('barPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+              #          downloadButton(ns('downloadBarPlot'), 'Download barplot')),
+              #
+              #   column(5,offset=0,
+              #          tags$h4("Box plot"),
+              #          textInput(ns('boxPlotFileName'),'File name for download', value ='box.png', placeholder = 'box.png'),
+              #          numericInput(ns('boxPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+              #          numericInput(ns('boxPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+              #          downloadButton(ns('downloadBoxPlot'), 'Download boxplot')),
+              #   ),
               theme = "light-border",
               placement = "right",
               arrow = FALSE
@@ -87,22 +100,41 @@ RegionSpatialClusterPanelUI <- function(id, bulk.metadata, full.metadata, show =
 
         #Main panel for displaying table of enriched pathways
         mainPanel(
-          plotOutput(ns('plotClusters')),
+          conditionalPanel(
+            id = ns('bayesSpaceShowClusters'),
+            ns=ns,
+            condition = "input.clusteringApproach == 'BayesSpace'",
+
+            plotOutput(ns('plotClusters'))),
+          conditionalPanel(
+            id = ns('lassoShow'),
+            ns=ns,
+            condition = "input.clusteringApproach == 'Lasso selection'",
+            plotly::plotlyOutput(ns('lassoSelection'),height=800))
       )
     ),
-    sidebarLayout(
-      # Sidebar panel for inputs ----
-      sidebarPanel(
-        actionButton(
-          inputId = ns("run_smoothing"),
-          label = "Spatially smooth clusters",
-          icon = icon("play")
-        ),
+    conditionalPanel(
+      id = ns('bayesSpaceSmooth'),
+      ns=ns,
+      condition = "input.clusteringApproach == 'BayesSpace'",
+      sidebarLayout(
+        # Sidebar panel for inputs ----
+        sidebarPanel(
+          actionButton(
+            inputId = ns("run_smoothing"),
+            label = "Spatially smooth clusters",
+            icon = icon("play")
+          ),
 
-      ),
-      mainPanel(
-        plotOutput(ns('plotSmoothedClusters')),
-      )),
+        ),
+        mainPanel(
+          plotOutput(ns('plotSmoothedClusters')),
+        ))
+    ),
+    # conditionalPanel(
+    #   id = ns('bayesSpaceDE'),
+    #   ns=ns,
+    #   condition = "input.clusteringApproach == 'BayesSpace'",
     sidebarLayout(
       # Sidebar panel for inputs ----
       sidebarPanel(
@@ -125,8 +157,8 @@ RegionSpatialClusterPanelUI <- function(id, bulk.metadata, full.metadata, show =
         actionButton(ns('goDE'), label = 'Start differential intensity analysis'),
 
         #download file name and button
-        textInput(ns('fileName'),'File name for download', value ='DIAset.csv', placeholder = 'DIAset.csv'),
-        downloadButton(ns('download'), 'Download Table'),
+        textInput(ns('fileNameTable'),'File name for download', value ='DIAset.csv', placeholder = 'DIAset.csv'),
+        downloadButton(ns('downloadTable'), 'Download Table'),
         hr(),
         tags$b("Peak selection"),
         div("\nSelect peaks of interest by clicking on the corresponds rows in the table\n"),
@@ -141,6 +173,7 @@ RegionSpatialClusterPanelUI <- function(id, bulk.metadata, full.metadata, show =
         DT::DTOutput(ns('data'))
       )
     ))
+    #)
 
   }else{
     NULL
@@ -152,9 +185,27 @@ RegionSpatialClusterPanelUI <- function(id, bulk.metadata, full.metadata, show =
 RegionSpatialClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, anno, gcd.values){
 
   moduleServer(id, function(input, output, session){
+
+    cluster.names <- reactive({
+      if (input[['clusteringApproach']]=='BayesSpace'){
+        return(c('smoothed_cluster','cluster'))
+      } else if (input[['clusteringApproach']]=='Lasso selection'){
+        return('selected')
+      }
+    })
+
+    cluster.options <- reactive({
+      if (input[['clusteringApproach']]=='BayesSpace'){
+        print(as.character(1:as.numeric(input[['numClusters']])))
+        return(as.character(1:as.numeric(input[['numClusters']])))
+      } else if (input[['clusteringApproach']]=='Lasso selection'){
+        return(c('Selected','NotSelected'))
+      }    })
+
     observe({
-    updateSelectInput(session,'variable1', 'Cluster set 1:', choices = 1:as.numeric(input[['numClusters']]),selected = 1)
-    updateSelectInput(session,'variable2', 'Cluster set 2:', choices = 1:as.numeric(input[['numClusters']]),selected = 2)
+    updateSelectInput(session,'variable1', 'Cluster set 1:', choices = cluster.options(),selected = cluster.options()[1])
+    updateSelectInput(session,'variable2', 'Cluster set 2:', choices = cluster.options(),selected = cluster.options()[2])
+    updateSelectInput(session,inputId = 'clusters', choices = cluster.names(), selected = cluster.names()[1])
     })
 
     get_clusters <- reactive({
@@ -204,6 +255,35 @@ RegionSpatialClusterPanelServer <- function(id, full.intensity.matrix, full.meta
       }
     })  %>% bindEvent(input[["run_clustering"]])
 
+    selection_image <- reactive({
+      intensity.sub <- full.intensity.matrix[full.metadata[,colnames(bulk.metadata)[1]] == input[['sampleToCluster']],]
+      metadata.sub <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] == input[['sampleToCluster']],]
+      metadata.sub$Sample = metadata.sub[,colnames(bulk.metadata)[1]]
+      print(head(metadata.sub))
+      return(ggplot(metadata.sub,aes(x=x,y=y,color=annotations,fill=annotations,key=spot_id))+geom_point(size=0.8)+theme_classic()+
+        ggplot2::theme(axis.title.x=ggplot2::element_blank(),
+                       axis.text.x=ggplot2::element_blank(),
+                       axis.ticks.x=ggplot2::element_blank(),
+                       axis.line.x = ggplot2::element_blank(),
+                       axis.title.y=ggplot2::element_blank(),
+                       axis.text.y=ggplot2::element_blank(),
+                       axis.ticks.y=ggplot2::element_blank(),
+                       axis.line.y = ggplot2::element_blank(),
+                       aspect.ratio = 1))
+    })
+
+    selected_image <- reactive({
+      intensity.sub <- full.intensity.matrix[full.metadata[,colnames(bulk.metadata)[1]] == input[['sampleToCluster']],]
+      metadata.sub <- full.metadata[full.metadata[,colnames(bulk.metadata)[1]] == input[['sampleToCluster']],]
+      metadata.sub$Sample = metadata.sub[,colnames(bulk.metadata)[1]]
+      metadata.sub$selected = 'NotSelected'
+      select_data <- event_data("plotly_selected")
+      if (!is.null(select_data)) {
+        metadata.sub[metadata.sub$spot_id %in% select_data$key, "selected"] <- 'Selected'
+      }
+      return(metadata.sub)
+    })
+
     smoothed_clusters <- reactive({
       current.metadata = get_clusters()
       current.metadata$smoothed_cluster = smoothed.cluster(current.metadata,gcd.values = gcd.values)
@@ -248,7 +328,11 @@ RegionSpatialClusterPanelServer <- function(id, full.intensity.matrix, full.meta
 
     DEresults <- reactive({
       shinyjs::disable("goDE")
+      if (input[['clusteringApproach']]=='BayesSpace'){
       current.metadata <- smoothed_clusters()
+      } else if (input[['clusteringApproach']]=='Lasso selection'){
+        current.metadata <- selected_image()
+      }
       condition.indices <- current.metadata[,input[["clusters"]]] %in% c(input[['variable1']], input[['variable2']])
       condition = current.metadata[condition.indices,input[["clusters"]]]
       condition = ifelse(condition %in% input[['variable1']],'clusterSet1','clusterSet2')
@@ -296,6 +380,13 @@ RegionSpatialClusterPanelServer <- function(id, full.intensity.matrix, full.meta
       cluster_plot()
     })
 
+    output[['lassoSelection']] <- plotly::renderPlotly(
+      plotly::ggplotly(selection_image(),width=800,height=700) %>% layout(dragmode = "lasso")
+    )
+
+    output[['lassoSelected']] <- renderPlot({
+      selected_image()},width=800,height=700)
+
     output[['plotSmoothedClusters']] <- renderPlot({
       smoothed_cluster_plot()
     })
@@ -307,17 +398,20 @@ RegionSpatialClusterPanelServer <- function(id, full.intensity.matrix, full.meta
       }
     )
 
-    output[['downloadBarPlot']] <- downloadHandler(
-      filename = function() { input[['barPlotFileName']] },
+    output[['downloadSmoothSpatial']] <- downloadHandler(
+      filename = function() { input[['spatialSmoothPlotFileName']] },
       content = function(file) {
-        ggsave(file, plot = cluster_props(), width=input[['barPlotWidth']],height=input[['barPlotHeight']],units = 'in')
+        ggsave(file, plot = smoothed_cluster_plot(), width=input[['spatialSmoothPlotWidth']],height=input[['spatialSmoothPlotHeight']],units = 'in')
       }
     )
 
-    output[['downloadBoxPlot']] <- downloadHandler(
-      filename = function() { input[['boxPlotFileName']] },
+    #DE data download
+    output[['downloadTable']] <- downloadHandler(
+      filename = function() {
+        paste(input[['fileNameTable']])
+      },
       content = function(file) {
-        ggsave(file, plot = cluster_props_persample(), width=input[['boxPlotWidth']],height=input[['boxPlotHeight']],units = 'in')
+        utils::write.csv(x = DEresults()$DEtableSubset, file = file, row.names = FALSE)
       }
     )
 

@@ -97,19 +97,26 @@ RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
               tags$h3("Downloads"),
               fluidRow(
                        column(5,offset=0,
-                              tags$h4("Spatial visualisation"),
+                              tags$h4("Spatial visualisation of clusters"),
                               textInput(ns('spatialPlotFileName'),'File name for download', value ='spatialClusters.png', placeholder = 'spatialClusters.png'),
                               numericInput(ns('spatialPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
                               numericInput(ns('spatialPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
                               downloadButton(ns('downloadSpatial'), 'Download clusters')),
                        column(5,offset=0,
-                              tags$h4("Bar plot"),
-                              textInput(ns('barPlotFileName'),'File name for download', value ='bar.png', placeholder = 'bar.png'),
-                              numericInput(ns('barPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
-                              numericInput(ns('barPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
-                              downloadButton(ns('downloadBarPlot'), 'Download barplot'))),
+                              tags$h4("Spatial visualisation of smoothed clusters"),
+                              textInput(ns('spatialSmoothPlotFileName'),'File name for download', value ='spatialSmoothClusters.png', placeholder = 'spatialSmoothClusters.png'),
+                              numericInput(ns('spatialSmoothPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                              numericInput(ns('spatialSmoothPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                              downloadButton(ns('downloadSmoothSpatial'), 'Download smoothed clusters'))),
                 fluidRow(
-                        column(10,offset=0,
+                  column(5,offset=0,
+                         tags$h4("Bar plot"),
+                         textInput(ns('barPlotFileName'),'File name for download', value ='bar.png', placeholder = 'bar.png'),
+                         numericInput(ns('barPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                         numericInput(ns('barPlotHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                         downloadButton(ns('downloadBarPlot'), 'Download barplot')),
+
+                        column(5,offset=0,
                                tags$h4("Box plot"),
                                textInput(ns('boxPlotFileName'),'File name for download', value ='box.png', placeholder = 'box.png'),
                                numericInput(ns('boxPlotWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
@@ -131,8 +138,8 @@ RegionClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
           tags$h3("Spatially smoothed cluster visualisation"),
           fluidRow(column=10,plotOutput(ns('plotSmoothClusters'),height = 600)),
           tags$h3("Explore cluster distribution"),
-          plotOutput(ns('plotClusterProps')),
-          plotOutput(ns('plotClusterPropsPerSample')))
+          plotly::plotlyOutput(ns('plotClusterProps')),
+          plotly::plotlyOutput(ns('plotClusterPropsPerSample')))
         )
       )
   }else{
@@ -256,7 +263,8 @@ RegionClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, b
       }
 #      current.metadata = get_clusters()
       current.metadata$SelectedMetadata = current.metadata[,input[['groupingMetadataBarPlot']]]
-      ggplot2::ggplot(current.metadata,ggplot2::aes(y=SelectedMetadata,fill=get(cluster.label))) +
+      ggplot2::ggplot(current.metadata,ggplot2::aes(y=SelectedMetadata,fill=.data[[cluster.label]]))+
+                                                    #fill=get(cluster.label))) +
         ggplot2::geom_bar(position = 'fill') +
         ggplot2::ylab(input[['groupingMetadataBarPlot']]) +
         ggplot2::xlab('Proportion of spots')+
@@ -322,17 +330,25 @@ RegionClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, b
       cluster_plot_zoom()
     })
 
-    output[['plotClusterProps']] <- renderPlot({
-      cluster_props()
-    })
+    output[['plotClusterProps']] <- plotly::renderPlotly(
+      plotly::ggplotly(cluster_props())
+    )
 
-    output[['plotClusterPropsPerSample']] <- renderPlot({
-      cluster_props_persample()
-    })
+    output[['plotClusterPropsPerSample']] <- plotly::renderPlotly(
+      plotly::ggplotly(cluster_props_persample()) %>%
+                         layout(boxmode = "group")
+    )
     output[['downloadSpatial']] <- downloadHandler(
       filename = function() { input[['spatialPlotFileName']] },
       content = function(file) {
         ggsave(file, plot = cluster_plot(), width=input[['spatialPlotWidth']],height=input[['spatialPlotHeight']],units = 'in')
+      }
+    )
+
+    output[['downloadSmoothSpatial']] <- downloadHandler(
+      filename = function() { input[['spatialSmoothPlotFileName']] },
+      content = function(file) {
+        ggsave(file, plot = smooth_cluster_plot(), width=input[['spatialSmoothPlotWidth']],height=input[['spatialSmoothPlotHeight']],units = 'in')
       }
     )
 

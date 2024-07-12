@@ -38,15 +38,23 @@ generateShinyApp <- function(shiny.dir='MSIToolKitApp',
                              sample.id.column,
                              sample.wide.columns,
                              only.annotated=TRUE,
+                             extra.annotation = NULL,
                              organism='Mouse',
                              adducts = c('M-H [1-]','M-H20-H [1-]','M+Cl [1-]'),
                              mode = 'Negative',
-                             ppm = 5){
-  # check inputs
+                             ppm = 5,
+                             run.svm=F,
+                             run.spe=F){
+  print(run.svm)
+  # check inputs ------------------------------------
+
+  # create bulked intensity matrix
+  metadata$Sample = metadata[,sample.id.column]
+
   bulked <- create_bulk_exp(intensity.matrix,
                             metadata,
                             sample.id.column = sample.id.column,
-                            sample.wide.columns = sample.wide.columns,
+                            sample.wide.columns = c(sample.wide.columns,'Sample'),
                             organism = organism,
                             adducts = adducts,
                             mode = mode,
@@ -55,18 +63,40 @@ generateShinyApp <- function(shiny.dir='MSIToolKitApp',
   bulk.intensity.matrix = bulked$intensity_matrix
   bulk.metadata = bulked$metadata
   anno = bulked$annotation_table
+
+  message(ncol(bulk.intensity.matrix),' samples were extracted.')
+  message('Out of ',ncol(intensity.matrix),' features, ',length(unique(anno[anno$adduct!='NA',]$m_z)),' were successfully annotated')
+  if (only.annotated){
+    #var = readline(prompt = "You have opted to exclude unannotated peaks, would you like to continue?\n Y: Yes\n N: No");
+    choice = menu(c("Yes", "No"), title="You have opted to exclude unannotated peaks, would you like to continue?")
+    if (choice=='No'){
+      stop('Shiny app generation cancelled.')
+    }
+  } else {
+    choice = menu(c("Yes", "No"), title="You have opted to include all peaks even if unannotated (this will run much slower), would you like to continue?")
+    #var = readline(prompt = "You have opted to include all peaks even if unannotated (this will run much slower), would you like to continue?\n Y: Yes\n N: No");
+    if (var=='N'){
+      stop('Shiny app generation cancelled.')
+    }
+  }
+
   if (only.annotated){
     anno = anno[anno$adduct!='NA',]
     bulk.intensity.matrix = bulk.intensity.matrix[anno$m_z,]
     intensity.matrix = as.data.frame(intensity.matrix)[,anno$m_z]
+    message('Intensity matrix filtered for annotated peaks')
   }
   intensity.matrix = as.matrix(intensity.matrix)
+  before.ncol = ncol(intensity.matrix)
   intensity.matrix.t = t(intensity.matrix)
   intensity.matrix.t.unique = unique(intensity.matrix.t)
   intensity.matrix = t(intensity.matrix.t.unique)
+  after.ncol = ncol(intensity.matrix)
+  message(before.ncol-after.ncol,' duplicate entries removed from intensity matrix')
   bulk.intensity.matrix = bulk.intensity.matrix[colnames(intensity.matrix),]
-  anno = anno[anno$m_z %in% colnames(intensity.matrix)]
+  anno = anno[anno$m_z %in% colnames(intensity.matrix),]
 
+  message('Pixel sizes for each sample are being estimated...')
   gcd.values = list()
   for (sample in unique(metadata$Group)){
     metadata.sub = metadata |> dplyr::filter(Group==sample)
@@ -86,8 +116,14 @@ generateShinyApp <- function(shiny.dir='MSIToolKitApp',
       gcd.values[[sample]]<-gcd.x
     }
   }
+  message('Size of pixels estimated to range between ',min(unlist(gcd.values)),' and ',max(unlist(gcd.values)))
 
-  svm_identification <- run_svm(intensity.matrix,metadata,bulk.metadata)
+  if (run.svm){
+#  svm_identification <- run_svm(intensity.matrix,metadata,bulk.metadata)
+  }
+  if (run.spe){
+
+  }
 
   return.list = c("intensity.matrix",
                      "bulk.intensity.matrix",
@@ -95,15 +131,25 @@ generateShinyApp <- function(shiny.dir='MSIToolKitApp',
                      "bulk.metadata",
                      "anno",
                      "gcd.values")
+
+  ifelse(!dir.exists(shiny.dir), dir.create(shiny.dir), FALSE)
+
   save(list=return.list,file=file.path(shiny.dir,'data.rda'))
+  if (run.svm){
   save("svm_identification",file=file.path(shiny.dir,'svm_identification.rda'))
-  generateAppFile(shiny.dir,organism)
+  }
+  if (run.spe){
+
+  }
+  generateAppFile(shiny.dir,organism,run.svm,run.spe)
 }
 
 
 generateAppFile <- function(
     shiny.dir,
-    organism
+    organism,
+    run.svm,
+    run.spe
 ){
   lines.out <- c()
 
@@ -149,13 +195,22 @@ generateAppFile <- function(
     "BulkORAPanelUI(id='RegionORA', bulk.metadata = bulk.metadata),",
     "RegionDimRedPanelUI(id='RegionNMF', bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix),",
     ")",
-    "),",
-    "tabPanel(title = 'Pixel-level Analysis',",
-    "PixelSVMPanelUI(id='PixelSVM',bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix)",
+    "),")
+  if (run.svm | run.spe){
+    code.ui<- c(code.ui,"tabPanel(title = 'Pixel-level Analysis',",)
+  }
+  if (run.svm){
+    code.ui<- c(code.ui,"PixelSVMPanelUI(id='PixelSVM',bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix),")
+  }
+  if (run.spe){
+    code.ui<- c(code.ui,"PixelEnrichmentPanelUI(id='pixelEnrichment', bulk.metadata = bulk.metadata, full.metadata = metadata, pixel_enrichment = pixel_enrichment),")
+  }
+  if (run.svm | run.spe){
+    code.ui = c(code.ui,")")
+  }
+  code.ui = c(code.ui,
     ")",
-    ")",
-    "}"
-  )
+    "}")
 
   lines.out <- c(lines.out, code.ui, "")
 
@@ -170,10 +225,17 @@ generateAppFile <- function(
     "clusters <- RegionClusterPanelServer(id='RegionCluster', full.intensity.matrix = as.data.frame(t(intensity.matrix)), full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno)",
     "regionDEres <- RegionDEpanelServer(id='RegionDE', full.intensity.matrix = intensity.matrix, bulk.intensity.matrix = bulk.intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, region.clusters = clusters, anno = anno)",
     "BulkORAPanelServer(id='RegionORA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno,DEresults = regionDEres, organism = organism)",
-    "RegionDimRedPanelServer(id='RegionNMF', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno)",
-    "PixelSVMPanelServer(id='PixelSVM',bulk.metadata = bulk.metadata,full.metadata = metadata, full.intensity.matrix = intensity.matrix,anno = anno, DEresults = bulkDEres, svm_identification = svm_identification,spatial.cross.cor = spatial.cross.cor)",
-    "}"
-  )
+    "RegionDimRedPanelServer(id='RegionNMF', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno)")
+    if (run.svm){
+      code.server <- c(code.server,"PixelSVMPanelServer(id='PixelSVM',bulk.metadata = bulk.metadata,full.metadata = metadata, full.intensity.matrix = intensity.matrix,anno = anno, DEresults = bulkDEres, svm_identification = svm_identification,spatial.cross.cor = spatial.cross.cor)")
+    }
+    if (run.spe){
+      code.server <- c(code.server,"PixelEnrichmentPanelServer(id='pixelEnrichment', bulk.metadata = bulk.metadata, full.intensity.matrix = intensity.matrix, full.metadata = metadata, anno = anno,pixel_enrichment = pixel_enrichment)")
+    }
+
+
+    code.server = c(code.server,"}")
+
   lines.out <- c(lines.out, code.server, "")
 
   lines.out <- c(lines.out, "shinyApp(ui, server, enableBookmarking = 'url')")

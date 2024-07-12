@@ -42,7 +42,6 @@ PixelEnrichmentPanelUI <- function(id, bulk.metadata, full.metadata, pixel_enric
             condition = "input.pvalShown == '-log10(adjusted p-value)'",
             numericInput(ns('logCap'), 'Upper cap on log scale', value = 10, min = 1, max = 1000,step = 1),
           ),
-          checkboxInput(ns('splitDensity'),value = T,label = 'Split density plot by sample'),
           radioButtons(ns('barplot_metadata'), label = "Color bar plot by",
                        choices = colnames(bulk.metadata), selected = colnames(bulk.metadata)[ncol(bulk.metadata)]),
           div(style = "margin-top:10px"),
@@ -58,13 +57,20 @@ PixelEnrichmentPanelUI <- function(id, bulk.metadata, full.metadata, pixel_enric
                        numericInput(ns('spatialHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
                        downloadButton(ns('downloadSpatial'), 'Download spatial figure')),
                 column(5,offset=1,
-                       tags$h4("Density plot"),
-                       textInput(ns('densityFileName'),'File name for download', value ='density.png', placeholder = 'density.png'),
-                       numericInput(ns('densityWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
-                       numericInput(ns('densityHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
-                       downloadButton(ns('downloadDensity'), 'Download density plot')),
+                       tags$h4("Proportion of significant pixels plot"),
+                       textInput(ns('barFileName'),'File name for download', value ='bar.png', placeholder = 'bar.png'),
+                       numericInput(ns('barWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                       numericInput(ns('barHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                       downloadButton(ns('downloadBar'), 'Download bar plot')),
 
-              )),
+              ),
+              fluidRow(
+                column(10,offset=0,
+                       tags$h4("Top metabolite plot"),
+                       textInput(ns('topMetFileName'),'File name for download', value ='topMet.png', placeholder = 'topMet.png'),
+                       numericInput(ns('topMetWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                       numericInput(ns('topMetHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                       downloadButton(ns('downloadTopMet'), 'Download top metabolites')))),
             theme = "light-border",
             placement = "right",
             arrow = FALSE
@@ -93,6 +99,7 @@ PixelEnrichmentPanelServer <- function(id, bulk.metadata, full.metadata, full.in
       pathway_table = pathway_table |> dplyr::group_by(pathway) %>% summarise(non_na_count = sum(!is.na(pathwaySig))) |>
         dplyr::arrange(desc(non_na_count), .by_group = FALSE) |> filter(non_na_count!=0) |>
         dplyr::select(pathway)
+      print(head(pathway_table))
       return(pathway_table$pathway)
     })  %>%
       bindEvent(input[['fix_samples']])
@@ -110,9 +117,9 @@ PixelEnrichmentPanelServer <- function(id, bulk.metadata, full.metadata, full.in
 
     selected.samples.metadata <- reactive({
       print(input[['samplesToShow']])
-      print(unique(metadata$Group))
-      print(nrow(metadata |> filter(Group %in% input[['samplesToShow']])))
-      return(metadata |> filter(Group %in% input[['samplesToShow']]))
+      print(unique(full.metadata$Group))
+      print(nrow(full.metadata |> filter(Group %in% input[['samplesToShow']])))
+      return(full.metadata |> filter(Group %in% input[['samplesToShow']]))
     }) %>%
       bindEvent(input[['fix_samples']])
 
@@ -131,7 +138,7 @@ PixelEnrichmentPanelServer <- function(id, bulk.metadata, full.metadata, full.in
       }
       legend_title=input[['pvalShown']]
       print(head(pathway_table))
-      spatial.plot = ggplot2::ggplot(pathway_table,ggplot2::aes(x=x,y=y,color=pathwaySig,fill=pathwaySig))+geom_point(size=0.1)+
+      spatial.plot = ggplot2::ggplot(pathway_table,ggplot2::aes(x=x,y=y,color=pathwaySig,fill=pathwaySig))+geom_tile()+
         ggplot2::facet_wrap(~pathway_table$Group, scales = 'free',nrow=max(1,floor(sqrt(length(input[['samplesToShow']])/2))))  +
         ggplot2::theme_classic() +
         ggplot2::theme(axis.title.x=ggplot2::element_blank(),
@@ -153,14 +160,10 @@ PixelEnrichmentPanelServer <- function(id, bulk.metadata, full.metadata, full.in
         ggplot2::scale_fill_gradient(name=legend_title,high = "lightgrey", low = "brown",na.value = 'lightgrey')+
         ggplot2::scale_color_gradient(name=legend_title,high = "lightgrey", low = "brown",na.value = 'lightgrey')}
 
-      if (input[['splitDensity']]){
-        density.plot = ggplot2::ggplot(pathway_table,ggplot2::aes(x=FDR,color=Group))+geom_density()+theme_classic()
-      } else {
-        density.plot = ggplot2::ggplot(pathway_table,ggplot2::aes(x=FDR))+geom_density()+theme_classic()
-      }
+         density.plot = ggplot2::ggplot(pathway_table,ggplot2::aes(x=FDR,color=Group))+geom_density()+theme_classic()
       return(list('spatial'=spatial.plot,'density'=density.plot))
     }) %>%
-      bindCache(input[['pathwayName']],input[['splitDensity']],input[['pvalShown']],input[['logCap']],input[['sigThreshold']])
+      bindCache(input[['pathwayName']],input[['pvalShown']],input[['logCap']],input[['sigThreshold']],input[['fix_samples']])
 
 
     prop_significant <- reactive({
@@ -190,7 +193,7 @@ PixelEnrichmentPanelServer <- function(id, bulk.metadata, full.metadata, full.in
     show_peak_zoom <- reactive({
 
       pathway_table = pixel_enrichment |> filter(pathway==input[['pathwayName']]) |> filter(sample == input$peak_click$panelvar1)
-      pathway_table = merge(metadata |> filter(Group == input$peak_click$panelvar1),pathway_table,all.x=T)
+      pathway_table = merge(full.metadata |> filter(Group == input$peak_click$panelvar1),pathway_table,all.x=T)
 
       pathway_table$pathwaySig = ifelse(pathway_table$FDR>input[['sigThreshold']],NA,pathway_table$FDR)
       if (input[['pvalShown']]=='-log10(adjusted p-value)'){
@@ -251,22 +254,31 @@ PixelEnrichmentPanelServer <- function(id, bulk.metadata, full.metadata, full.in
     output[['plotPeakZoom']] <- renderPlot({
       show_peak_zoom()})
 
-    # output[['downloadSpatial']] <- downloadHandler(
-    #   filename = function() { input[['spatialFileName']] },
-    #   content = function(file) {
-    #     ggsave(file, plot = show_peak()$spatial, dpi = 300,
-    #            width=input[['spatialWidth']],height=input[['spatialHeight']])
-    #   }
-    # )
     output[['peakDensity']] <- renderPlot({
       show_peak()$density
     })
 
-    output[['downloadDensity']] <- downloadHandler(
-      filename = function() { input[['densityFileName']] },
+    output[['downloadSpatial']] <- downloadHandler(
+      filename = function() { input[['spatialFileName']] },
       content = function(file) {
-        ggsave(file, plot = show_peak()$density, dpi = 300,
-               width=input[['densityWidth']],height=input[['densityHeight']])
+        ggsave(file, plot = show_peak()$spatial, dpi = 300,
+               width=input[['spatialWidth']],height=input[['spatialHeight']])
+      }
+    )
+
+    output[['downloadBar']] <- downloadHandler(
+      filename = function() { input[['barFileName']] },
+      content = function(file) {
+        ggsave(file, plot = prop_significant(), dpi = 300,
+               width=input[['barWidth']],height=input[['barHeight']])
+      }
+    )
+
+    output[['downloadTopMet']] <- downloadHandler(
+      filename = function() { input[['topMetFileName']] },
+      content = function(file) {
+        ggsave(file, plot = top_metabolites(), dpi = 300,
+               width=input[['topMetWidth']],height=input[['topMetHeight']])
       }
     )
 
