@@ -45,7 +45,6 @@ generateShinyApp <- function(shiny.dir='MSIToolKitApp',
                              ppm = 5,
                              run.svm=F,
                              run.spe=F){
-  print(run.svm)
   # check inputs ------------------------------------
 
   # create bulked intensity matrix
@@ -117,9 +116,9 @@ generateShinyApp <- function(shiny.dir='MSIToolKitApp',
     }
   }
   message('Size of pixels estimated to range between ',min(unlist(gcd.values)),' and ',max(unlist(gcd.values)))
-
   if (run.svm){
-#  svm_identification <- run_svm(intensity.matrix,metadata,bulk.metadata)
+    svm_identification <- run_svm(intensity.matrix,metadata,bulk.metadata)
+    spatial.cross.cor <- calculate.cross.cor(metadata,intensity.matrix,5,8,svm_identification)
   }
   if (run.spe){
 
@@ -136,6 +135,7 @@ generateShinyApp <- function(shiny.dir='MSIToolKitApp',
 
   save(list=return.list,file=file.path(shiny.dir,'data.rda'))
   if (run.svm){
+  save("spatial.cross.cor",file=file.path(shiny.dir,'spatial_cross_cor.rda'))
   save("svm_identification",file=file.path(shiny.dir,'svm_identification.rda'))
   }
   if (run.spe){
@@ -197,7 +197,7 @@ generateAppFile <- function(
     ")",
     "),")
   if (run.svm | run.spe){
-    code.ui<- c(code.ui,"tabPanel(title = 'Pixel-level Analysis',",)
+    code.ui<- c(code.ui,"tabPanel(title = 'Pixel-level Analysis',")
   }
   if (run.svm){
     code.ui<- c(code.ui,"PixelSVMPanelUI(id='PixelSVM',bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix),")

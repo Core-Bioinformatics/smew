@@ -228,7 +228,7 @@ PixelSVMPanelServer <- function(id, bulk.metadata, full.metadata, full.intensity
     })
 
     coexp_heatmap <- reactive({
-      peaks = rownames(spatial.cross.cor)
+      peaks = rownames(spatial_cross_cor)
       peaks = stringr::str_wrap(anno[match(peaks,anno$m_z),]$name,30)
       peaks.combo = expand.grid(peaks,peaks,stringsAsFactors = F)
       peaks.combo = paste0('row:',peaks.combo$Var1,',\ncol:',peaks.combo$Var2)

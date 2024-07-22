@@ -44,7 +44,8 @@ Depends:
     SingleCellExperiment,
     BiocSingular,
     scater,
-    S4Vectors
+    S4Vectors,
+    MERINGUE
 Suggests:
     svglite
 RoxygenNote: 7.2.3

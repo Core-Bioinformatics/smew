@@ -94,3 +94,6 @@ To download plotly outputs to file, you may also need to run *webshot::install_p
 * BayesSpace
 * scater
 * S4Vectors
+
+### Required packages to install from GitHub
+* MERINGUE (install using *remotes::install_github('JEFworks-Lab/MERingue')*)
