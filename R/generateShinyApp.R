@@ -221,7 +221,7 @@ generateAppFile <- function(
     "BulkQCpanelServer(id='BulkQC', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno)",
     "bulkDEres <- BulkDEpanelServer(id='BulkDE', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno)",
     "BulkDESummaryPanelServer(id='BulkSummaryDE', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno,DEresults = bulkDEres)",
-    "BulkORAPanelServer(id='BulkORA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno,DEresults = bulkDEres)",
+    "BulkORAPanelServer(id='BulkORA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno, DEresults = bulkDEres, organism = organism)",
     "clusters <- RegionClusterPanelServer(id='RegionCluster', full.intensity.matrix = as.data.frame(t(intensity.matrix)), full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno)",
     "regionDEres <- RegionDEpanelServer(id='RegionDE', full.intensity.matrix = intensity.matrix, bulk.intensity.matrix = bulk.intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, region.clusters = clusters, anno = anno)",
     "BulkORAPanelServer(id='RegionORA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno,DEresults = regionDEres, organism = organism)",

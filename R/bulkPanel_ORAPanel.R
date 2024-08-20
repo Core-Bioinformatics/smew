@@ -235,6 +235,7 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
 
     })
 
+    # if there's more than a certain number, just show the dots and allow to hover!
     pathwayCategories <- reactive({
       significant.pathways = get_ORA()[get_ORA()$FDR<input[['ora_pvalue_cutoff']],]
       kegg_classification$pathway = kegg_classification$pathway_name
@@ -255,7 +256,7 @@ BulkORAPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresul
     })
 
     volcano <- reactive({
-      print(head(ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']],selectedPathways())$data))
+ #     print(head(ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']],selectedPathways())$data))
       return(ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']],selectedPathways()))
 
     }) %>% bindEvent(input[["submit_from_ora"]])
