@@ -94,12 +94,12 @@ PixelEnrichmentPanelServer <- function(id, bulk.metadata, full.metadata, full.in
   moduleServer(id, function(input, output, session){
 
     ordered_pathway_list <- reactive({
-      pathway_table = pixel_enrichment |> filter(sample %in% input[['samplesToShow']])
+      pathway_table = pixel_enrichment[input[['samplesToShow']]]
+      pathway_table = dplyr::bind_rows(pathway_table, .id = "sample")
       pathway_table$pathwaySig = ifelse(pathway_table$FDR>input[['sigThreshold']],NA,pathway_table$FDR)
       pathway_table = pathway_table |> dplyr::group_by(pathway) %>% summarise(non_na_count = sum(!is.na(pathwaySig))) |>
         dplyr::arrange(desc(non_na_count), .by_group = FALSE) |> filter(non_na_count!=0) |>
         dplyr::select(pathway)
-      print(head(pathway_table))
       return(pathway_table$pathway)
     })  %>%
       bindEvent(input[['fix_samples']])
@@ -109,16 +109,13 @@ PixelEnrichmentPanelServer <- function(id, bulk.metadata, full.metadata, full.in
     })
 
     selected_pathway_table <- reactive({
-      pathway_table = pixel_enrichment |> filter(sample %in% input[['samplesToShow']])
-#      pathway_table$pathwaySig = ifelse(pathway_table$FDR>input[['sigThreshold']],NA,pathway_table$FDR)
+      pathway_table = pixel_enrichment[input[['samplesToShow']]]
+      pathway_table = dplyr::bind_rows(pathway_table, .id = "sample")
       return(pathway_table)
     }) %>%
       bindEvent(input[['fix_samples']])
 
     selected.samples.metadata <- reactive({
-      print(input[['samplesToShow']])
-      print(unique(full.metadata$Group))
-      print(nrow(full.metadata |> filter(Group %in% input[['samplesToShow']])))
       return(full.metadata |> filter(Group %in% input[['samplesToShow']]))
     }) %>%
       bindEvent(input[['fix_samples']])
@@ -126,18 +123,12 @@ PixelEnrichmentPanelServer <- function(id, bulk.metadata, full.metadata, full.in
     show_peak <- reactive({
       pathway_table = selected_pathway_table() |> filter(pathway==input[['pathwayName']])
       pathway_table = merge(selected.samples.metadata(),pathway_table,all.x=T)
-      # pathway_table = pixel_enrichment |> filter(pathway==input[['pathwayName']]) |> filter(sample %in% input[['samplesToShow']])
-      # print(nrow(pathway_table))
-      # pathway_table = merge(metadata |> filter(Group %in% input[['samplesToShow']]),pathway_table,all.x=T)
-      # print(nrow(pathway_table))
-      # print(nrow(metadata))
       pathway_table$pathwaySig = ifelse(pathway_table$FDR>input[['sigThreshold']],NA,pathway_table$FDR)
       if (input[['pvalShown']]=='-log10(adjusted p-value)'){
         pathway_table$pathwaySig = -log10(pathway_table$pathwaySig)
         pathway_table$pathwaySig = ifelse(pathway_table$pathwaySig>input[['logCap']],input[['logCap']],pathway_table$pathwaySig)
       }
       legend_title=input[['pvalShown']]
-      print(head(pathway_table))
       spatial.plot = ggplot2::ggplot(pathway_table,ggplot2::aes(x=x,y=y,color=pathwaySig,fill=pathwaySig))+geom_tile()+
         ggplot2::facet_wrap(~pathway_table$Group, scales = 'free',nrow=max(1,floor(sqrt(length(input[['samplesToShow']])/2))))  +
         ggplot2::theme_classic() +
@@ -168,10 +159,6 @@ PixelEnrichmentPanelServer <- function(id, bulk.metadata, full.metadata, full.in
 
     prop_significant <- reactive({
       if (!is.null(input[['pathwayName']])){
-      # pathway_table = pixel_enrichment |> filter(pathway==input[['pathwayName']]) |> filter(sample %in% input[['samplesToShow']])
-      # print(nrow(pathway_table))
-      # pathway_table = merge(metadata |> filter(Group %in% input[['samplesToShow']]),pathway_table,all.x=T)
-      # print(nrow(pathway_table))
       pathway_table = selected_pathway_table() |> filter(pathway==input[['pathwayName']])
     # NEED TO WORK OUT WHY THE NUMBER OF PIXELS DOESNT MATCH!!!!
       pathway_table = merge(selected.samples.metadata(),pathway_table,all.x=T)
@@ -191,8 +178,10 @@ PixelEnrichmentPanelServer <- function(id, bulk.metadata, full.metadata, full.in
       #bindEvent(input[['fix_samples']])
 
     show_peak_zoom <- reactive({
+      pathway_table = pixel_enrichment[[input$peak_click$panelvar1]] |> filter(pathway==input[['pathwayName']])
+#      pathway_table = dplyr::bind_rows(pathway_table, .id = "sample")
 
-      pathway_table = pixel_enrichment |> filter(pathway==input[['pathwayName']]) |> filter(sample == input$peak_click$panelvar1)
+#      pathway_table = pixel_enrichment |> filter(pathway==input[['pathwayName']]) |> filter(sample == input$peak_click$panelvar1)
       pathway_table = merge(full.metadata |> filter(Group == input$peak_click$panelvar1),pathway_table,all.x=T)
 
       pathway_table$pathwaySig = ifelse(pathway_table$FDR>input[['sigThreshold']],NA,pathway_table$FDR)
@@ -229,13 +218,9 @@ PixelEnrichmentPanelServer <- function(id, bulk.metadata, full.metadata, full.in
         filter(pathway==input[['pathwayName']]) |>
         filter(FDR<input[['sigThreshold']])
       full.metabolite.list = unlist(strsplit(pathway_table$metabolites,split = '; '))
-      print(head(full.metabolite.list))
       full.metabolite.freq = data.frame(table(full.metabolite.list))
       colnames(full.metabolite.freq)=c('kegg','freq')
-      print(head(full.metabolite.freq))
-      print(nrow(pathway_table))
       full.metabolite.freq$prop = full.metabolite.freq$freq/nrow(pathway_table)
-      print(summary(full.metabolite.freq$prop))
       full.metabolite.freq = head(full.metabolite.freq[order(-full.metabolite.freq$prop),],30)
       full.metabolite.freq$kegg = factor(full.metabolite.freq$kegg,levels=rev(full.metabolite.freq$kegg))
       ggplot(full.metabolite.freq,aes(x=prop,y=kegg))+geom_bar(stat='identity')+theme_classic()

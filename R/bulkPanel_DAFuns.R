@@ -1,17 +1,18 @@
 DEanalysis <-function(intensity.matrix,condition,var1,var2,test='t-test',anno){
-
   # calculate FC
   group1_names = colnames(intensity.matrix[, condition==var1])
   group2_names = colnames(intensity.matrix[, condition==var2])
   intensity.matrix = intensity.matrix[(matrixStats::rowMins(as.matrix(intensity.matrix))!=matrixStats::rowMaxs(as.matrix(intensity.matrix))) &
                                           ((matrixStats::rowMins(as.matrix(intensity.matrix[,condition==var1]))!=matrixStats::rowMaxs(as.matrix(intensity.matrix[,condition==var1]))) |
                                           (matrixStats::rowMins(as.matrix(intensity.matrix[,condition==var2]))!=matrixStats::rowMaxs(as.matrix(intensity.matrix[,condition==var2])))),]
+
   fc_results=as.data.frame(intensity.matrix)
   fc_results$log2_intensity = log2(rowMeans(intensity.matrix)+1)
   fc_results$group1_mean = as.numeric(rowMeans(intensity.matrix[, condition==var1]))
   fc_results$group2_mean = as.numeric(rowMeans(intensity.matrix[, condition==var2]))
   fc_results$fc = fc_results$group1_mean / fc_results$group2_mean
   fc_results$log2fc = log2(fc_results$fc)
+
   # drop NA
   na_index = apply(is.na(fc_results), 1, any)
   fc_results = fc_results[!na_index,]
@@ -21,6 +22,7 @@ DEanalysis <-function(intensity.matrix,condition,var1,var2,test='t-test',anno){
   } else {
     fc_results$pvalue = sapply(1:nrow(fc_results), function(i) wilcox.test(as.numeric(fc_results[i, group1_names]), as.numeric(fc_results[i, group2_names]), paired = FALSE)$p.value)
   }
+
   fc_results$pvalue_adj = p.adjust(fc_results$pvalue, method = "BH")
   names = rownames(fc_results)
   # convert all columns to numeric (do not use tidyverse)
@@ -33,11 +35,11 @@ DEanalysis <-function(intensity.matrix,condition,var1,var2,test='t-test',anno){
   if (any(is.na(fc_results$pvalue_adj))){
 #    print("NA values found in pvalue_adj column")
   }
+
   # drop NA values
 #  print(paste("Number of rows before dropping NA values:", nrow(fc_results)))
   fc_results = fc_results[apply(fc_results, 1, function(x) !any(is.na(x))),]
 #  print(paste("Number of rows after dropping NA values:", nrow(fc_results)))
-
   # drop duplicates
 #   print(paste("Number of rows before dropping duplicates:", nrow(fc_results)))
    fc_results = dplyr::distinct(fc_results)
@@ -50,6 +52,7 @@ DEanalysis <-function(intensity.matrix,condition,var1,var2,test='t-test',anno){
                            'pvalAdj'=fc_results$pvalue_adj,
                            'lfc'=fc_results$log2fc,
                            'log2_intensity'=fc_results$log2_intensity)
+
   mytable = merge(mytable,anno[,colnames(anno)!='name'],all.x=T)
   return(mytable)
 }

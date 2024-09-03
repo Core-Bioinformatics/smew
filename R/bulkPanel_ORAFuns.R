@@ -86,7 +86,6 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
   # } else {
   #   my_peaks = unique(strsplit(paste(de_peaks$kegg_id,collapse=', '),split = ', ')[[1]])
   # }
-
   # get up and down regulated peaks
   up_peaks = unique(strsplit(paste(de_peaks[de_peaks$lfc>0,]$kegg_id,collapse=', '),split = ', ')[[1]])
   down_peaks = unique(strsplit(paste(de_peaks[de_peaks$lfc<0,]$kegg_id,collapse=', '),split = ', ')[[1]])
@@ -154,7 +153,6 @@ ora_volcano_plot <- function(
     pval.threshold = 0.05,
     selectedPathways
 ){
-  print(selectedPathways)
   df = ORA_results |>
     dplyr::mutate(log10pval = log10(.data$FDR),
                   lfc = log2(.data$hits/.data$expected)) |>

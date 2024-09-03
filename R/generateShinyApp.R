@@ -44,7 +44,9 @@ generateShinyApp <- function(shiny.dir='MSIToolKitApp',
                              mode = 'Negative',
                              ppm = 5,
                              run.svm=F,
-                             run.spe=F){
+                             run.spe=F,
+                             control.samples.for.enrichment = NULL,
+                             ncores=1){
   # check inputs ------------------------------------
 
   # create bulked intensity matrix
@@ -118,9 +120,17 @@ generateShinyApp <- function(shiny.dir='MSIToolKitApp',
   message('Size of pixels estimated to range between ',min(unlist(gcd.values)),' and ',max(unlist(gcd.values)))
   if (run.svm){
     svm_identification <- run_svm(intensity.matrix,metadata,bulk.metadata)
-    spatial.cross.cor <- calculate.cross.cor(metadata,intensity.matrix,5,8,svm_identification)
+    spatial.cross.cor <- calculate.cross.cor(metadata,intensity.matrix,20,ncores,svm_identification)
   }
   if (run.spe){
+    pixel_enrichment<- run_pixellevel_pipeline_parallel(intensity.matrix,
+                                     bulk.intensity.matrix,
+                                     metadata,
+                                     anno,
+                                     control.samples=control.samples.for.enrichment,
+                                     ncores = ncores,
+                                     gcd.values = gcd.values,
+                                     organism = organism)
 
   }
 
@@ -137,9 +147,10 @@ generateShinyApp <- function(shiny.dir='MSIToolKitApp',
   if (run.svm){
   save("spatial.cross.cor",file=file.path(shiny.dir,'spatial_cross_cor.rda'))
   save("svm_identification",file=file.path(shiny.dir,'svm_identification.rda'))
+
   }
   if (run.spe){
-
+    save("pixel_enrichment",file=file.path(shiny.dir,'pixel_enrichment.rda'))
   }
   generateAppFile(shiny.dir,organism,run.svm,run.spe)
 }
