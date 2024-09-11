@@ -99,9 +99,7 @@ get_matched_peaks = function(
     stop()
   }
 #  print(paste0('Using mode = ', mode))
-
   exp_peak_list = unique(as.numeric(peak_list))
-
   # select adducts of interest
   if (mode == 'Negative') {
     my_adduct_formulas = neg_adduct_formulas[neg_adduct_formulas$Ion_Name %in% adducts,]

@@ -256,7 +256,7 @@ cross.cor.persample <- function(feature1,feature2,sample,combined.intensity,comb
   cv2[is.na(cv2)] <- 0
   return(sum(weight * ( cv1 + cv2 ), na.rm=TRUE))
 }
-apply.each.feature <- function(i,N,W,all.combos,combined.intensity,combined.metadata){
+apply.each.feature <- function(i,N,W,all.combos,combined.intensity,combined.metadata,list.of.adjacency){
   feature1 = all.combos[i,'Var1']
   feature2 = all.combos[i,'Var2']
   v <- sqrt(sum(combined.intensity[,feature1]^2, na.rm=TRUE) * sum(combined.intensity[,feature2]^2, na.rm=TRUE))
@@ -317,7 +317,7 @@ calculate.cross.cor <- function(metadata,intensity.matrix,num.genes,ncores,svm_i
   all.combos<-expand.grid(svm.peaks, svm.peaks,stringsAsFactors = F)
   cl <- parallel::makeCluster(ncores)
   parallel::clusterExport(cl, c('all.combos','combined.intensity','combined.meta','N','W','apply.each.feature','list.of.adjacency','cross.cor.persample'),envir = environment())
-  all.combos$scc = pbapply::pbsapply(rownames(all.combos),FUN = function(x)apply.each.feature(x,N,W,all.combos,combined.intensity,combined.meta),simplify = T,cl = cl)
+  all.combos$scc = pbapply::pbsapply(rownames(all.combos),FUN = function(x)apply.each.feature(x,N,W,all.combos,combined.intensity,combined.meta,list.of.adjacency),simplify = T,cl = cl)
   parallel::stopCluster(cl)
   all.combos = as.data.frame(tidyr::pivot_wider(all.combos,names_from='Var2',values_from = 'scc'))
   rownames(all.combos)=all.combos$Var1
