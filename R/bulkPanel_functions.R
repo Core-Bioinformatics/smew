@@ -228,7 +228,7 @@ create_bulk_exp <- function(intensity.matrix,
 
   #finished current stuff
   matched_peaks = get_matched_peaks(kegg_db = kegg_db,
-                                    peak_list = gsub('X','',rownames(intensity.matrix.mean)),
+                                    peak_list = gsub('mz_','',rownames(intensity.matrix.mean)),
                                     ppm = ppm,
                                     mode = mode,
                                     adducts = adducts,
@@ -246,6 +246,7 @@ create_bulk_exp <- function(intensity.matrix,
   }
   annotation_table = matched_peaks[,c(1,6,8,9)]
   colnames(annotation_table)=c('m_z','adduct','kegg_id','name')
+  annotation_table$m_z = paste0('mz_',annotation_table$m_z)
 #  annotation_table$m_z = paste0('X',annotation_table$m_z)
   full_table = data.frame('m_z'=rownames(intensity.matrix.mean))
   annotation_table = merge(full_table,annotation_table,all.x=T)

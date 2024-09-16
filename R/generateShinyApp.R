@@ -1,8 +1,8 @@
-#' Generate all files required for an autonomous MSI toolkit shiny app
+#' Generate all files required for an autonomous SMEW shiny app
 #' @description This function creates an app.R file and all required objects
 #' to run the app in .rda format in the target directory. Basic checks are
 #' performed to avoid problems with input data format. The app directory
-#' is standalone and can be used on another platform, as long as the MSI toolkit
+#' is standalone and can be used on another platform, as long as the SMEW
 #' package is installed there.
 #' @param shiny.dir directory to store the shiny app
 #' @param intensity.matrix the intensity matrix, a dataframe where rows correspond to
@@ -48,6 +48,10 @@ generateShinyApp <- function(shiny.dir='MSIToolKitApp',
                              control.samples.for.enrichment = NULL,
                              ncores=1){
   # check inputs ------------------------------------
+
+
+  # add 'mz_' to start of peak m/z values
+  colnames(intensity.matrix) = paste0('mz_',colnames(intensity.matrix))
 
   # create bulked intensity matrix
   metadata$Sample = metadata[,sample.id.column]
@@ -181,7 +185,7 @@ generateAppFile <- function(
   code.ui <- c(
     "ui <- function(request){",
     "navbarPage(",
-    "'MSI toolkit',",
+    "'SMEW',",
     "theme = shinythemes::shinytheme('flatly'),",
     "header = tags$head(tags$style('body {overflow-y: scroll;}')),",
     "footer = bookmarkButton(),",
