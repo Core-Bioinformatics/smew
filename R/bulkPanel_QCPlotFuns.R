@@ -122,7 +122,7 @@ peaks_barplot <- function(sub.intensity.matrix,
   } else {
     log.intensity.matrix <- sub.intensity.matrix
   }
-  log.intensity.matrix$peak <- stringr::word(rownames(log.intensity.matrix),sep='_',1,1)
+  log.intensity.matrix$peak <- stringr::word(rownames(log.intensity.matrix),sep='_',1,2)
   melted.intensity.matrix <- tidyr::pivot_longer(log.intensity.matrix,
                                                   cols = colnames(log.intensity.matrix)[1:(ncol(log.intensity.matrix)-1)])
   melted.intensity.matrix$condition <- rep(condition.vector,nrow(sub.intensity.matrix))
@@ -146,7 +146,7 @@ peaks_boxplot <- function(sub.intensity.matrix,
   } else {
     log.intensity.matrix <- sub.intensity.matrix
   }
-  log.intensity.matrix$peak <- stringr::word(rownames(log.intensity.matrix),sep='_',1,1)
+  log.intensity.matrix$peak <- stringr::word(rownames(log.intensity.matrix),sep='_',1,2)
   melted.intensity.matrix <- tidyr::pivot_longer(log.intensity.matrix,
                                                   cols = colnames(log.intensity.matrix)[1:(ncol(log.intensity.matrix)-1)])
   melted.intensity.matrix$metadata = rep(metadata[,metadata.column],nrow(sub.intensity.matrix))

@@ -18,7 +18,9 @@ RegionSpatialClusterPanelUI <- function(id, bulk.metadata, full.metadata, show =
             tags$div(
               tags$h3("Clustering"),
               tags$ul(
-                tags$li(""),
+                tags$li("Here you can apply spatially-resolved clustering methods to individual samples. The methodd currently implemented are BayesSpace and a manual lasso user-selection of points but we hope to add more approaches."),
+                tags$li("For BayesSpace You need to select the number of clusters you want to select as well as the number of iterations to run the model for. The authors suggest using at least 10,000 iterations but we have set the default to a low number here for the sake of runtime. You can then set the burn-in period, which is a number of samples to exclude at the beginning before the Markov Chain may have reached its equilibrium distribution."),
+                tags$li("You can then further smooth these clusters then find markers for the different clusters."),
               )
             ),
             theme = "light-border",
@@ -40,8 +42,8 @@ RegionSpatialClusterPanelUI <- function(id, bulk.metadata, full.metadata, show =
             ns=ns,
             condition = "input.clusteringApproach == 'BayesSpace'",
             selectInput(ns('numClusters'), 'Number of spatial clusters to infer', multiple = FALSE, choices = 2:10),
-            numericInput(ns('nRep'),'The number of MCMC iterations for BayesSpace',min = 100,max = 100000,value = 10000,step = 10),
-            numericInput(ns('burnIn'),'The number of MCMC iterations to exclude as burn-in period for BayesSpace (must be less than number of iterations above)',min = 10,max = 1000,value = 1000,step = 10),
+            numericInput(ns('nRep'),'The number of MCMC iterations for BayesSpace',min = 10,max = 10000,value = 100,step = 10),
+            numericInput(ns('burnIn'),'The number of MCMC iterations to exclude as burn-in period for BayesSpace (must be less than number of iterations above)',min = 1,max = 1000,value = 10,step = 10),
             # button to start clustering
             tags$p("Warning: this analysis can take a few minutes to run."),
             actionButton(
@@ -233,17 +235,20 @@ RegionSpatialClusterPanelServer <- function(id, full.intensity.matrix, full.meta
         rownames(anno)=paste0('mz_',anno$m_z)
         colnames(intensity.sub)=paste0('mz_',colnames(intensity.sub))
         rowData = anno[colnames(intensity.sub),]
+
         sce <- SingleCellExperiment::SingleCellExperiment(assays=list(counts=as(t(intensity.sub), "dgCMatrix")),
                                     rowData=rowData,
                                     colData=colData)
-
+        print('Created singlecellexperiment object')
         S4Vectors::metadata(sce)$BayesSpace.data <- list()
         S4Vectors::metadata(sce)$BayesSpace.data$platform <- 'ST'
         S4Vectors::metadata(sce)$BayesSpace.data$is.enhanced <- FALSE
         SingleCellExperiment::logcounts(sce)=log2(SingleCellExperiment::counts(sce)+1)
+        print('Performed log transform')
 
         sce <- scater::runPCA(sce, subset_row=rownames(SingleCellExperiment::counts(sce)), ncomponents=30,
                               exprs_values='logcounts', BSPARAM=BiocSingular::ExactParam())
+        print('Ran PCA')
         # use a select input with 'Run optimisation' as an option or using a specific number too
 #        sce <- qTune(sce, qs=seq(2, 10), platform="ST")
         set.seed(23)
@@ -251,6 +256,7 @@ RegionSpatialClusterPanelServer <- function(id, full.intensity.matrix, full.meta
                               nrep=input[['nRep']], burn.in=input[['burnIn']],
                               init.method="mclust", model="t", gamma=2)
         metadata.sub$cluster = factor(sce$spatial.cluster,levels=1:as.numeric(input[['numClusters']]))
+        print('Performed BayesSpace clustering')
         return(metadata.sub)
       }
     })  %>% bindEvent(input[["run_clustering"]])

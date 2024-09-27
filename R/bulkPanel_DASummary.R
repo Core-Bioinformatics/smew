@@ -279,7 +279,7 @@ BulkDESummaryPanelServer <- function(id, bulk.intensity.matrix, bulk.metadata, D
           Colv = FALSE,
           Rowv = input[['cluster.heatmap']],
           limits = c(-max(abs(scaled)),max(abs(scaled))),
-          col_side_colors = meta[,2:4],
+          col_side_colors = meta[,2:ncol(meta)],
           custom_hovertext = mat,
           file = file,
           height = input[['heatmapPlotHeight']],

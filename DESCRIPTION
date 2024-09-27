@@ -45,7 +45,10 @@ Depends:
     BiocSingular,
     scater,
     S4Vectors,
-    MERINGUE
+    MERINGUE,
+    heatmaply,
+    ggnewscale,
+    thematic
 Suggests:
     svglite
 RoxygenNote: 7.2.3
