@@ -48,7 +48,8 @@ Depends:
     MERINGUE,
     heatmaply,
     ggnewscale,
-    thematic
+    thematic,
+    UpSetR
 Suggests:
     svglite
 RoxygenNote: 7.2.3

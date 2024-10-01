@@ -86,6 +86,7 @@ To use *smew*, you need R >= 4.0. Currently, *smew* can only be installed from G
 * thematic
 * ggnewscale
 * heatmaply
+* UpSetR
 
 To download plotly outputs to file, you may also need to run *webshot::install_phantomjs()*
 
