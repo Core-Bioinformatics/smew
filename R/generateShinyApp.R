@@ -212,7 +212,7 @@ generateAppFile <- function(
     ")",
     "),")
   if (run.svm | run.spe){
-    code.ui<- c(code.ui,"tabPanel(title = 'Pixel-level Analysis',")
+    code.ui<- c(code.ui,"tabPanel(title = 'Pixel-level Analysis',","tabsetPanel(",)
   }
   if (run.svm){
     code.ui<- c(code.ui,"PixelSVMPanelUI(id='PixelSVM',bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix),")
@@ -221,7 +221,7 @@ generateAppFile <- function(
     code.ui<- c(code.ui,"PixelEnrichmentPanelUI(id='pixelEnrichment', bulk.metadata = bulk.metadata, full.metadata = metadata, pixel_enrichment = pixel_enrichment),")
   }
   if (run.svm | run.spe){
-    code.ui = c(code.ui,")")
+    code.ui = c(code.ui,"))")
   }
   code.ui = c(code.ui,
     ")",
