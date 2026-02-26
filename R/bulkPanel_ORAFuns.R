@@ -1,4 +1,9 @@
-get_ORA = function (pathways, metabolites, universe, minSize = 1, maxSize = length(universe) - 1, direction = c("up", "down")) {
+#' Over-Representation Analysis (ORA) helpers
+#' @description Internal helper functions used to compute pathway enrichment on KEGG pathways.
+#' @details These helpers are used by the ORA Shiny panel to perform hypergeometric tests
+#' and return formatted tables. Marked internal for future package extraction.
+#' @keywords internal
+run_ORA = function (pathways, metabolites, universe, minSize = 1, maxSize = length(universe) - 1, direction = c("up", "down")) {
 
   if (!is.list(pathways)) {
     stop("pathways should be a list with each element containing metabolites from the universe")
@@ -10,15 +15,15 @@ get_ORA = function (pathways, metabolites, universe, minSize = 1, maxSize = leng
   }
 
   empty_ora_result = data.frame(
-    pathway = character(),
-    total = numeric(),
-    expected = numeric(),
-    hits = numeric(),
-    Raw.p = numeric(),
-    Holm.p = numeric(),
-    FDR = numeric(),
-    metabolites = character(),
-    direction = character()
+    "pathway" = character(),
+    "total" = numeric(),
+    "expected" = numeric(),
+    "hits" = numeric(),
+    "Raw.p" = numeric(),
+    "Holm.p" = numeric(),
+    "FDR" = numeric(),
+    "metabolites" = character(),
+    "direction" = character()
   )
 
   minSize = max(minSize, 1)
@@ -40,7 +45,7 @@ get_ORA = function (pathways, metabolites, universe, minSize = 1, maxSize = leng
     warning("Not all of the input metabolites belong to the universe, such metabolites were removed")
   }
 
-  metabolitesFiltered = unique(na.omit(metabolites[metabolites%in%universe]))
+  metabolitesFiltered = unique(stats::na.omit(metabolites[metabolites%in%universe]))
   if (length(metabolitesFiltered) == 0) {
     warning("No metabolites from the input list belong to the universe")
     return(empty_ora_result)
@@ -49,29 +54,29 @@ get_ORA = function (pathways, metabolites, universe, minSize = 1, maxSize = leng
   overlaps = lapply(pathwaysFiltered, intersect, metabolitesFiltered)
   overlap_metabolites = lapply(overlaps, function(x) paste0(x, collapse = '; '))
   overlapsT = data.frame(
-    q = sapply(overlaps, length),
-    m = sapply(pathwaysFiltered, length), # set.num
-    n = length(universe) - sapply(pathwaysFiltered, length),
-    k = length(metabolitesFiltered)) # q.size
-  pathways_pvals = with(overlapsT, phyper(q - 1, m, n, k, lower.tail = FALSE))
+    "q" = sapply(overlaps, length),
+    "m" = sapply(pathwaysFiltered, length), # set.num
+    "n" = length(universe) - sapply(pathwaysFiltered, length),
+    "k" = length(metabolitesFiltered)) # q.size
+  pathways_pvals = with(overlapsT, stats::phyper(q - 1, m, n, k, lower.tail = FALSE))
   expected = with(overlapsT, k * (m/length(universe)))
   res = data.frame(
-    pathway = names(pathwaysFiltered),
-    total = overlapsT$m,
-    expected = expected,
-    hits = overlapsT$q,
-    Raw.p = pathways_pvals,
-    Holm.p = p.adjust(pathways_pvals, method = "holm"),
-    FDR = p.adjust(pathways_pvals, method = "BH") ,
-    metabolites = unlist(overlap_metabolites,use.names = F),
-    direction = direction
+    "pathway" = names(pathwaysFiltered),
+    "total" = overlapsT$m,
+    "expected" = expected,
+    "hits" = overlapsT$q,
+    "Raw.p" = pathways_pvals,
+    "Holm.p" = stats::p.adjust(pathways_pvals, method = "holm"),
+    "FDR" = stats::p.adjust(pathways_pvals, method = "BH") ,
+    "metabolites" = unlist(overlap_metabolites,use.names = F),
+    "direction" = direction
   )
   res = res[order(res$Raw.p), ]
   return(res)
 }
 
 
-execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalue_cutoff, min_pathway_hits, peak_direction,organism, anno) {
+execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalue_cutoff, min_pathway_hits, peak_direction,organism, anno, kegg_db) {
 
   # if (background == 'Whole metabolome') {
   #   background_peaks = unique(unlist(path_dict))
@@ -101,8 +106,7 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
   } else if (organism == 'Rat'){
     kegg_db_filt = kegg_db[kegg_db$rat_pathway == 'True',]
   } else {
-    print('Organism not supported')
-    return(NULL)
+    stop('Organism not supported')
   }
   # prepare a pathway:peak dictionary
   path_list = unique(kegg_db_filt$pathway_name)
@@ -115,7 +119,7 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
 
   # keep only pathways with < 500 and > 1 entries
   pathway2peaks = pathway2peaks[which(lapply(pathway2peaks, length) < 500 & lapply(pathway2peaks, length) > 1)]
-  ora_up = get_ORA(
+  ora_up = run_ORA(
     pathways = pathway2peaks,
     metabolites = up_peaks,
     universe = unique(strsplit(paste(anno$kegg_id,collapse=', '),split = ', ')[[1]]),
@@ -124,7 +128,7 @@ execute_ora = function(de_peaks, path_dict, background, min_path_size, ora_pvalu
     direction = 'up'
   ) |> as.data.frame()
 
-  ora_down = get_ORA(
+  ora_down = run_ORA(
     pathways = pathway2peaks,
     metabolites = down_peaks,
     universe = unique(strsplit(paste(anno$kegg_id,collapse=', '),split = ', ')[[1]]),
@@ -154,20 +158,20 @@ ora_volcano_plot <- function(
     selectedPathways
 ){
   df = ORA_results |>
-    dplyr::mutate(log10pval = log10(.data$FDR),
-                  lfc = log2(.data$hits/.data$expected)) |>
+    dplyr::mutate("log10pval" = log10(.data$FDR),
+                  "lfc" = log2(.data$hits/.data$expected)) |>
     dplyr::filter(!is.na(.data$log10pval))
   df$lfc = ifelse(df$direction=='up',df$lfc,-df$lfc)
   df$significance <- ifelse(df$FDR<pval.threshold,'Significant','Non-significant')
   df.label = df[df$pathway %in% selectedPathways,]
   lfc <- NULL; log10pval <- NULL; significance <- NULL
-  vp <- ggplot2::ggplot(data = df, mapping = ggplot2::aes(x = lfc, y = -log10pval,color=significance,label = pathway)) +
+  vp <- ggplot2::ggplot(data = df, mapping = ggplot2::aes(x = .data$lfc, y = -.data$log10pval,color=.data$significance,label = .data$pathway)) +
     ggplot2::geom_point() +
     ggplot2::theme_minimal() +
     ggplot2::xlab("log2(FC)") +
     ggplot2::ylab("-log10(pval)") +
     ggplot2::scale_color_manual(values=c("Non-significant"="#999999", "Significant"="#FF0000"))+
-    geom_text(data = df.label, mapping = aes(x = lfc, y = -log10pval,label = pathway))
+    ggplot2::geom_text(data = df.label, mapping = ggplot2::aes(x = .data$lfc, y = -.data$log10pval,label = .data$pathway))
   df[,'-log10pval']=-df$log10pval
 
   return(list('volcano'=vp,'data'=df))

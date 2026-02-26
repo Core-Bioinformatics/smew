@@ -1,3 +1,6 @@
+#' QC plotting helpers
+#' @description Utilities for plotting PCA/PLS-DA and other QC plots used in the Bulk QC panel.
+#' @keywords internal
 plot_pca <- function(
     pca.res,
     metadata,
@@ -10,14 +13,14 @@ plot_pca <- function(
   # expr.PCA.list <- intensity.matrix |>
   #   as.data.frame() |>
   #   t()
-  # expr.PCA.res <- expr.PCA.list[, apply(expr.PCA.list, 2, function(x) max(x) != min(x))] %>%
+  # expr.PCA.res <- expr.PCA.list[, apply(expr.PCA.list, 2, function(x) max(x) != min(x))] |>
   #   stats::prcomp(center = TRUE, scale = TRUE)
   expr.PCA <- dplyr::mutate(
                   as.data.frame(pca.res$x),
-                  name = factor(metadata[, 1], levels = metadata[, 1]),
-                  condition = if(!is.factor(metadata[,annotation.id])){
+                  "name" = factor(metadata[, 1], levels = metadata[, 1]),
+                  "condition" = if(!is.factor(metadata[,annotation.id])){
                     factor(metadata[, annotation.id], levels = unique(metadata[, annotation.id]))
-                    }else{metadata[,annotation.id]}
+                    } else {metadata[,annotation.id]}
 
   )
   pca.plot <- ggplot2::ggplot(expr.PCA, ggplot2::aes(x = .data$PC1, y = .data$PC2, colour = .data$condition, label = .data$name)) +
@@ -27,11 +30,11 @@ plot_pca <- function(
          colour = annotation.name)
   if(show.confidence.ellipses){
     pca.plot <- pca.plot +
-      stat_ellipse(geom='polygon',alpha=0.3,aes(fill = .data$condition, colour = .data$condition), show.legend = FALSE)
+      ggplot2::stat_ellipse(geom='polygon',alpha=0.3,ggplot2::aes(fill = .data$condition, colour = .data$condition), show.legend = FALSE)
 
   }
   pca.plot <- pca.plot + ggplot2::geom_point()
-  list('plot'=pca.plot,'loadings'=loadings)
+  list('plot'=pca.plot)
 }
 
 pca_contrib <- function(pca.res,
@@ -44,13 +47,13 @@ pca_contrib <- function(pca.res,
   contrib = data.frame(contrib)
   contrib$display_metab = stringr::str_wrap(anno$display_name[match(contrib$metab,anno$m_z)],30)
   contrib$metab = factor(contrib$metab,levels=rev(contrib$metab))
-  contrib.plot = ggplot2::ggplot(head(contrib,30),ggplot2::aes(x=PCAComp,y=metab,fill=PCAComp>0,label=display_metab))+
+  contrib.plot = ggplot2::ggplot(utils::head(contrib,30),ggplot2::aes(x=.data$PCAComp,y=.data$metab,fill=.data$PCAComp>0,label=.data$display_metab))+
     ggplot2::geom_bar(stat='identity') +
     ggplot2::theme_minimal()+
     ggplot2::theme(legend.position = "none") +
     ggplot2::xlab('Contribution')+
     ggplot2::ylab('')
-  return(list('plot'=contrib.plot,'table'=head(contrib,30)))
+  return(list('plot'=contrib.plot,'table'=utils::head(contrib,30)))
 }
 
 perform_plsda <- function(intensity.matrix,
@@ -73,10 +76,12 @@ plot_plsda <- function(
   coords = my.plsda$variates$X
   expr.plsda <- dplyr::mutate(
     as.data.frame(coords),
-    name = factor(metadata[, 1], levels = metadata[, 1]),
-    condition = if(!is.factor(metadata[,annotation.id])){
-      factor(metadata[, annotation.id], levels = unique(metadata[, annotation.id]))}else{metadata[,annotation.id]}
-
+    "name" = factor(metadata[, 1], levels = metadata[, 1]),
+    "condition" = if(!is.factor(metadata[,annotation.id])){
+      factor(metadata[, annotation.id], levels = unique(metadata[, annotation.id]))
+    } else {
+      metadata[,annotation.id]
+    }
   )
   plsda.plot <- ggplot2::ggplot(expr.plsda, ggplot2::aes(x = .data$comp1, y = .data$comp2, colour = .data$condition, label = .data$name)) +
     ggplot2::theme_minimal() +
@@ -85,7 +90,7 @@ plot_plsda <- function(
          colour = annotation.name)
   if(show.confidence.ellipses){
     plsda.plot <- plsda.plot +
-      ggplot2::stat_ellipse(geom='polygon',alpha=0.3,aes(fill = .data$condition, colour = .data$condition), show.legend = FALSE)
+      ggplot2::stat_ellipse(geom='polygon',alpha=0.3,ggplot2::aes(fill = .data$condition, colour = .data$condition), show.legend = FALSE)
   }
   plsda.plot <- plsda.plot + ggplot2::geom_point()
   plsda.plot
@@ -105,13 +110,13 @@ plsda_contrib <- function(intensity.matrix,
   contrib = data.frame(contrib)
   contrib$display_metab = stringr::str_wrap(anno$display_name[match(contrib$metab,anno$m_z)],30)
   contrib$metab = factor(contrib$metab,levels=rev(contrib$metab))
-  contrib.plot = ggplot2::ggplot(head(contrib,30),ggplot2::aes(x=PLSDAComp,y=metab,fill=PLSDAComp>0,label=display_metab))+
+  contrib.plot = ggplot2::ggplot(utils::head(contrib,30),ggplot2::aes(x=.data$PLSDAComp,y=.data$metab,fill=.data$PLSDAComp>0,label=.data$display_metab))+
     ggplot2::geom_bar(stat='identity') +
     ggplot2::theme_minimal()+
     ggplot2::theme(legend.position = "none") +
     ggplot2::xlab('Contribution')+
     ggplot2::ylab('')
-  return(list('plot'=contrib.plot,'table'=head(contrib,30)))
+  return(list('plot'=contrib.plot,'table'=utils::head(contrib,30)))
 }
 
 peaks_barplot <- function(sub.intensity.matrix,
@@ -132,8 +137,8 @@ peaks_barplot <- function(sub.intensity.matrix,
     ggplot2::geom_bar(stat='identity',position='dodge') +
     ggplot2::theme_minimal() +
     ggplot2::ylab(ifelse(log.transformation,'log2 intensity','intensity')) +
-    ggplot2::theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),legend.position = "bottom") +
-    ggplot2::facet_wrap(~melted.intensity.matrix$peak,scales='free')
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5, hjust = 1),legend.position = "bottom") +
+    ggplot2::facet_wrap(~.data$peak,scales='free')
   p
 }
 
@@ -151,16 +156,16 @@ peaks_boxplot <- function(sub.intensity.matrix,
                                                   cols = colnames(log.intensity.matrix)[1:(ncol(log.intensity.matrix)-1)])
   melted.intensity.matrix$metadata = rep(metadata[,metadata.column],nrow(sub.intensity.matrix))
   melted.intensity.matrix$sample = rep(metadata[,1],nrow(sub.intensity.matrix))
-  p <- ggplot2::ggplot(melted.intensity.matrix, ggplot2::aes(fill = metadata,
-                                            x = metadata,
-                                            y = value,label=sample)) +
+  p <- ggplot2::ggplot(melted.intensity.matrix, ggplot2::aes(fill = .data$metadata,
+                                            x = .data$metadata,
+                                            y = .data$value,label=.data$sample)) +
     ggplot2::geom_boxplot(outlier.shape = NA) +
     ggplot2::geom_jitter(width=0.1,color='black',fill='black') +
     ggplot2::theme_minimal() +
     ggplot2::ylab(ifelse(log.transformation,'log2 intensity','intensity')) +
     ggplot2::theme(legend.position = "bottom") +
-    ggplot2::scale_x_discrete(labels = function(x) str_wrap(x, width = 20)) +
-    ggplot2::facet_wrap(~melted.intensity.matrix$peak,scales = 'free')
+    ggplot2::scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 20)) +
+    ggplot2::facet_wrap(~.data$peak,scales = 'free')
   p
   return.list = list('plot'=p,'table'=melted.intensity.matrix)
 }

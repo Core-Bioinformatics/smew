@@ -1,56 +1,67 @@
 Package: smew
 Type: Package
-Title: Interactive Shiny App Workflow For Analysing Spatial Metabolomics MSI Data
+Title: An interactive toolkit for analysing metabolic dynamics through mass spectrometry imaging
 Version: 0.1.0
 Author: Eleanor Williams
-Maintainer: Eleanor Williams <eleanor.williams1@astrazeneca.com>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Maintainer: Eleanor Williams <ecw63@cam.ac.uk>
+Description: Toolkit for spatial metabolomics MSI analysis and visualisation through an interactive shiny app.
+License: GPL-2
 Encoding: UTF-8
+URL: https://github.com/Core-Bioinformatics/smew
+BugReports: https://github.com/Core-Bioinformatics/smew/issues
 LazyData: true
-Depends: 
+Depends:
     R (>= 4.0),
-    shiny,
-    matrixStats,
-    tibble,
-    dplyr,
-    shinyWidgets,
-    ggplot2,
-    ggforce,
-    ggrepel,
-    stringr,
-    tidyr,
-    DT,
-    RColorBrewer,
-    ComplexHeatmap,
-    circlize,
-    shinyjqui,
-    RcppML,
-    forcats,
-    rlang,
-    Matrix,
-    visNetwork,
-    scales,
-    stringr,
-    shinyjs,
-    mixOmics,
-    ggrastr,
-    dbscan,
-    plotly,
-    parallel,
+Imports:
     BayesSpace,
-    pbapply,
-    SingleCellExperiment,
     BiocSingular,
-    scater,
-    S4Vectors,
-    MERINGUE,
-    heatmaply,
+    bsicons,
+    bslib,
+    ClustAssess,
+    data.table,
+    dendextend,
+    dplyr,
+    dunn.test,
+    DT,
+    GENIE3,
+    ggplot2,
+    ggplotify,
     ggnewscale,
-    thematic,
+    ggrepel,
+    ggVennDiagram,
+    ggrastr,
+    grDevices,
+    harmony,
+    heatmaply,
+    htmlwidgets,
+    igraph,
+    jpeg,
+    Matrix,
+    matrixStats,
+    methods,
+    mixOmics,
+    parallel,
+    patchwork,
+    pbapply,
+    plotly,
+    RColorBrewer,
+    RcppML,
+    reshape2,
+    S4Vectors,
+    scater,
+    scran,
+    shiny,
+    SingleCellExperiment,
+    scales,
+    shinyjqui,
+    shinyjs,
+    shinyWidgets,
+    stats,
+    stringr,
+    tibble,
+    tidyr,
     UpSetR,
-    shinythemes
-Suggests:
-    svglite
+    utils,
+    viridis,
+    visNetwork
 RoxygenNote: 7.2.3
