@@ -1,22 +1,31 @@
-get_combined_cluster_colors <- function(comb) {
-  combined_cluster_levels <- sort(unique(as.integer(comb)))
-  stats::setNames(
-    RColorBrewer::brewer.pal(max(3, length(combined_cluster_levels)), "Set2")[combined_cluster_levels],
-    as.character(combined_cluster_levels)
-  )
-}
-
-##' RegionSpatialClusterPanelUI
-##'
-##' UI for the region-level spatial clustering tab in the SMEW app.
-##'
-##' @param id Shiny module id
-##' @param bulk.metadata Data frame of bulk sample metadata
-##' @param full.metadata Data frame of full sample metadata
-##' @param show Logical; whether to show the panel (default TRUE)
-##' @return A shiny tabPanel object for the spatial clustering tab
-##' @export
-RegionSpatialClusterPanelUI <- function(id, bulk.metadata, full.metadata, show = TRUE) {
+#' Performs and visualises spatially-informed clustering per sample
+#'
+#' @description UI and server logic for the Spatial Clustering panel, enabling users to run BayesSpace clustering on spatial omics data, visualise spatial clusters, pseudobulk clusters, perform PCA and heatmap analysis, and download all results. Supports sample selection, cluster assignment, and combined clustering across samples.
+#'
+#' @details
+#' \itemize{
+#'   \item{Run BayesSpace clustering on one or more selected samples. Choose the number of clusters and MCMC iterations.}
+#'   \item{Visualise spatial cluster assignments for each sample, and add cluster labels to shared data for downstream analysis.}
+#'   \item{Pseudobulk clusters across samples and perform PCA to explore similarities between clusters.}
+#'   \item{View a similarity heatmap of pseudobulked clusters, with annotation bars for combined cluster assignments.}
+#'   \item{Perform combined clustering across all samples to identify shared cluster patterns.}
+#'   \item{Visualise combined clusters spatially across all samples in a unified plot.}
+#'   \item{Download all output plots (spatial clusters, PCA, heatmap, combined spatial) in publication-ready format.}
+#'   \item{Note: Clustering and pseudobulking may take several minutes depending on data size and number of samples.}
+#' }
+#'
+#' @param id Shiny module id (for both UI and server)
+#' @param bulk.metadata Data frame of bulk sample metadata (UI, server)
+#' @param full.metadata Data frame of full sample metadata (UI, server)
+#' @param show Logical; whether to show the panel (default TRUE, UI)
+#' @param full.intensity.matrix Matrix of intensities (features x samples, server)
+#' @param anno Data frame of peak annotations (server, optional)
+#' @param shared_data Reactive or shared data object (server, optional)
+#' @name RegionPanel_SpatialClustersTab
+#' @rdname RegionPanel_SpatialClustersTab
+#' @return UI: A shiny tabPanel object for the spatial clustering tab. Server: None (side effects in Shiny module).
+#' @export
+RegionPanel_SpatialClustersTabUI <- function(id, bulk.metadata, full.metadata, show = TRUE) {
   ns <- shiny::NS(id)
   if (show) {
     shiny::tabPanel(
@@ -148,19 +157,9 @@ RegionSpatialClusterPanelUI <- function(id, bulk.metadata, full.metadata, show =
   }
 }
 
-##' RegionSpatialClusterPanelServer
-##'
-##' Server logic for the region-level spatial clustering tab in the SMEW app.
-##'
-##' @param id Shiny module id
-##' @param bulk.metadata Data frame of bulk sample metadata
-##' @param full.metadata Data frame of full sample metadata
-##' @param full.intensity.matrix Matrix of intensities (features x samples)
-##' @param anno Data frame of peak annotations
-##' @param shared_data Reactive or shared data object
-##' @return None; called for side effects in Shiny module
-##' @export
-RegionSpatialClusterPanelServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, anno = NULL, shared_data = NULL) {
+#' @rdname RegionPanel_SpatialClustersTab
+#' @export
+RegionPanel_SpatialClustersTabServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, anno = NULL, shared_data = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     # Store clustering result in a reactiveVal
     cluster_result <- shiny::reactiveVal(NULL)
@@ -380,15 +379,6 @@ RegionSpatialClusterPanelServer <- function(id, full.intensity.matrix, full.meta
       }
     })
 
-            # Helper: get unique cluster names per sample
-        get_unique_cluster_names <- function(meta_list) {
-          # Returns a list: sample -> vector of unique cluster names (e.g. sample1_1, sample1_2, ...)
-          lapply(names(meta_list), function(sid) {
-            cl <- as.character(meta_list[[sid]]$cluster)
-            paste0(sid, '_', cl)
-          })
-        }
-
         pseudobulk_preproc_pca <- shiny::reactive({
           pb_list <- pseudobulk_result()
           comb <- combined_cluster_assignments()
@@ -525,7 +515,7 @@ RegionSpatialClusterPanelServer <- function(id, full.intensity.matrix, full.meta
     )
 
 
-    output[['downloadSpatial']] <- create_download_plot_handler(
+    output[['downloadSpatial']] <- utils_create_download_plot_handler(
       plot_func = cluster_plot,
       filename_func = function() { input[['spatialPlotFileName']] },
       width_func = function() { input[['spatialPlotWidth']] },
@@ -533,7 +523,7 @@ RegionSpatialClusterPanelServer <- function(id, full.intensity.matrix, full.meta
     )
         
     # PCA download
-    output[['downloadPCA']] <- create_download_plot_handler(
+    output[['downloadPCA']] <- utils_create_download_plot_handler(
       plot_func = pseudobulk_preproc_pca,
       filename_func = function() { input[['pcaPlotFileName']] },
       width_func = function() { input[['pcaPlotWidth']] },
@@ -541,7 +531,7 @@ RegionSpatialClusterPanelServer <- function(id, full.intensity.matrix, full.meta
     )
 
     # Combined spatial download
-    output[['downloadCombinedSpatial']] <- create_download_plot_handler(
+    output[['downloadCombinedSpatial']] <- utils_create_download_plot_handler(
       plot_func = combined_spatial_preproc,
       filename_func = function() { input[['combinedPlotFileName']] },
       width_func = function() { input[['combinedPlotWidth']] },

@@ -1,33 +1,26 @@
-#' Differential Intensity Analysis Panel
+#' Performs differential intensity analysis
 #'
 #' This module provides UI and server logic for performing differential intensity
-#' analysis (DIA) on pseudobulk data. It allows users to compare peak intensities
+#' analysis on pseudobulk data. It allows users to compare peak intensities
 #' between two condition groups using either t-tests or Wilcox rank-sum tests.
-#'
-#' Features:
-#' - Interactive selection of metadata columns and condition groups to compare
-#' - Choice of statistical tests (parametric and non-parametric)
-#' - Adjustable p-value and log2 fold-change thresholds
-#' - Interactive table with row selection for downstream analyses
-#' - Export results to CSV
-#'
-#' @keywords internal
-#' @name bulkPanel_DIA
-NULL
-
-#' Bulk Differential Expression Panel UI
-#'
-#' @description Creates the user interface for differential intensity analysis.
-#'
-#' @param id Module namespace (character).
-#' @param bulk_metadata Data frame with bulk sample metadata.
+#' @details
+#' \itemize{
+#'  \item{Interactive selection of metadata columns and condition groups to compare}
+#'  \item{Choice of statistical tests (parametric and non-parametric)}
+#'  \item{Adjustable p-value and log2 fold-change thresholds}
+#'  \item{Interactive table with row selection for downstream analyses}
+#'  \item{Export results to CSV}
+#' }
+#' @name BulkPanel_DATab
+#' @param id Shiny module id (for both UI and server)
+#' @param bulk.metadata Data frame with bulk sample metadata.
 #' @param show Logical; whether to render the panel (default: TRUE).
 #'
 #' @return A [shiny::tabPanel] containing the UI elements.
 #'
-#' @keywords internal
+#' @rdname BulkPanel_DATab
 #' @export
-BulkDEUI <- function(id, bulk.metadata, show = TRUE) {
+BulkPanel_DATabUI <- function(id, bulk.metadata, show = TRUE) {
   ns <- shiny::NS(id)
 
   if (!show) {
@@ -35,7 +28,7 @@ BulkDEUI <- function(id, bulk.metadata, show = TRUE) {
   }
 
   shiny::tabPanel(
-    'Differential intensity analysis',
+    'Differential Analysis',
     shiny::tags$h1("Differential intensity analysis"),
     shinyjs::useShinyjs(),
     shiny::sidebarLayout(
@@ -135,24 +128,17 @@ BulkDEUI <- function(id, bulk.metadata, show = TRUE) {
   )
 }
 
-#' Bulk Differential Expression Panel Server
-#'
-#' @description Server logic for differential intensity analysis.
-#'
-#' @param id Module namespace (character).
-#' @param bulk_intensity_matrix Reactive expression returning numeric matrix of
-#'   expression (peaks × samples).
-#' @param bulk_metadata Reactive expression returning data frame with sample metadata.
+#' @rdname BulkPanel_DATab
+#' @param bulk.intensity.matrix Reactive expression returning numeric matrix of
+#'   intensity (peaks × samples).
 #' @param anno Data frame with peak annotation.
 #'
 #' @return Reactive list containing:
-#'   - `DE`: Function returning list of differential expression results
+#'   - `DE`: Function returning list of differential intensity results
 #'   - `selectedPeaks`: Reactive vector of selected peak m/z values
 #'   - `runDE`: Numeric flag indicating when DE button was pressed
-#'
-#' @keywords internal
 #' @export
-BulkDEServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno) {
+BulkPanel_DATabServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno) {
 
   shiny::moduleServer(id, function(input, output, session) {
     # Track when DE button is pressed
@@ -184,7 +170,7 @@ BulkDEServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno) {
         c(input[['variable1']], input[['variable2']])
 
       # Perform differential analysis
-      DEtable <- de_analysis(
+      DEtable <- bulk_utils_DA(
         intensity_matrix = bulk.intensity.matrix[, condition_indices],
         condition = bulk.metadata[[input[["condition"]]]][condition_indices],
         var1 = input[['variable1']],

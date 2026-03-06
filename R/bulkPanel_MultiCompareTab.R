@@ -1,15 +1,35 @@
+
+#' Performs and visualises multi-group comparisons
+#'
+#' @description UI and server logic for the Bulk Multi-Comparison panel, enabling statistical comparison of multiple groups in the bulk dataset using ANOVA or Kruskal-Wallis tests, with post-hoc analysis, boxplots, cross-plots, heatmaps, and Venn diagrams.
+#'
+#' @details
+#' \itemize{
+#'   \item{Allows users to perform multi-group comparisons using ANOVA or Kruskal-Wallis tests on bulk-level data.}
+#'   \item{Displays results in an interactive table, with options to view and download ANOVA/Kruskal results, post-hoc boxplots, and significance tiles.}
+#'   \item{Cross-plot: Compare two independent group contrasts, visualise log2 fold changes, and overlap of significant peaks via Venn diagram.}
+#'   \item{Heatmaps: Visualise scaled intensities and log2 fold changes for significant peaks across groups.}
+#'   \item{All tables and plots are downloadable via the download menus, with customisable file names and plot sizes.}
+#'   \item{Tip: Click a row in the ANOVA table to view post-hoc plots for that peak.}
+#'   \item{Only groups with at least 2 samples are available for selection in comparisons.}
+#' }
+#'
+#' @name BulkPanel_MultiCompareTab
+#' @rdname BulkPanel_MultiCompareTab
+
 utils::globalVariables(c("ComparisonGroup", "Peak", "Sample", "LFCGroup", "HeatmapGroup"))
 
-#' Bulk Multi-Comparison UI/Server
-#' @description UI and server for multi-group comparisons in the bulk dataset using ANOVA/Kruskal-Wallis and post-hoc tests, with boxplots, cross-plots, and Venn diagrams.
-#' @name bulkPanel_MultiCompareTab
-
-#' @rdname bulkPanel_MultiCompareTab
+#' @rdname BulkPanel_MultiCompareTab
+#' @param id Shiny module id (for both UI and server)
+#' @param bulk.metadata Data frame of bulk sample metadata
+#' @param bulk.intensity.matrix Matrix of bulk sample intensities
+#' @param show Logical; whether to render the panel (default: TRUE)
 #' @export
-BulkMultiCompareUI <- function(id, bulk.metadata, bulk.intensity.matrix) {
+BulkPanel_MultiCompareTabUI <- function(id, bulk.metadata, bulk.intensity.matrix, show = TRUE) {
   ns <- shiny::NS(id)
+  if(show){
   shiny::tabPanel(
-    "Bulk multi-comparison",
+    "Multiple Comparisons",
     shiny::fluidPage(
       shiny::div(style = "display: flex; gap: 10px; align-items: center; margin-bottom: 10px;",
         shinyWidgets::dropMenu(
@@ -147,13 +167,16 @@ BulkMultiCompareUI <- function(id, bulk.metadata, bulk.intensity.matrix) {
       )
     )
   )
+  } else {
+    NULL
+  }
 }
 
-#' @rdname bulkPanel_MultiCompareTab
+#' @param anno Data frame of peak annotations
+#' @rdname BulkPanel_MultiCompareTab
 #' @export
-BulkMultiCompareServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno) {
+BulkPanel_MultiCompareTabServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno) {
 
-  # --- Download helpers ---
   anova_table_last <- shiny::reactiveVal(NULL)
   df_last <- shiny::reactiveVal(NULL)
   crossplot_last <- shiny::reactiveVal(NULL)
@@ -348,7 +371,7 @@ BulkMultiCompareServer <- function(id, bulk.intensity.matrix, bulk.metadata, ann
       posthoc_plot()
     })
 
-    output[['download_posthoc_plot']] <- create_download_plot_handler(
+    output[['download_posthoc_plot']] <- utils_create_download_plot_handler(
       plot_func = posthoc_plot,
       filename_func = function() input[['posthoc_plot_filename']],
       width_func = function() input[['posthoc_plot_width']],
@@ -369,7 +392,7 @@ BulkMultiCompareServer <- function(id, bulk.intensity.matrix, bulk.metadata, ann
       if (is.null(colnames(data_sub1))) colnames(data_sub1) <- seq_len(ncol(data_sub1))
       group_col <- input$group_col
       shiny::incProgress(0.3)
-      da1 <- de_analysis(data_sub1, meta_sub1[[group_col]], input$crossplot_group1a, input$crossplot_group1b, test = test_type, anno = anno)
+      da1 <- bulk_utils_DA(data_sub1, meta_sub1[[group_col]], input$crossplot_group1a, input$crossplot_group1b, test = test_type, anno = anno)
 
       # Second comparison (C vs D)
       idx2 <- bulk.metadata[[input$group_col]] %in% c(input$crossplot_group2a, input$crossplot_group2b)
@@ -378,7 +401,7 @@ BulkMultiCompareServer <- function(id, bulk.intensity.matrix, bulk.metadata, ann
       if (is.null(rownames(data_sub2))) rownames(data_sub2) <- seq_len(nrow(data_sub2))
       if (is.null(colnames(data_sub2))) colnames(data_sub2) <- seq_len(ncol(data_sub2))
       shiny::incProgress(0.6)
-      da2 <- de_analysis(data_sub2, meta_sub2[[group_col]], input$crossplot_group2a, input$crossplot_group2b, test = test_type, anno = anno)
+      da2 <- bulk_utils_DA(data_sub2, meta_sub2[[group_col]], input$crossplot_group2a, input$crossplot_group2b, test = test_type, anno = anno)
 
       # Merge by m_z and add annotation
       merged <- merge(da1[, c('m_z', 'pvalAdj', 'lfc')], da2[, c('m_z', 'pvalAdj', 'lfc')], by = 'm_z', suffixes = c('_1', '_2'))
@@ -687,7 +710,7 @@ BulkMultiCompareServer <- function(id, bulk.intensity.matrix, bulk.metadata, ann
                 gap_col,
                 combined_mat_top[, (n1+1):(n1+n2), drop=FALSE]
               )
-                  # Dynamically set color scale limits centered on 0
+              # Dynamically set colour scale limits centered on 0
               lfc_max <- max(abs(combined_with_gap), na.rm = TRUE)
               heatmaply::heatmaply(
                 combined_with_gap,
@@ -765,7 +788,7 @@ BulkMultiCompareServer <- function(id, bulk.intensity.matrix, bulk.metadata, ann
         gap_col,
         combined_mat_top[, (n1+1):(n1+n2), drop=FALSE]
       )
-      # Dynamically set color scale limits centered on 0
+      # Dynamically set colour scale limits centered on 0
       lfc_max <- max(abs(combined_with_gap), na.rm = TRUE)
       heatmaply::heatmaply(
         combined_with_gap,

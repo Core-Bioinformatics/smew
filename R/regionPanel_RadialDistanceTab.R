@@ -1,15 +1,33 @@
-##' RegionRadialDistanceUI
-##'
-##' UI for the region-level radial distance correlation tab in the SMEW app.
-##'
-##' @param id Shiny module id
-##' @param bulk.metadata Data frame of bulk sample metadata
-##' @return A shiny tabPanel object for the radial distance correlation tab
-##' @export
-RegionRadialDistanceUI <- function(id, bulk.metadata) {
+#' Analyses and visualises relationships between molecular intensity and distance from a region of interest
+#'
+#' @description UI and server logic for the ROI Distance Correlation panel, enabling users to correlate molecular intensity with distance from a selected region of interest (ROI) in spatial omics data. Supports region selection, correlation analysis, visualisation of results (volcano plots, spatial maps, tables), and download of results.
+#'
+#' @details
+#' \itemize{
+#'   \item{Correlate molecular intensity with distance from a selected region of interest (ROI) for each sample.}
+#'   \item{Choose a region column and label to define the ROI; distance from each pixel to the ROI is calculated.}
+#'   \item{Select the correlation method (Pearson or Spearman) to assess the relationship between distance and feature intensity.}
+#'   \item{View volcano plots of correlation results, spatial maps of distances, and tables of feature correlations.}
+#'   \item{Visualise smoothed intensity profiles as a function of distance from the ROI for selected features, optionally split by metadata.}
+#'   \item{All results and plots can be downloaded for further analysis or reporting.}
+#' }
+#'
+#' @param id Shiny module id (for both UI and server)
+#' @param bulk.metadata Data frame of bulk sample metadata (UI)
+#' @param show Logical; whether to show the panel (default TRUE, UI)
+#' @param full.intensity.matrix Matrix of intensities (features x samples, server)
+#' @param full.metadata Data frame of full sample metadata (server)
+#' @param shared_data Reactive or shared data object (server)
+#' @param anno Data frame of peak annotations (server)
+#' @return UI: A shiny tabPanel object for the radial distance correlation tab. Server: None (side effects in Shiny module).
+#' @name RegionPanel_RadialDistanceTab
+#' @rdname RegionPanel_RadialDistanceTab
+#' @export
+RegionPanel_RadialDistanceTabUI <- function(id, bulk.metadata, show = TRUE) {
   ns <- shiny::NS(id)
+  if (show){
   shiny::tabPanel(
-    "ROI Distance Correlation",
+    "Radial Distance",
     bslib::accordion(
       bslib::accordion_panel(
         title = "Information",
@@ -98,21 +116,12 @@ RegionRadialDistanceUI <- function(id, bulk.metadata) {
       )
     )
   )
+  }
 }
 
-##' RegionRadialDistanceServer
-##'
-##' Server logic for the region-level radial distance correlation tab in the SMEW app.
-##'
-##' @param id Shiny module id
-##' @param full.intensity.matrix Matrix of intensities (features x samples)
-##' @param full.metadata Data frame of full sample metadata
-##' @param bulk.metadata Data frame of bulk sample metadata
-##' @param shared_data Reactive or shared data object
-##' @param anno Data frame of peak annotations
-##' @return None; called for side effects in Shiny module
-##' @export
-RegionRadialDistanceServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, shared_data, anno) {
+#' @rdname RegionPanel_RadialDistanceTab
+#' @export
+RegionPanel_RadialDistanceTabServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, shared_data, anno) {
   shiny::moduleServer(id, function(input, output, session) {
     shiny::observe({
       categorical_cols <- colnames(shared_data$updated.metadata)[sapply(shared_data$updated.metadata, function(col) {
@@ -256,7 +265,7 @@ RegionRadialDistanceServer <- function(id, full.intensity.matrix, full.metadata,
       p_plotly = plotly::ggplotly(volcanoPlot(), tooltip = "text") |> plotly::layout(hoverlabel = list(bgcolor = "white", font = list(size = 12)), width = NULL)
       })
 
-    output[['downloadVolcanoCorr']] <- create_download_plot_handler(
+    output[['downloadVolcanoCorr']] <- utils_create_download_plot_handler(
       plot_func = volcanoPlot,
       filename_func = function() input[['volcanoCorrFileName']],
       width_func = function() input[['volcanoCorrWidth']],
@@ -292,7 +301,7 @@ RegionRadialDistanceServer <- function(id, full.intensity.matrix, full.metadata,
     output$spatial_plot <- shiny::renderPlot({
       spatial_plot()
     })
-    output[['downloadSpatialCorr']] <- create_download_plot_handler(
+    output[['downloadSpatialCorr']] <- utils_create_download_plot_handler(
       plot_func = spatial_plot,
       filename_func = function() input[['spatialCorrFileName']],
       width_func = function() input[['spatialCorrWidth']],
@@ -341,7 +350,7 @@ RegionRadialDistanceServer <- function(id, full.intensity.matrix, full.metadata,
     output$smooth_plot <- shiny::renderPlot({
       smooth_line()
     })   
-    output[['downloadSmooth']] <- create_download_plot_handler(
+    output[['downloadSmooth']] <- utils_create_download_plot_handler(
       plot_func = smooth_line,
       filename_func = function() input[['smoothFileName']],
       width_func = function() input[['smoothWidth']],

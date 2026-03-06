@@ -7,8 +7,8 @@
 ##'
 ##' @param metadata Data frame with columns: pixel_id, x_tf, y_tf, Sample.
 ##' @return List of neighbour indices per spot (named by pixel_id).
-##' @keywords spatial, neighbours
-find_grid_neighbours <- function(metadata) {
+##' @keywords internal
+preprocessing_find_grid_neighbours <- function(metadata) {
   spots <- metadata$pixel_id
   coords <- metadata[, c('x_tf', 'y_tf')]
   neighbour_list <- lapply(seq_len(nrow(coords)), function(i) {
@@ -30,8 +30,8 @@ find_grid_neighbours <- function(metadata) {
 ##' @param intensity Matrix (spots x features), rownames = spot_id.
 ##' @param neighbour_list List of neighbour spot_ids per spot.
 ##' @return Matrix of spatial lags (spots x features).
-##' @keywords spatial, lag
-compute_spatial_lag <- function(intensity, neighbour_list) {
+##' @keywords internal
+preprocessing_compute_spatial_lag <- function(intensity, neighbour_list) {
   lag_mat <- matrix(NA, nrow = nrow(intensity), ncol = ncol(intensity),
                    dimnames = dimnames(intensity))
   for (i in seq_len(nrow(intensity))) {
@@ -50,8 +50,8 @@ compute_spatial_lag <- function(intensity, neighbour_list) {
 ##' @param intensity Matrix (spots x features).
 ##' @param lag_mat Matrix (spots x features).
 ##' @return Named vector of autocorrelation per feature.
-##' @keywords spatial, autocorrelation
-compute_autocorrelation <- function(intensity, lag_mat) {
+##' @keywords internal
+preprocessing_compute_autocorrelation <- function(intensity, lag_mat) {
   n <- ncol(intensity)
   cors <- numeric(n)
   for (i in seq_len(n)) {
@@ -66,15 +66,15 @@ compute_autocorrelation <- function(intensity, lag_mat) {
 ##' @param intensity Matrix (spots x features), rownames = pixel_id.
 ##' @param metadata Data frame with pixel_id, x_tf, y_tf, Sample.
 ##' @return Named list of autocorrelation vectors per Sample.
-##' @keywords spatial, autocorrelation, pipeline
-spatial_autocorrelation_pipeline <- function(intensity, metadata) {
+##' @keywords internal
+preprocessing_spatial_autocorrelation_pipeline <- function(intensity, metadata) {
   results <- pbapply::pblapply(unique(metadata$Sample), function(s) {
     idx <- which(metadata$Sample == s)
     sub_meta <- metadata[idx, ]
     sub_int <- intensity[sub_meta$pixel_id, , drop = FALSE]
-    neighbour_list <- find_grid_neighbours(sub_meta)
-    lag_mat <- compute_spatial_lag(sub_int, neighbour_list)
-    cors <- compute_autocorrelation(sub_int, lag_mat)
+    neighbour_list <- preprocessing_find_grid_neighbours(sub_meta)
+    lag_mat <- preprocessing_compute_spatial_lag(sub_int, neighbour_list)
+    cors <- preprocessing_compute_autocorrelation(sub_int, lag_mat)
     df <- data.frame(peak = names(cors), cor = cors, stringsAsFactors = FALSE)
     df <- df[order(-df$cor), ]
     rownames(df) <- NULL
@@ -92,8 +92,9 @@ spatial_autocorrelation_pipeline <- function(intensity, metadata) {
 ##' @param intensity.matrix Matrix of intensities (rows = spots/pixels, columns = features)
 ##' @param metadata Data frame with pixel_id, x_tf, y_tf, Sample, etc.
 ##' @param list.of.adjacency List of adjacency matrices (one per sample), each a sparse matrix
+##' @keywords internal
 ##' @return Numeric value: spatial cross-correlation for the two features in the given sample
-cross.cor.persample <- function(feature1, feature2, sample, intensity.matrix, metadata, list.of.adjacency) {
+preprocessing_cross.cor.persample <- function(feature1, feature2, sample, intensity.matrix, metadata, list.of.adjacency) {
   weight = list.of.adjacency[[sample]]
   idx = which(metadata$Sample == sample)
   x = intensity.matrix[idx, feature1]
@@ -120,7 +121,8 @@ cross.cor.persample <- function(feature1, feature2, sample, intensity.matrix, me
   return(cv)
 }
 
-apply.each.feature <- function(i, N, W, all.combos, intensity.matrix, metadata, list.of.adjacency){
+##' @keywords internal
+preprocessing_apply.each.feature <- function(i, N, W, all.combos, intensity.matrix, metadata, list.of.adjacency){
   feature1 = all.combos[i,'Var1']
   feature2 = all.combos[i,'Var2']
   cv_sum = 0
@@ -150,7 +152,8 @@ apply.each.feature <- function(i, N, W, all.combos, intensity.matrix, metadata, 
   return(SCC)
 }
 
-spatial_cross_cor <- function(top.peaks, intensity.matrix, metadata, ncores = 1) {
+##' @keywords internal
+preprocessing_spatial_cross_cor <- function(top.peaks, intensity.matrix, metadata, ncores = 1) {
     list.of.adjacency <- list()
     W = 0
     message("Creating grid-based adjacency matrices:")
@@ -198,13 +201,13 @@ spatial_cross_cor <- function(top.peaks, intensity.matrix, metadata, ncores = 1)
     if (ncores > 1) {
     cl <- parallel::makeCluster(ncores)
     message(paste0("Calculating spatial cross-correlation in parallel using ", ncores, " cores..."))
-    parallel::clusterExport(cl, c('all.combos','intensity.matrix','metadata','N','W','apply.each.feature','list.of.adjacency','cross.cor.persample'),envir = environment())
+    parallel::clusterExport(cl, c('all.combos','intensity.matrix','metadata','N','W','preprocessing_apply.each.feature','list.of.adjacency','preprocessing_cross.cor.persample'),envir = environment())
     setup <- parallel::clusterEvalQ(cl, {library(Matrix)})
-    all.combos$scc = pbapply::pbsapply(seq_len(nrow(all.combos)),FUN = function(x) apply.each.feature(x, N, W, all.combos, intensity.matrix, metadata, list.of.adjacency), simplify = TRUE, cl = cl)
+    all.combos$scc = pbapply::pbsapply(seq_len(nrow(all.combos)),FUN = function(x) preprocessing_apply.each.feature(x, N, W, all.combos, intensity.matrix, metadata, list.of.adjacency), simplify = TRUE, cl = cl)
     parallel::stopCluster(cl)
     } else {
     message("Calculating spatial cross-correlation sequentially...")
-    all.combos$scc = pbapply::pbsapply(seq_len(nrow(all.combos)),FUN = function(x) apply.each.feature(x, N, W, all.combos, intensity.matrix, metadata, list.of.adjacency), simplify = TRUE)
+    all.combos$scc = pbapply::pbsapply(seq_len(nrow(all.combos)),FUN = function(x) preprocessing_apply.each.feature(x, N, W, all.combos, intensity.matrix, metadata, list.of.adjacency), simplify = TRUE)
     }
 
     # Reshape to wide matrix

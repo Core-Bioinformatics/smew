@@ -1,19 +1,29 @@
-##' Spatial Visualisation Panel UI
-##'
-##' Provides the UI for spatial visualisation of peaks and metadata in the SMEW app.
-##'
-##' @param id Shiny module id
-##' @param bulk.metadata Data frame of bulk sample metadata
-##' @param full.metadata Data frame of full sample metadata
-##' @param show Logical; whether to show the panel (default TRUE)
-##' @return A shiny tabPanel object for spatial visualisation
-##' @export
-IntroSpatialVisUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
+#' Visualises peaks and metadata spatially across samples
+#'
+#' @description UI and server logic for spatial visualisation of peaks and metadata in the SMEW app.
+#'
+#' @details
+#' \itemize{
+#'  \item{Visualise individual or multiple peaks spatially across selected samples.}
+#'  \item{Visualise metadata columns spatially.}
+#'  \item{Download handlers for spatial and density plots.}
+#'  \item{Interactive controls for capping, log transformation, and density splitting.}
+#' }
+#' @name IntroPanel_SpatialVisTab
+#' @rdname IntroPanel_SpatialVisTab
+#' @export
+#'
+#' @param id Shiny module id (for both UI and server)
+#' @param bulk.metadata Data frame of bulk sample metadata
+#' @param full.metadata Data frame of full sample metadata
+#' @param show Logical; whether to show the panel (default TRUE)
+#' @return A shiny::tabPanel object for spatial visualisation
+IntroPanel_SpatialVisTabUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
   ns <- shiny::NS(id)
 
   if(show){
     shiny::tabPanel(
-      'Spatial visualisation',
+      'Spatial Visualisation',
 
       shiny::selectInput(
             inputId = ns("samplesToShow"),
@@ -162,20 +172,15 @@ IntroSpatialVisUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
   }
 }
 
-##' Spatial Visualisation Panel Server
-##'
-##' Provides the server logic for spatial visualisation of peaks and metadata in the SMEW app.
-##'
-##' @param id Shiny module id
-##' @param bulk.metadata Data frame of bulk sample metadata
-##' @param full.metadata Data frame of full sample metadata
-##' @param full.intensity.matrix Matrix of intensities (features x samples)
-##' @param anno Data frame of peak annotations
-##' @return None; called for side effects in Shiny module
-##' @export
-IntroSpatialVisServer <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, anno){
+
+#' @rdname IntroPanel_SpatialVisTab
+#' @param full.intensity.matrix Matrix of full intensity data (features x samples)
+#' @param anno Data frame of annotation information (must include columns: m_z, display_name, name, etc.)
+#' @export
+IntroPanel_SpatialVisTabServer <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, anno){
   shiny::moduleServer(id, function(input, output, session){
-    # remove constant peaks from list
+
+    # To do: remove constant peaks from list or give a meaningful error
     shiny::updateSelectizeInput(session, "peakName", choices = anno$display_name, server = TRUE, selected = anno$display_name[1])
     shiny::updateSelectizeInput(session, "peakName1", choices = anno$display_name, server = TRUE, selected = anno$display_name[1])
     shiny::updateSelectizeInput(session, "peakName2", choices = anno$display_name, server = TRUE, selected = anno$display_name[2])
@@ -419,7 +424,7 @@ IntroSpatialVisServer <- function(id, bulk.metadata, full.metadata, full.intensi
     output[['plotMultiplePeakZoom']] <- shiny::renderPlot({
       show_multiple_peaks_zoom()})
 
-    output[['downloadSpatial']] <- create_download_plot_handler(
+    output[['downloadSpatial']] <- utils_create_download_plot_handler(
       plot_func = function() show_peak()$spatial,
       filename_func = function() input[['spatialFileName']],
       width_func = function() input[['spatialWidth']],
@@ -428,7 +433,7 @@ IntroSpatialVisServer <- function(id, bulk.metadata, full.metadata, full.intensi
       dpi = 300
     )
 
-    output[['downloadMultiPeak']] <- create_download_plot_handler(
+    output[['downloadMultiPeak']] <- utils_create_download_plot_handler(
       plot_func = function() show_multiple_peaks()$plot,
       filename_func = function() input[['multiPeakFileName']],
       width_func = function() input[['multiPeakWidth']],
@@ -441,7 +446,7 @@ IntroSpatialVisServer <- function(id, bulk.metadata, full.metadata, full.intensi
       plotly::ggplotly(show_peak()$density)
     })
 
-    output[['downloadDensity']] <- create_download_plot_handler(
+    output[['downloadDensity']] <- utils_create_download_plot_handler(
       plot_func = function() show_peak()$density,
       filename_func = function() input[['densityFileName']],
       width_func = function() input[['densityWidth']],
@@ -466,7 +471,7 @@ IntroSpatialVisServer <- function(id, bulk.metadata, full.metadata, full.intensi
       show_metadata_zoom()
     })
 
-    output[['downloadMeta']] <- create_download_plot_handler(
+    output[['downloadMeta']] <- utils_create_download_plot_handler(
       plot_func = function() show_metadata(),
       filename_func = function() input[['metaFileName']],
       width_func = function() input[['metaWidth']],

@@ -1,20 +1,33 @@
-##' Pixel SVM UI
-##'
-##' Provides the UI for spatially variable peak analysis using SVM in the SMEW app.
-##'
-##' @param id Shiny module id
-##' @param bulk.metadata Data frame of bulk sample metadata
-##' @param full.metadata Data frame of full sample metadata
-##' @param full.intensity.matrix Matrix of intensities (features x samples)
-##' @param show Logical; whether to show the panel (default TRUE)
-##' @return A shiny tabPanel object for the SVM panel
-##' @export
-PixelSVMUI <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, show = TRUE){
+#' Identifies modules of spatially variable and colocalised metabolite peaks
+#'
+#' @description UI and server logic for spatially variable peak analysis using SVM and spatial correlation in the SMEW app. Visualizes spatial autocorrelation, cross-correlation, and top spatially variable peaks across samples.
+#'
+#' @details
+#' \itemize{
+#'  \item{Visualize spatial autocorrelation heatmaps for top spatially variable metabolites}
+#'  \item{Upset plots and barplots for summarizing spatially variable peaks across samples}
+#'  \item{Table of top spatially variable peaks per sample}
+#'  \item{Cross-correlation modules for peaks with similar spatial patterns}
+#'  \item{Download handlers for all plots}
+#'  \item{Interactive controls for sample and peak selection}
+#' }
+#' @param id Shiny module id (for both UI and server)
+#' @param bulk.metadata Data frame of bulk sample metadata
+#' @param full.metadata Data frame of full sample metadata
+#' @param full.intensity.matrix Matrix of intensities (features x samples)
+#' @param show Logical; whether to show the panel (default TRUE)
+#' @param spatial.cross.cor List or data structure with spatial cross-correlation results
+#'
+#' @return UI: A shiny::tabPanel object for the SVM panel. Server: None; called for side effects in Shiny module.
+#' @export
+#' @name PixelPanel_SVMTab
+#' @rdname PixelPanel_SVMTab
+PixelPanel_SVMTabUI <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, show = TRUE){
   ns <- shiny::NS(id)
   
   if(show){
     shiny::tabPanel(
-      'Spatially variable peaks',
+      'Spatial Auto/Cross-Correlation',
       shiny::tags$h2('Spatial auto-correlation heatmap'),
       shiny::sidebarLayout(
         shiny::sidebarPanel(
@@ -229,42 +242,37 @@ PixelSVMUI <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, 
   }
 }
 
-##' Pixel SVM Server
-##'
-##' Provides the server logic for spatially variable peak analysis using SVM in the SMEW app.
-##'
-##' @param id Shiny module id
-##' @param bulk.metadata Data frame of bulk sample metadata
-##' @param full.metadata Data frame of full sample metadata
-##' @param full.intensity.matrix Matrix of intensities (features x samples)
-##' @param anno Data frame of peak annotations
-##' @param DEresults Reactive expression or function returning DE results
-##' @param svm_identification List of SVM identification results per sample
-##' @param spatial.cross.cor Matrix of spatial cross-correlation values
-##' @return None; called for side effects in Shiny module
-##' @export
-PixelSVMServer <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, anno, DEresults, svm_identification, spatial.cross.cor){
+#' @param id Shiny module id
+#' @param anno Data frame of peak annotations
+#' @param de.results Reactive expression or function returning DE results
+#' @param svm.identification List of SVM identification results per sample
+#' @param spatial.cross.cor Matrix of spatial cross-correlation values
+#' @return None; called for side effects in Shiny module
+#' @export
+#' @rdname PixelPanel_SVMTab
+#' @export
+PixelPanel_SVMTabServer <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, anno, de.results, svm.identification, spatial.cross.cor){
   
   shiny::moduleServer(id, function(input, output, session){
     
     autocor_heatmap <- shiny::reactive({
-      svm.peaks = Reduce(union,lapply(FUN = function(x)utils::head(x$peak,input[['topNumPeaksHeatmap']]),X=svm_identification))
+      svm.peaks = Reduce(union,lapply(FUN = function(x)utils::head(x$peak,input[['topNumPeaksHeatmap']]),X=svm.identification))
       
-      svm_identification_sub = lapply(svm_identification,function(x)x[x$peak%in%svm.peaks,])
-      svm_identification_sub = dplyr::bind_rows(svm_identification_sub,.id = 'sample')
-      svm_identification_sub_square = as.data.frame(tidyr::pivot_wider(svm_identification_sub,id_cols = 'sample',names_from = 'peak',values_from = 'cor'))
-      rownames(svm_identification_sub_square)=svm_identification_sub_square$sample
-      svm_identification_sub_square = as.data.frame(t(svm_identification_sub_square[,2:ncol(svm_identification_sub_square)]))
-      peaks = rownames(svm_identification_sub_square)
+      svm.identification_sub = lapply(svm.identification,function(x)x[x$peak%in%svm.peaks,])
+      svm.identification_sub = dplyr::bind_rows(svm.identification_sub,.id = 'sample')
+      svm.identification_sub_square = as.data.frame(tidyr::pivot_wider(svm.identification_sub,id_cols = 'sample',names_from = 'peak',values_from = 'cor'))
+      rownames(svm.identification_sub_square)=svm.identification_sub_square$sample
+      svm.identification_sub_square = as.data.frame(t(svm.identification_sub_square[,2:ncol(svm.identification_sub_square)]))
+      peaks = rownames(svm.identification_sub_square)
       peaks = stringr::str_wrap(anno[match(peaks,anno$m_z),]$name,30)
-      mat <- svm_identification_sub_square
+      mat <- svm.identification_sub_square
       mat[] <- peaks
-      return(heatmaply::heatmaply_cor(svm_identification_sub_square,limits = c(min(svm_identification_sub_square),1),custom_hovertext=mat))
+      return(heatmaply::heatmaply_cor(svm.identification_sub_square,limits = c(min(svm.identification_sub_square),1),custom_hovertext=mat))
     })
     
     svm_results <- shiny::reactive({
-      load('svm_identification.rda')
-      spatgenes <- svm_identification[input[['samplesToInclude']]]
+      load('svm.identification.rda')
+      spatgenes <- svm.identification[input[['samplesToInclude']]]
       return(spatgenes)
     }) #|> bindEvent(input[["run_SVM"]])
     
@@ -275,28 +283,25 @@ PixelSVMServer <- function(id, bulk.metadata, full.metadata, full.intensity.matr
     })
     
     svm_upset <- shiny::reactive({
-      svm.peaks = Reduce(union,lapply(FUN = function(x)utils::head(x$peak,input[['topNumber']]),X=svm_identification[input[['samplesToIncludeTopN']]]))
+      svm.peaks = Reduce(union,lapply(FUN = function(x)utils::head(x$peak,input[['topNumber']]),X=svm.identification[input[['samplesToIncludeTopN']]]))
       
-      top.svm = lapply(FUN = function(x)x[x$peak%in%utils::head(x$peak,input[['topNumber']]),],X=svm_identification[input[['samplesToIncludeTopN']]])
+      top.svm = lapply(FUN = function(x)x[x$peak%in%utils::head(x$peak,input[['topNumber']]),],X=svm.identification[input[['samplesToIncludeTopN']]])
       top.svm = lapply(top.svm,function(x)x$peak[x$peak%in%svm.peaks])
       upset.plot <- UpSetR::upset(UpSetR::fromList(top.svm),nsets = length(names(top.svm)))
       return(upset.plot)
     })
     
     svm_barplot <- shiny::reactive({
-      svm.peaks = Reduce(union,lapply(FUN = function(x)utils::head(x$peak,input[['topNumPeaksHeatmap']]),X=svm_identification[input[['samplesToIncludeTopN']]]))
-      print(svm.peaks)
-      top.svm = lapply(FUN = function(x)x[x$peak%in%utils::head(x$peak,input[['topNumPeaksHeatmap']]),],X=svm_identification[input[['samplesToIncludeTopN']]])
-      print(top.svm)
+      svm.peaks = Reduce(union,lapply(FUN = function(x)utils::head(x$peak,input[['topNumPeaksHeatmap']]),X=svm.identification[input[['samplesToIncludeTopN']]]))
+      top.svm = lapply(FUN = function(x)x[x$peak%in%utils::head(x$peak,input[['topNumPeaksHeatmap']]),],X=svm.identification[input[['samplesToIncludeTopN']]])
       top.svm = lapply(top.svm,function(x)x$peak[x$peak%in%svm.peaks])
       top.svm = dplyr::bind_rows(top.svm, .id = "column_label")
       top.svm = tidyr::pivot_longer(top.svm,cols=colnames(top.svm))
-      print(top.svm)
       colnames(top.svm)[1]=colnames(bulk.metadata)[1]
       top.svm = merge(top.svm,bulk.metadata)
-      if (DEresults()$runDE==1){
-        deres = DEresults()$DE()$DEtable[,c('m_z','pvalAdj','lfc')]
-        deres$DE = deres$m_z %in% DEresults()$DE()$DEtableSubset$m_z
+      if (de.results()$runDE==1){
+        deres = de.results()$DE()$DEtable[,c('m_z','pvalAdj','lfc')]
+        deres$DE = deres$m_z %in% de.results()$DE()$DEtableSubset$m_z
         colnames(deres)[1]='value'
         top.svm = merge(top.svm,deres,all.x=T)
         top.svm$label = ifelse(top.svm$DE==TRUE,'*','')
@@ -423,12 +428,12 @@ PixelSVMServer <- function(id, bulk.metadata, full.metadata, full.intensity.matr
     })  #|> bindEvent(input[["run_SVM"]])
     
     svmTable <- shiny::reactive({
-      svm.table = svm_identification[[input[['tableSample']]]]
+      svm.table = svm.identification[[input[['tableSample']]]]
       colnames(svm.table)=c('m_z','SVM_corr')
       svm.table = merge(svm.table,anno[,c('m_z','name')],all.x=T)
-      if (DEresults()$runDE==1){
-        deres = DEresults()$DE()$DEtable[,c('m_z','pvalAdj','lfc')]
-        deres$DE = deres$m_z %in% DEresults()$DE()$DEtableSubset$m_z
+      if (de.results()$runDE==1){
+        deres = de.results()$DE()$DEtable[,c('m_z','pvalAdj','lfc')]
+        deres$DE = deres$m_z %in% de.results()$DE()$DEtableSubset$m_z
         svm.table = merge(svm.table,deres,all.x=T)
       }
       svm.table = svm.table[order(-svm.table$SVM_corr),]
@@ -489,20 +494,20 @@ PixelSVMServer <- function(id, bulk.metadata, full.metadata, full.intensity.matr
       # for this phantomjs has to be available
       filename = function() { input[['heatmapFileName']] },
       content = function(file) {
-        svm.peaks = Reduce(union,lapply(FUN = function(x)utils::head(x$peak,input[['topNumPeaksHeatmap']]),X=svm_identification))
+        svm.peaks = Reduce(union,lapply(FUN = function(x)utils::head(x$peak,input[['topNumPeaksHeatmap']]),X=svm.identification))
         
-        svm_identification_sub = lapply(svm_identification,function(x)x[x$peak%in%svm.peaks,])
-        svm_identification_sub = dplyr::bind_rows(svm_identification_sub,.id = 'sample')
-        svm_identification_sub_square = as.data.frame(tidyr::pivot_wider(svm_identification_sub,id_cols = 'sample',names_from = 'peak',values_from = 'cor'))
-        rownames(svm_identification_sub_square)=svm_identification_sub_square$sample
-        svm_identification_sub_square = as.data.frame(t(svm_identification_sub_square[,2:ncol(svm_identification_sub_square)]))
-        peaks = rownames(svm_identification_sub_square)
+        svm.identification_sub = lapply(svm.identification,function(x)x[x$peak%in%svm.peaks,])
+        svm.identification_sub = dplyr::bind_rows(svm.identification_sub,.id = 'sample')
+        svm.identification_sub_square = as.data.frame(tidyr::pivot_wider(svm.identification_sub,id_cols = 'sample',names_from = 'peak',values_from = 'cor'))
+        rownames(svm.identification_sub_square)=svm.identification_sub_square$sample
+        svm.identification_sub_square = as.data.frame(t(svm.identification_sub_square[,2:ncol(svm.identification_sub_square)]))
+        peaks = rownames(svm.identification_sub_square)
         peaks = stringr::str_wrap(anno[match(peaks,anno$m_z),]$name,30)
-        mat <- svm_identification_sub_square
+        mat <- svm.identification_sub_square
         mat[] <- peaks
         my.plot = heatmaply::heatmaply_cor(
-          svm_identification_sub_square,
-          limits = c(min(svm_identification_sub_square),1),
+          svm.identification_sub_square,
+          limits = c(min(svm.identification_sub_square),1),
           custom_hovertext=mat,
           height = input[['heatmapHeight']],
           width = input[['heatmapWidth']],

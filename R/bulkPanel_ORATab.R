@@ -1,24 +1,24 @@
-#' Bulk Over-Representation Analysis Panel Module
-#' @description Over-representation analysis (ORA) module for KEGG pathway enrichment.
-#' Tests whether differentially expressed metabolites are enriched in specific pathways.
-#' Key features include:
-#' - Pathway filtering by size and hit counts
-#' - P-value based significance thresholding
-#' - Interactive volcano plot for pathway visualization
-#' - KEGG hierarchy categorization of pathways
-#' - Pathway co-occurrence network showing metabolite sharing
+#' Performs pathway over-representation analysis
 #'
-#' @details Accepts DE results from the differential intensity analysis module
-#' and maps significant metabolites to KEGG pathways. Supports visualization of
-#' pathway relationships through network graphs where edge weights represent
-#' Jaccard similarity of pathway metabolite composition.
+#' @description UI and server logic for over-representation analysis (ORA) of KEGG pathway enrichment. Tests whether differentially expressed metabolites are enriched in specific pathways.
 #'
-#' @keywords internal
-#' @name bulk_ora_panel
-
-#' @rdname bulk_ora_panel
+#' @details
+#' \itemize{
+#'   \item{Pathway filtering by size and hit counts}
+#'   \item{P-value based significance thresholding}
+#'   \item{Interactive volcano plot for pathway visualization}
+#'   \item{KEGG hierarchy categorization of pathways}
+#'   \item{Pathway co-occurrence network showing metabolite sharing}
+#'   \item{Accepts DE results from the differential intensity analysis module and maps significant metabolites to KEGG pathways. Supports visualization of pathway relationships through network graphs where edge weights represent Jaccard similarity of pathway metabolite composition.}
+#' }
+#' @name BulkPanel_ORATab
+#' @rdname BulkPanel_ORATab
+#' @param id Shiny module id (for both UI and server)
+#' @param bulk.metadata Data frame with bulk sample metadata
+#' @param show Logical; whether to render the panel (default: TRUE)
+#' @return A shiny::tabPanel containing the UI elements for the ORA panel
 #' @export
-BulkORAUI <- function(id, bulk.metadata, show = TRUE){
+BulkPanel_ORATabUI <- function(id, bulk.metadata, show = TRUE){
   ns <- shiny::NS(id)
 
   if(show){
@@ -127,21 +127,23 @@ BulkORAUI <- function(id, bulk.metadata, show = TRUE){
   }
 }
 
-# ============ SERVER FUNCTIONS ============
-
-#' @rdname bulk_ora_panel
+#' @rdname BulkPanel_ORATab
+#' @param bulk.intensity.matrix Numeric matrix of bulk sample intensities (features × samples)
+#' @param de.results Reactive expression or data frame of differential expression results
+#' @param anno Data frame with peak annotation (must include 'display_name' and 'm_z')
+#' @param organism Character string specifying the organism (for KEGG mapping)
 #' @export
-BulkORAServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresults, anno, organism){
+BulkPanel_ORATabServer <- function(id, bulk.intensity.matrix, bulk.metadata, de.results, anno, organism){
 
   # check whether inputs (other than id) are reactive or not
   stopifnot({
-    shiny::is.reactive(DEresults)
+    shiny::is.reactive(de.results)
   })
 
   shiny::moduleServer(id, function(input, output, session){
 
     get_ORA <- shiny::reactive({
-      execute_ora(de_peaks = DEresults()$DE()$DEtableSubset,
+      bulk_utils_execute_ora(de_peaks = de.results()$DE()$DEtableSubset,
                   path_dict = NULL,
                   background = input[['background_selector']],
                   min_path_size = input[['min_pathway_size']],
@@ -257,7 +259,7 @@ BulkORAServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresults, a
     })
 
     volcano <- shiny::reactive({
-      return(ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']],selectedPathways()))
+      return(bulk_utils_ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']],selectedPathways()))
 
     }) |> shiny::bindEvent(input[["submit_from_ora"]])
 
@@ -280,7 +282,7 @@ BulkORAServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresults, a
     output[['downloadVolcano']] <- shiny::downloadHandler(
       filename = function() { input[['volcanoFileName']] },
       content = function(file) {
-        ggplot2::ggsave(file, plot = ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']],selectedPathways())$volcano,
+        ggplot2::ggsave(file, plot = bulk_utils_ora_volcano_plot(get_ORA(),input[['ora_pvalue_cutoff']],selectedPathways())$volcano,
                         dpi = 300, width=input[['volcanoWidth']],height=input[['volcanoHeight']])
       }
     )

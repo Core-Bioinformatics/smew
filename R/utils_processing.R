@@ -7,12 +7,11 @@
 ##'
 ##' @param metadata Data frame with columns Sample, x, y, and spot_id.
 ##' @return Data frame with new columns x_tf and y_tf, normalized per sample.
-##' @keywords spatial, normalization
-##' @export
-transform_sample_coordinates <- function(metadata) {
+##' @keywords internal
+preprocessing_transform_sample_coordinates <- function(metadata) {
   metadata$x_tf <- NA
   metadata$y_tf <- NA
-  gcd = get_gcds(metadata)
+  gcd = preprocessing_get_gcds(metadata)
   for (sample in unique(metadata$Sample)) {
     idx <- which(metadata$Sample == sample)
     x = metadata$x[idx]
@@ -33,9 +32,8 @@ transform_sample_coordinates <- function(metadata) {
 ##' @param adduct_table Data frame with columns 'Ion_Name' (adduct names) and 'Ion_Mass' (adduct formulas as character expressions, using "PROTON" for H+).
 ##' @param mw Numeric vector of molecular weights to calculate adducts for.
 ##' @return Data frame with molecular weight in first column and calculated adduct m/z values in subsequent columns (one per adduct).
-##' @keywords adducts, mass-spectrometry
-##' @export
-compute_adduct_weights <- function(adduct_table, mw) {
+##' @keywords internal
+preprocessing_compute_adduct_weights <- function(adduct_table, mw) {
   # Extract adduct information
   ion_name <- adduct_table$Ion_Name
   ion_mass <- adduct_table$Ion_Mass
@@ -57,13 +55,12 @@ compute_adduct_weights <- function(adduct_table, mw) {
 ##'
 ##' Matches experimental m/z values against theoretical masses with adduct modifications, returning compounds within specified ppm tolerance.
 ##'
-##' @param adducts_table Data frame with molecular weights and adduct m/z values (output of compute_adduct_weights).
+##' @param adducts_table Data frame with molecular weights and adduct m/z values (output of preprocessing_compute_adduct_weights).
 ##' @param mz_list Numeric vector of experimental m/z values to match.
 ##' @param allowed_dppm Numeric; mass tolerance in parts per million (ppm).
 ##' @return Data frame with columns: exp_peak, allowed_tolerance, observed_difference, theoretical_mass, adduct, theoretical_mass_w_adduct, ppm_error.
-##' @keywords matching, adducts, mass-spectrometry
-##' @export
-get_matched_comps <- function(adducts_table, mz_list, allowed_dppm) {
+##' @keywords internal
+preprocessing_get_matched_comps <- function(adducts_table, mz_list, allowed_dppm) {
   # Calculate tolerance window for each peak
   tolerance <- mz_list * allowed_dppm * 1e-06
 
@@ -145,9 +142,8 @@ get_matched_comps <- function(adducts_table, mz_list, allowed_dppm) {
 ##' @param adducts Character vector of adduct names to use.
 ##' @param neg_adduct_formulas,pos_adduct_formulas Data frames with negative/positive ionisation adduct formulas.
 ##' @return Data frame of matched peaks with compound annotations and adduct information.
-##' @keywords matching, annotation, KEGG
-##' @export
-get_matched_peaks <- function(kegg_db = NULL, peak_list = NULL,
+##' @keywords internal
+preprocessing_get_matched_peaks <- function(kegg_db = NULL, peak_list = NULL,
                                ppm = 5, ion_mode = NULL,
                                adducts = NULL, neg_adduct_formulas = NULL,
                                pos_adduct_formulas = NULL) {
@@ -187,10 +183,10 @@ get_matched_peaks <- function(kegg_db = NULL, peak_list = NULL,
   nafter = dplyr::n_distinct(filt_kegg_db$compound_id)
 
   # compute theoretical masses for all compounds+adducts in the kegg dataset
-  adducts_computed = compute_adduct_weights(my_adduct_formulas,filt_kegg_db$complete_compound_mass)
+  adducts_computed = preprocessing_compute_adduct_weights(my_adduct_formulas,filt_kegg_db$complete_compound_mass)
 
   # match experimental peaks to calculated adducts
-  matched_comps = get_matched_comps(adducts_table = adducts_computed,
+  matched_comps = preprocessing_get_matched_comps(adducts_table = adducts_computed,
                                     mz_list = exp_peak_list,
                                     allowed_dppm = ppm)
 
@@ -250,8 +246,8 @@ get_matched_peaks <- function(kegg_db = NULL, peak_list = NULL,
 ##' @param ion_mode Character; ionisation mode.
 ##' @param ppm Numeric; mass tolerance in ppm.
 ##' @return List with: intensity_matrix (features x samples), metadata (sample-level), matched_peaks (data frame), annotation_table (data frame).
-##' @keywords bulk, aggregation, annotation
-create_bulk_exp <- function(intensity.matrix,
+##' @keywords internal
+preprocessing_create_bulk_exp <- function(intensity.matrix,
                             metadata,
                             sample.id.column = 4,
                             sample.wide.columns = c(),
@@ -279,7 +275,7 @@ create_bulk_exp <- function(intensity.matrix,
   }
 
   #finished current stuff
-  matched_peaks = get_matched_peaks(kegg_db = kegg_db,
+  matched_peaks = preprocessing_get_matched_peaks(kegg_db = kegg_db,
                                     peak_list = gsub('mz_','',rownames(intensity.matrix.mean)),
                                     ppm = ppm,
                                     ion_mode = ion_mode,
@@ -322,9 +318,8 @@ create_bulk_exp <- function(intensity.matrix,
 ##'
 ##' @param x Numeric vector.
 ##' @return Integer; greatest common divisor.
-##' @keywords grid, gcd
-##' @export
-GCD <- function(x) {
+##' @keywords internal
+preprocessing_calculate_gcd <- function(x) {
   m = min(x)
 
   while (any(x %% m > 0)){
@@ -340,9 +335,8 @@ GCD <- function(x) {
 ##'
 ##' @param metadata Data frame with 'Sample', 'spot_id', 'x', and 'y' columns.
 ##' @return Numeric; unique GCD value for the grid spacing.
-##' @keywords grid, spacing
-##' @export
-get_gcds <- function(metadata){
+##' @keywords internal
+preprocessing_get_gcds <- function(metadata){
   gcd.values = list()
   for (sample in unique(metadata$Sample)){
     metadata.sub = metadata |> dplyr::filter(Sample==sample)
@@ -354,8 +348,8 @@ get_gcds <- function(metadata){
     min.y = min(pos$y)
     pos$x = pos$x - min.x
     pos$y = pos$y - min.y
-    gcd.x = GCD(round(unique(pos$x)[unique(pos$x)!=0]))
-    gcd.y = GCD(round(unique(pos$y)[unique(pos$y)!=0]))
+    gcd.x = preprocessing_calculate_gcd(round(unique(pos$x)[unique(pos$x)!=0]))
+    gcd.y = preprocessing_calculate_gcd(round(unique(pos$y)[unique(pos$y)!=0]))
     if (gcd.x!=gcd.y){
       message('Mismatching gap!')
     } else {
@@ -377,9 +371,8 @@ get_gcds <- function(metadata){
 ##' @param sample Character or factor specifying the sample/group to denoise.
 ##' @param ncores Integer; number of cores for parallelisation (default 1).
 ##' @return Data frame of denoised intensities for the selected sample (pixels x features).
-##' @keywords denoise, spatial, pca
-##' @export
-denoise.intensity <- function(metadata, intensity.matrix, sample, ncores = 1) {
+##' @keywords internal
+preprocessing_denoise.intensity <- function(metadata, intensity.matrix, sample, ncores = 1) {
   # Subset metadata and intensity matrix for the sample
   current.metadata <- metadata |> dplyr::filter(Sample == sample)
   rownames(current.metadata) <- current.metadata$pixel_id
@@ -414,7 +407,7 @@ denoise.intensity <- function(metadata, intensity.matrix, sample, ncores = 1) {
     rownames(current.intensity),
     simplify = TRUE,
     USE.NAMES = TRUE,
-    FUN = function(x) pick.neighbours.per.pixel(x, cor.matrix, distance.matrix, current.intensity, 1, w)
+    FUN = function(x) preprocessing_pick.neighbours.per.pixel(x, cor.matrix, distance.matrix, current.intensity, 1, w)
   )
   all.intensities <- data.frame(t(all.intensities))
   return(all.intensities)
@@ -431,9 +424,8 @@ denoise.intensity <- function(metadata, intensity.matrix, sample, ncores = 1) {
 ##' @param gcd Numeric; grid spacing value for the sample.
 ##' @param w Weight matrix (correlation * distance).
 ##' @return Numeric vector of denoised intensities for pixel i.
-##' @keywords denoise, neighbourhood
-##' @export
-pick.neighbours.per.pixel <- function(i,cor.matrix,distance.matrix,current.intensity,gcd,w){
+##' @keywords internal
+preprocessing_pick.neighbours.per.pixel <- function(i,cor.matrix,distance.matrix,current.intensity,gcd,w){
   # Get all neighbour indices within 3*gcd (excluding self)
   dists <- distance.matrix[i, ]
   valid_idx <- which(dists < 3 * gcd & names(dists) != i)
@@ -464,21 +456,20 @@ pick.neighbours.per.pixel <- function(i,cor.matrix,distance.matrix,current.inten
 
 ##' Denoise all samples and combine
 ##'
-##' Runs denoise.intensity for each sample and combines the results.
+##' Runs preprocessing_denoise.intensity for each sample and combines the results.
 ##'
 ##' @param metadata Data frame with pixel metadata (must include Sample column).
 ##' @param intensity.matrix Full intensity matrix (pixels x features).
 ##' @return Data frame of combined denoised intensities (pixels x features).
-##' @keywords denoise, combine
-##' @export
-denoise_all_samples <- function(metadata, intensity.matrix) {
+##' @keywords internal
+preprocessing_denoise_all_samples <- function(metadata, intensity.matrix) {
   samples <- unique(metadata$Sample)
   denoised_list <- vector("list", length(samples))
   names(denoised_list) <- samples
   for (i in seq_along(samples)) {
     sample <- samples[i]
     message(paste("Denoising sample:", sample))
-    denoised_list[[i]] <- denoise.intensity(metadata, intensity.matrix, sample)
+    denoised_list[[i]] <- preprocessing_denoise.intensity(metadata, intensity.matrix, sample)
   }
   combined <- do.call(rbind, denoised_list)
   return(combined)
@@ -492,9 +483,8 @@ denoise_all_samples <- function(metadata, intensity.matrix) {
 ##' @param intensity.matrix Full intensity matrix (pixels x features).
 ##' @param agg_fun Aggregation function (e.g., mean, median).
 ##' @return List with bulk_intensity (features x samples) and bulk_metadata (samples x columns).
-##' @keywords bulk, aggregation
-##' @export
-create_bulk_matrix <- function(metadata, intensity.matrix, agg_fun = mean) {
+##' @keywords internal
+preprocessing_create_bulk_matrix <- function(metadata, intensity.matrix, agg_fun = mean) {
   samples <- unique(metadata$Sample)
   # Identify columns with only one value per sample
   single_value_cols <- sapply(metadata, function(col) {
@@ -520,7 +510,7 @@ create_bulk_matrix <- function(metadata, intensity.matrix, agg_fun = mean) {
 
 ##' Map peak masses to KEGG names
 ##'
-##' Maps a vector of m/z peak values to KEGG compound names and adducts using get_matched_peaks.
+##' Maps a vector of m/z peak values to KEGG compound names and adducts using \code{\link{preprocessing_get_matched_peaks}}.
 ##'
 ##' @param peak_list Numeric vector of experimental m/z values.
 ##' @param kegg_db Data frame with KEGG compound information.
@@ -529,11 +519,10 @@ create_bulk_matrix <- function(metadata, intensity.matrix, agg_fun = mean) {
 ##' @param neg_adduct_formulas,pos_adduct_formulas Data frames with negative/positive adduct formulas.
 ##' @param ppm Numeric; mass tolerance in ppm (default: 5).
 ##' @return Data frame mapping each peak to KEGG compound/adduct info.
-##' @keywords annotation, KEGG
-##' @export
-map_peaks_to_kegg <- function(peak_list, kegg_db, adducts, ion_mode,
+##' @keywords internal
+preprocessing_map_peaks_to_kegg <- function(peak_list, kegg_db, adducts, ion_mode,
                              neg_adduct_formulas, pos_adduct_formulas, ppm = 5) {
-  matched_peaks <- get_matched_peaks(
+  matched_peaks <- preprocessing_get_matched_peaks(
     kegg_db = kegg_db,
     peak_list = peak_list,
     ppm = ppm,
@@ -567,14 +556,13 @@ map_peaks_to_kegg <- function(peak_list, kegg_db, adducts, ion_mode,
 ##' For a given peak list and annotation table, create a combined annotation table in the order of the input peaks. Multiple annotations are pasted together, and NAs are included if no match exists.
 ##'
 ##' @param peak_list Numeric vector of original peaks (order preserved).
-##' @param anno_table Data frame from map_peaks_to_kegg.
+##' @param anno_table Data frame from preprocessing_map_peaks_to_kegg.
 ##' @param fields Character vector of annotation columns to combine (default: c('adduct','compound_name','compound_id')).
 ##' @param sep Separator for multiple annotations (default: ', ').
 ##' @param organism Character; organism for pathway filtering ('Human', 'Mouse', 'Rat').
 ##' @return Data frame with one row per peak, columns for each annotation field, and display_name.
-##' @keywords annotation, combine
-##' @export
-combine_peak_annotations <- function(peak_list, anno_table, fields = c('adduct','compound_name','compound_id'), sep = ', ', organism = 'Human') {
+##' @keywords internal
+preprocessing_combine_peak_annotations <- function(peak_list, anno_table, fields = c('adduct','compound_name','compound_id'), sep = ', ', organism = 'Human') {
   if (!is.null(organism)) {
     if (organism == 'Human'){
       anno_table = anno_table[anno_table$human_pathway == 'True',]
@@ -620,9 +608,8 @@ combine_peak_annotations <- function(peak_list, anno_table, fields = c('adduct',
 ##' @param point_size Numeric; size of overlay points.
 ##' @param alpha Numeric; transparency of overlay points.
 ##' @return ggplot object with overlay.
-##' @keywords plot, overlay, image
-##' @export
-plot_pixel_overlay_on_image <- function(coords, sample_name, image_file, point_size = 1, alpha = 0.7) {
+##' @keywords internal
+preprocessing_plot_pixel_overlay_on_image <- function(coords, sample_name, image_file, point_size = 1, alpha = 0.7) {
 
   if (file.exists(image_file)){
     img <- jpeg::readJPEG(image_file)

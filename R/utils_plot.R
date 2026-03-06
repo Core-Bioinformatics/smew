@@ -1,5 +1,3 @@
-# Plot utility helpers for SMEW Shiny app
-
 ##' Generic downloadHandler creator for ggplot objects
 ##'
 ##' Creates a Shiny downloadHandler for exporting ggplot objects to file with dynamic filename, width, and height.
@@ -11,8 +9,8 @@
 ##' @param units Character; units for ggsave (default 'in').
 ##' @param dpi Numeric; DPI for ggsave (default 300).
 ##' @return A Shiny downloadHandler object to assign to output[[id]].
-##' @keywords shiny, plot, download
-create_download_plot_handler <- function(plot_func,
+##' @keywords internal
+utils_create_download_plot_handler <- function(plot_func,
                                          filename_func,
                                          width_func,
                                          height_func,

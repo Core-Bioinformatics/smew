@@ -1,45 +1,29 @@
-
-#' Dimensionality reduction and clustering utilities
-#' @description Helper functions and Shiny UI/server logic for dimensionality reduction (PCA/NMF), plotting and cluster handling used in the Region Analysis tab.
-#' @keywords internal
-
-ColorBlender <- function (
-    data,
-    channels.use = NULL
-) {
-  rgb.order <- stats::setNames(1:3, c("red", "green", "blue"))
-  if (!length(channels.use) == ncol(data)) {
-    stop(paste0("channels.use must be same length as number of features or dimensions"))
-  } else if (!all(channels.use %in% names(rgb.order))) {
-    stop("Invalid color names in channels.use. Valid options are: 'red', 'green' and 'blue'")
-  } else if (sum(duplicated(channels.use))){
-    stop("Duplicate color names are not allowed in channels.use")
-  }
-  col.order <- rgb.order[channels.use]
-
-  if (ncol(data) == 2) {
-    first_vec <- data[, 1]
-    second_vec <- data[, 2]
-    data <- matrix(data = 0, nrow = nrow(data), ncol = 3)
-    data[, col.order[1]] <- first_vec; data[, col.order[2]] <- second_vec
-  } else if (ncol(data) == 3) {
-    data <- data[, col.order]
-  }
-  color.codes <- grDevices::rgb(data)
-}
-
-##' RegionDimRedUI
-##'
-##' UI for the region-level dimensionality reduction tab in the SMEW app.
-##'
-##' @param id Shiny module id
-##' @param bulk.metadata Data frame of bulk sample metadata
-##' @param full.metadata Data frame of full sample metadata
-##' @param full.intensity.matrix Matrix of intensities (features x samples)
-##' @param show Logical; whether to show the panel (default TRUE)
-##' @return A shiny tabPanel object for the dimensionality reduction tab
-##' @export
-RegionDimRedUI <- function(id, bulk.metadata, full.metadata, full.intensity.matrix,show = TRUE){
+#' Applies and visualises dimensionality reduction
+#'
+#' @description UI and server logic for the Dimensionality Reduction panel, enabling users to perform and visualise dimensionality reduction (PCA, NMF, UMAP) on spatial omics data at the region/pixel level. Supports sample selection, component/factor extraction, spatial and UMAP visualisation, and download of results.
+#'
+#' @details
+#' \itemize{
+#'   \item{Performs dimensionality reduction (PCA, NMF) on all pixels across selected samples, followed by UMAP projection into 2 dimensions.}
+#'   \item{User selects the number of components/factors to compute.}
+#'   \item{Dimensionality reduction is only performed when the 'Run dimensionality reduction' button is pressed.}
+#'   \item{Distribution of factor/component values by metadata column can be visualised, and top contributing peaks extracted.}
+#'   \item{Resulting components/factors can be visualised spatially, and a UMAP can be calculated to visualise the reduction in 2D.}
+#'   \item{Pixels in the UMAP can be coloured by metadata or peak intensity.}
+#'   \item{Regions can be created based on thresholding dimensionality reductions.}
+#'   \item{All results and plots are available for download.}
+#' }
+#'
+#' @rdname RegionPanel_DimRedTab
+#' @name RegionPanel_DimRedTab
+#' @param id Shiny module id
+#' @param bulk.metadata Data frame of bulk sample metadata
+#' @param full.metadata Data frame of full sample metadata
+#' @param full.intensity.matrix Matrix of intensities (features x samples)
+#' @param show Logical; whether to show the panel (default TRUE)
+#' @return A shiny tabPanel object for the dimensionality reduction tab
+#' @export
+RegionPanel_DimRedTabUI <- function(id, bulk.metadata, full.metadata, full.intensity.matrix,show = TRUE){
   ns <- shiny::NS(id)
   # add option to name cluster and retain it
   if(show){
@@ -259,19 +243,16 @@ RegionDimRedUI <- function(id, bulk.metadata, full.metadata, full.intensity.matr
   }
   }
 
-##' RegionDimRedServer
-##'
-##' Server logic for the region-level dimensionality reduction tab in the SMEW app.
-##'
-##' @param id Shiny module id
-##' @param full.intensity.matrix Matrix of intensities (features x samples)
-##' @param full.metadata Data frame of full sample metadata
-##' @param bulk.metadata Data frame of bulk sample metadata
-##' @param anno Data frame of peak annotations
-##' @param shared_data Reactive or shared data object
-##' @return None; called for side effects in Shiny module
-##' @export
-RegionDimRedServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, anno, shared_data){
+#' @rdname RegionPanel_DimRedTab
+#' @param id Shiny module id
+#' @param full.intensity.matrix Matrix of intensities (features x samples)
+#' @param full.metadata Data frame of full sample metadata
+#' @param bulk.metadata Data frame of bulk sample metadata
+#' @param anno Data frame of peak annotations
+#' @param shared_data Reactive or shared data object
+#' @return None; called for side effects in Shiny module
+#' @export
+RegionPanel_DimRedTabServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, anno, shared_data){
 
   shiny::moduleServer(id, function(input, output, session){
 
@@ -619,8 +600,8 @@ RegionDimRedServer <- function(id, full.intensity.matrix, full.metadata, bulk.me
         # Rescale for color blending
         current.metadata$UMAP_1_scaled <- scales::rescale(current.metadata$UMAP_1)
         current.metadata$UMAP_2_scaled <- scales::rescale(current.metadata$UMAP_2)
-        colors <- ColorBlender(current.metadata[, c('UMAP_1_scaled', 'UMAP_2_scaled')], channels.use = c("red", "blue"))
-        current.metadata$my.color <- colors
+        colours <- region_utils_colour_blender(current.metadata[, c('UMAP_1_scaled', 'UMAP_2_scaled')], channels.use = c("red", "blue"))
+        current.metadata$my.colour <- colours
 
         shiny::incProgress(0.3)
         return(list('metadata' = current.metadata, 'spe_obj' = spe))
@@ -679,9 +660,9 @@ RegionDimRedServer <- function(id, full.intensity.matrix, full.metadata, bulk.me
       if (nrow(current.metadata) > 0) {
         current.metadata$UMAP_1_scaled <- scales::rescale(current.metadata$UMAP_1)
         current.metadata$UMAP_2_scaled <- scales::rescale(current.metadata$UMAP_2)
-        current.metadata$my.color <- ColorBlender(current.metadata[,c('UMAP_1_scaled','UMAP_2_scaled')], channels.use = c("red","blue"))
+        current.metadata$my.colour <- region_utils_colour_blender(current.metadata[,c('UMAP_1_scaled','UMAP_2_scaled')], channels.use = c("red","blue"))
       }
-      # Recalculate selectedPeak and color function for the subset using safe alignment by pixel_id
+      # Recalculate selectedPeak and colour function for the subset using safe alignment by pixel_id
       if (input[['colourUMAP']] %in% colnames(get_subset_exp()$exp)) {
         exp_mat <- get_subset_exp()$exp
         # Prefer matching by pixel_id to avoid rowname-based out-of-bounds
@@ -709,7 +690,7 @@ RegionDimRedServer <- function(id, full.intensity.matrix, full.metadata, bulk.me
         current.metadata$selectedPeak <- current.metadata[,input[['colourUMAP']]]
         colour.function <- ggplot2::scale_color_discrete(name=input[['colourUMAP']])
       }
-      ggplot2::ggplot(current.metadata, ggplot2::aes(x = .data$x_tf, y = .data$y_tf, color = .data$my.color, fill = .data$my.color)) +
+      ggplot2::ggplot(current.metadata, ggplot2::aes(x = .data$x_tf, y = .data$y_tf, color = .data$my.colour, fill = .data$my.colour)) +
         ggplot2::geom_tile() +
         ggplot2::theme_classic() +
         ggplot2::scale_color_identity() +
@@ -813,7 +794,7 @@ RegionDimRedServer <- function(id, full.intensity.matrix, full.metadata, bulk.me
       nmf_umap_zoom()
     })
 
-    output[['downloadSpatialUMAP']] <- create_download_plot_handler(
+    output[['downloadSpatialUMAP']] <- utils_create_download_plot_handler(
       plot_func = function() nmf_umap()$SpatialView,
       filename_func = function() input[['spatialUMAPFileName']],
       width_func = function() input[['spatialUMAPWidth']],
@@ -824,7 +805,7 @@ RegionDimRedServer <- function(id, full.intensity.matrix, full.metadata, bulk.me
       nmf_umap()$UMAP
     )
 
-    output[['downloadUMAP']] <- create_download_plot_handler(
+    output[['downloadUMAP']] <- utils_create_download_plot_handler(
       plot_func = function() nmf_umap()$SpatialView,
       filename_func = function() input[['umapFileName']],
       width_func = function() input[['umapWidth']],
@@ -861,31 +842,31 @@ RegionDimRedServer <- function(id, full.intensity.matrix, full.metadata, bulk.me
       })
     })
 
-    output[['downloadPerSampleDimRed']] <- create_download_plot_handler(
+    output[['downloadPerSampleDimRed']] <- utils_create_download_plot_handler(
       plot_func = nmf_persample,
       filename_func = function() input[['perSampleFileName']],
       width_func = function() input[['perSampleWidth']],
       height_func = function() input[['perSampleHeight']]
     )
-    output[['downloadDimRedSpatial']] <- create_download_plot_handler(
+    output[['downloadDimRedSpatial']] <- utils_create_download_plot_handler(
       plot_func = function() nmf_plot()$plot,
       filename_func = function() input[['dimRedSpatialFileName']],
       width_func = function() input[['dimRedSpatialWidth']],
       height_func = function() input[['dimRedSpatialHeight']]
     )
-    output[['downloadDimRedWeights']] <- create_download_plot_handler(
+    output[['downloadDimRedWeights']] <- utils_create_download_plot_handler(
       plot_func = nmf_featureweights,
       filename_func = function() input[['dimRedWeightsFileName']],
       width_func = function() input[['dimRedWeightsWidth']],
       height_func = function() input[['dimRedWeightsHeight']]
     )
-    output[['downloadClusterSpatial']] <- create_download_plot_handler(
+    output[['downloadClusterSpatial']] <- utils_create_download_plot_handler(
       plot_func = cluster_plot,
       filename_func = function() input[['clusterSpatialFileName']],
       width_func = function() input[['clusterSpatialWidth']],
       height_func = function() input[['clusterSpatialHeight']]
     )
-    output[['downloadClusterBox']] <- create_download_plot_handler(
+    output[['downloadClusterBox']] <- utils_create_download_plot_handler(
       plot_func = cluster_boxplot,
       filename_func = function() input[['clusterBoxFileName']],
       width_func = function() input[['clusterBoxWidth']],

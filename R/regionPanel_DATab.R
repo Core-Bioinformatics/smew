@@ -1,72 +1,40 @@
-#' Region differential expression utilities
-#' @description Functions to create pseudobulk representations of user-defined regions and prepare metadata for region-level DE.
-#' @keywords internal
-create_bulk_exp_regions <- function(intensity.matrix,
-                                    metadata,
-                                    bulk.metadata,
-                                    sample.id.metadata.column,
-                                    region.ids,
-                                    minimum.pixels = 3
-) {
-  # Add extra checks
-  intensity.matrix$sample <- metadata$Sample
-  intensity.matrix$region <- factor(region.ids)
-
-  intensity.matrix.mean <- dplyr::filter(intensity.matrix, !is.na(region)) |>
-    dplyr::group_by(sample, region) |>
-    dplyr::summarise(dplyr::across(dplyr::everything(), mean), n = dplyr::n(), .groups = 'drop')
-
-  intensity.matrix.mean = intensity.matrix.mean[intensity.matrix.mean$n > minimum.pixels, ]
-  sample.names = paste0(intensity.matrix.mean$sample, '_', intensity.matrix.mean$region)
-  # Remove 'n' column before transpose so it never becomes a row
-  intensity.matrix.mean <- intensity.matrix.mean[, !(colnames(intensity.matrix.mean) %in% c('sample', 'region', 'n'))]
-  intensity.matrix.mean <- dplyr::rename_with(
-    as.data.frame(
-      t(
-        as.matrix(intensity.matrix.mean)
-      )
-    ),
-    ~sample.names
-  )
-
-  for (region in unique(region.ids[!is.na(region.ids)])) {
-    current.metadata = bulk.metadata
-    current.metadata$AllSamples = 'AllSamples'
-    current.metadata = data.frame(lapply(current.metadata, function(x) paste(x, region, sep = "_")))
-    if (region == unique(region.ids[!is.na(region.ids)])[1]) {
-      metadata.mean = current.metadata
-    } else {
-      metadata.mean = rbind(metadata.mean,current.metadata)
-    }
-  }
-  metadata.mean = metadata.mean[metadata.mean[,1]%in%colnames(intensity.matrix.mean),]
-  intensity.matrix.mean = intensity.matrix.mean[,metadata.mean[,1]]
-  return(list('intensity.matrix'=as.matrix(intensity.matrix.mean),'metadata'=metadata.mean))
-}
-
-
-#' RegionClusterDEUI
+#' Performs and visualises region-based differential analysis
 #'
-#' UI for region-based differential expression analysis tab.
+#' @description UI and server logic for the Region-Based Differential Analysis (DA) panel, enabling statistical comparison of user-defined regions (e.g., clusters, spatial regions, or metadata-defined groups) in spatial omics data. Supports pseudobulking, group selection, statistical testing, thresholding, and visualisation of results (tables, boxplots, volcano plots). Users can download results and plots for downstream analysis.
 #'
-#' @param id Shiny module id
-#' @param bulk.metadata Data frame of bulk sample metadata
-#' @param full.metadata Data frame of full sample metadata
-#' @param show Logical; whether to show the panel (default TRUE)
-#' @return A shiny tabPanel object for the region-based DE tab
+#' @details
+#' \itemize{
+#'   \item{Allows users to perform differential analysis between two groups of pixels or regions, such as clusters or metadata-defined groups.}
+#'   \item{Select a grouping variable (e.g., experimental condition, cluster), and specify the two groups to compare.}
+#'   \item{Choose a statistical test (t-test or Wilcoxon rank sum), adjust for multiple testing, and set thresholds for significance.}
+#'   \item{Results are displayed as interactive volcano plots, tables, and boxplots.}
+#'   \item{Download significant features and plots for downstream analysis or reporting.}
+#'   \item{Supports pseudobulking of regions for robust group-level comparison.}
+#' }
+#'
+#' @param id Shiny module id (for both UI and server)
+#' @param bulk.metadata Data frame of bulk sample metadata (UI)
+#' @param full.metadata Data frame of full sample metadata (UI, server)
+#' @param show Logical; whether to show the panel (default TRUE, UI)
+#' @param full.intensity.matrix Matrix of intensities (features x samples, server)
+#' @param shared_data Reactive or shared data object (server)
+#' @param anno Data frame of peak annotations (server)
+#' @return UI: A shiny tabPanel object for the region-based DA tab. Server: None; called for side effects in Shiny module.
 #' @export
-RegionClusterDEUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
+#' @name RegionPanel_DATab
+#' @rdname RegionPanel_DATab
+RegionPanel_DATabUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
   ns <- shiny::NS(id)
   
   if(show){
     shiny::tabPanel(
-      'Region-Based Differential Analysis',
+      'Region Differential Analysis',
        bslib::accordion(
           bslib::accordion_panel(
             title = "Information",
             icon = bsicons::bs_icon("arrow-right-circle"),
             shiny::tags$ul(
-              shiny::tags$li("Perform differential expression analysis between two groups of pixels (e.g., clusters, regions, or metadata-defined groups)."),
+              shiny::tags$li("Perform differential analysis between two groups of pixels (e.g., clusters, regions, or metadata-defined groups)."),
               shiny::tags$li("Select a grouping variable, such as experimental conditions, and specify the two groups to compare."),
               shiny::tags$li("Choose a statistical test, adjust for multiple testing, and view results as volcano plots and tables."),
               shiny::tags$li("Download significant features and plots for downstream analysis or reporting.")
@@ -134,19 +102,10 @@ RegionClusterDEUI <- function(id, bulk.metadata, full.metadata, show = TRUE){
   }
 }
 
-#' RegionClusterDEServer
-#'
-#' Server logic for region-based differential expression analysis tab.
-#'
-#' @param id Shiny module id
-#' @param full.intensity.matrix Matrix of intensities (features x samples)
-#' @param full.metadata Data frame of full sample metadata
-#' @param bulk.metadata Data frame of bulk sample metadata
-#' @param shared_data Reactive or shared data object
-#' @param anno Data frame of peak annotations
-#' @return None; called for side effects in Shiny module
+
+#' @rdname RegionPanel_DATab
 #' @export
-RegionClusterDEServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, shared_data, anno){
+RegionPanel_DATabServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, shared_data, anno){
 
   # Validate non-reactive constants
   stopifnot({
@@ -167,7 +126,7 @@ RegionClusterDEServer <- function(id, full.intensity.matrix, full.metadata, bulk
       pseudobulked <- NULL
       shiny::withProgress(message = 'Pseudobulking regions...', value = 0, {
         shiny::incProgress(0.2, detail = 'Preparing inputs')
-        pseudobulked <- create_bulk_exp_regions(as.data.frame(full.intensity.matrix),
+        pseudobulked <- region_utils_create_bulk_exp_regions(as.data.frame(full.intensity.matrix),
                                                 shared_data$updated.metadata,
                                                 bulk.metadata,
                                                 colnames(bulk.metadata)[1],
@@ -176,13 +135,6 @@ RegionClusterDEServer <- function(id, full.intensity.matrix, full.metadata, bulk
         shiny::incProgress(0.6, detail = 'Aggregating per-sample means')
         shiny::incProgress(0.2, detail = 'Finalizing pseudobulk outputs')
       })
-      #      if (is.null(shared_data$updated.metadata)){
-      # choices =
-      # selected = colnames(full.metadata)[colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata))][1]
-      #      } else {
-      #        choices = c('cluster',colnames(full.metadata)[colnames(full.metadata)%in%c('spot_id','x','y',colnames(bulk.metadata))])
-      #        selected = 'cluster'
-      #      }
       cond_values <- unique(pseudobulked$metadata[[input[["condition"]]]])
       shiny::updateSelectInput(session, 'variable1', choices = cond_values, selected = cond_values[1])
       if (length(cond_values) >= 2){
@@ -220,7 +172,7 @@ RegionClusterDEServer <- function(id, full.intensity.matrix, full.metadata, bulk
       DEtable <- NULL
       shiny::withProgress(message = 'Running differential analysis...', value = 0, {
         shiny::incProgress(0.2, detail = 'Preparing inputs')
-        DEtable <- de_analysis(
+        DEtable <- bulk_utils_DA(
           intensity_matrix = pseudobulk.intensity.matrix[, condition.indices],
           condition = grp,
           var1 = input[['variable1']],
@@ -322,7 +274,7 @@ RegionClusterDEServer <- function(id, full.intensity.matrix, full.metadata, bulk
       peakBox()
     })
 
-    output[['downloadBoxplot']] <- create_download_plot_handler(
+    output[['downloadBoxplot']] <- utils_create_download_plot_handler(
       plot_func = peakBox,
       filename_func = function() input[['boxplotFileName']],
       width_func = function() input[['boxplotWidth']],

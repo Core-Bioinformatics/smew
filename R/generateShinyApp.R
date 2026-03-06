@@ -1,42 +1,44 @@
-#' Write Example app.R Script
+#' Writes app.R Script
 #'
 #' This function writes a static app.R script using the provided data objects, matching the current example output of generateShinyApp.
 #'
 #' @param app_dir Directory to write the app.R file
-#' @param bulk_intensity_matrix Path to or object for bulk intensity matrix
-#' @param bulk_metadata Path to or object for bulk metadata
-#' @param intensity_matrix Path to or object for intensity matrix
-#' @param metadata Path to or object for metadata
-#' @param anno Path to or object for annotation data
+#' @param run_enrichment Logical; whether to include enrichment panel
+#' @param organism Character; organism name
+#' @param run_autocorrelation Logical; whether to include autocorrelation panel
+#' @param run_pixel_enrichment Logical; whether to include pixel enrichment panel
+#' @param has_multi_modal Logical; whether multi-modal data is present
+#' @param multi_modal_path Path to multi-modal data file (optional)
 #' @return Path to the written app.R file
-write_static_app_r <- function(app_dir, run_enrichment = FALSE, organism = NULL, run_autocorrelation = FALSE, run_pixel_enrichment = FALSE, has_multi_modal = FALSE, multi_modal_path = NULL) {
+#' @keywords internal
+preprocessing_write_app_file <- function(app_dir, run_enrichment = FALSE, organism = NULL, run_autocorrelation = FALSE, run_pixel_enrichment = FALSE, has_multi_modal = FALSE, multi_modal_path = NULL) {
   # Build UI and server code blocks based on parameters
   pseudobulk_panels <- c(
-    "BulkQCUI(id = 'BulkQC', bulk.metadata = bulk.metadata)",
-    "BulkDEUI(id = 'BulkDE', bulk.metadata = bulk.metadata)",
-    "BulkDESummaryUI(id = 'BulkSummaryDE', bulk.metadata = bulk.metadata)",
-    if (run_enrichment) "BulkORAUI(id = 'BulkORA', bulk.metadata = bulk.metadata)",
-    "BulkGRNUI(id = 'BulkGRN', bulk.metadata = bulk.metadata)",
-    "BulkMultiCompareUI(id = 'BulkMultiCompare', bulk.metadata = bulk.metadata, bulk.intensity.matrix = bulk.intensity.matrix)",
-    if (has_multi_modal) "BulkMultiGRNUI(id = 'BulkMultiGRN', bulk.metadata = bulk.metadata)"
+    "BulkPanel_QCTabUI(id = 'BulkQC', bulk.metadata = bulk.metadata)",
+    "BulkPanel_DATabUI(id = 'BulkDA', bulk.metadata = bulk.metadata)",
+    "BulkPanel_DASummaryTabUI(id = 'BulkSummaryDA', bulk.metadata = bulk.metadata)",
+    if (run_enrichment) "BulkPanel_ORATabUI(id = 'BulkORA', bulk.metadata = bulk.metadata)",
+    "BulkPanel_GRNTabUI(id = 'BulkGRN', bulk.metadata = bulk.metadata)",
+    "BulkPanel_MultiCompareTabUI(id = 'BulkMultiCompare', bulk.metadata = bulk.metadata, bulk.intensity.matrix = bulk.intensity.matrix)",
+    if (has_multi_modal) "BulkPanel_MultiGRNTabUI(id = 'BulkMultiGRN', bulk.metadata = bulk.metadata)"
   )
   region_panels <- c(
-    "RegionDimRedUI(id = 'DimRed', bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix)",
-    "RegionClusterUI(id = 'Cluster', bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix)",
-    "RegionVotingUI(id = 'Voting', bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix, anno = anno, show = TRUE)",
-    "RegionHistologyUI(id = 'HistoTab', bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix)",
-    "RegionSpatialClusterPanelUI(id = 'SpatialClusterPanel', bulk.metadata = bulk.metadata, full.metadata = metadata, show = TRUE)",
-    "RegionSmoothingUI(id = 'Smoothing')",
-    "RegionComparisonUI(id = 'Comparison')",
-    "RegionClusterDEUI('ClusterDE', bulk.metadata = bulk.metadata, full.metadata = metadata)",
-    "RegionRadialDistanceUI(id = 'Radial', bulk.metadata)",
-    "RegionGRNUI(id = 'RegionGRN', bulk.metadata)"
+    "RegionPanel_DimRedTabUI(id = 'DimRed', bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix)",
+    "RegionPanel_ClusterTabUI(id = 'Cluster', bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix)",
+    "RegionPanel_VotingTabUI(id = 'Voting', bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix, anno = anno)",
+    "RegionPanel_HistologyTabUI(id = 'HistoTab', bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix)",
+    "RegionPanel_SpatialClustersTabUI(id = 'SpatialClusterPanel', bulk.metadata = bulk.metadata, full.metadata = metadata)",
+    "RegionPanel_SpatialSmoothingTabUI(id = 'Smoothing')",
+    "RegionPanel_ComparisonTabUI(id = 'Comparison')",
+    "RegionPanel_DATabUI('ClusterDA', bulk.metadata = bulk.metadata, full.metadata = metadata)",
+    "RegionPanel_RadialDistanceTabUI(id = 'Radial', bulk.metadata)",
+    "RegionPanel_GRNTabUI(id = 'RegionGRN', bulk.metadata)"
   )
   pixel_panels <- c(
     if (run_autocorrelation | (run_pixel_enrichment & run_enrichment)) "shiny::tabPanel('Pixel-level Analysis',\nshiny::tabsetPanel(\n",
-    if (run_autocorrelation) "PixelSVMUI(id = 'PixelSVM', bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix)",
+    if (run_autocorrelation) "PixelPanel_SVMTabUI(id = 'PixelSVM', bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix)",
     if (run_autocorrelation & run_pixel_enrichment & run_enrichment) ",\n",
-    if (run_pixel_enrichment & run_enrichment) "PixelEnrichmentUI(id = 'pixelEnrichment', bulk.metadata = bulk.metadata, full.metadata = metadata, pixel_enrichment = pixel_enrichment)",
+    if (run_pixel_enrichment & run_enrichment) "PixelPanel_EnrichmentTabUI(id = 'pixelEnrichment', bulk.metadata = bulk.metadata, full.metadata = metadata, pixel.enrichment = pixel_enrichment)",
     if (run_autocorrelation | (run_pixel_enrichment & run_enrichment)) "))\n"
   )
 
@@ -45,30 +47,30 @@ write_static_app_r <- function(app_dir, run_enrichment = FALSE, organism = NULL,
   pixel_panels <- pixel_panels[!sapply(pixel_panels, is.null)]
 
   pseudobulk_server <- c(
-    "BulkQCServer(id = 'BulkQC', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno)",
-    "bulkDEres <- BulkDEServer(id = 'BulkDE', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno)",
-    "BulkDESummaryServer(id = 'BulkSummaryDE', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno, DEresults = bulkDEres)",
-    if (run_enrichment) "BulkORAServer(id = 'BulkORA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, DEresults = bulkDEres, anno = anno, organism = organism)",
-    "BulkGRNServer('BulkGRN', bulk.intensity.matrix, bulk.metadata, anno)",
-    "BulkMultiCompareServer('BulkMultiCompare', bulk.intensity.matrix, bulk.metadata, anno)",
-    if (has_multi_modal) "BulkMultiGRNServer('BulkMultiGRN', bulk.intensity.matrix, bulk.metadata, anno, multi_modal)"
+    "BulkPanel_QCTabServer(id = 'BulkQC', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno)",
+    "de_res <- BulkPanel_DATabServer(id = 'BulkDA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno)",
+    "BulkPanel_DASummaryTabServer(id = 'BulkSummaryDA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno, de.results = de_res)",
+    if (run_enrichment) "BulkPanel_ORATabServer(id = 'BulkORA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, de.results = de_res, anno = anno, organism = organism)",
+    "BulkPanel_GRNTabServer('BulkGRN', bulk.intensity.matrix, bulk.metadata, anno)",
+    "BulkPanel_MultiCompareTabServer('BulkMultiCompare', bulk.intensity.matrix, bulk.metadata, anno)",
+    if (has_multi_modal) "BulkPanel_MultiGRNTabServer('BulkMultiGRN', bulk.intensity.matrix, bulk.metadata, anno, multi_modal)"
   )
   region_server <- c(
     "shared_data <- reactiveValues(updated.metadata = metadata)",
-    "RegionDimRedServer(id = 'DimRed', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno, shared_data = shared_data)",
-    "RegionClusterServer(id = 'Cluster', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno, shared_data = shared_data)",
-    "RegionVotingServer('Voting', bulk.metadata, metadata, intensity.matrix, anno, shared_data)",
-    "RegionHistologyServer(id = 'HistoTab', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno, shared_data = shared_data)",
-    "RegionSpatialClusterPanelServer(id = 'SpatialClusterPanel', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno, shared_data = shared_data)",
-    "RegionSmoothingServer('Smoothing', shared_data, metadata)",
-    "RegionComparisonServer('Comparison', shared_data, bulk.metadata)",
-    "RegionClusterDEServer('ClusterDE', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, shared_data = shared_data, anno = anno)",
-    "RegionRadialDistanceServer(id = 'Radial', intensity.matrix, metadata, bulk.metadata, shared_data, anno)",
-    "RegionGRNServer(id = 'RegionGRN', intensity.matrix, metadata, anno, bulk.metadata, shared_data)"
+    "RegionPanel_DimRedTabServer(id = 'DimRed', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno, shared_data = shared_data)",
+    "RegionPanel_ClusterTabServer(id = 'Cluster', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno, shared_data = shared_data)",
+    "RegionPanel_VotingTabServer('Voting', bulk.metadata, metadata, intensity.matrix, anno, shared_data)",
+    "RegionPanel_HistologyTabServer(id = 'HistoTab', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno, shared_data = shared_data)",
+    "RegionPanel_SpatialClustersTabServer(id = 'SpatialClusterPanel', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, anno = anno, shared_data = shared_data)",
+    "RegionPanel_SpatialSmoothingTabServer('Smoothing', shared_data, metadata)",
+    "RegionPanel_ComparisonTabServer('Comparison', shared_data, bulk.metadata)",
+    "RegionPanel_DATabServer('ClusterDA', full.intensity.matrix = intensity.matrix, full.metadata = metadata, bulk.metadata = bulk.metadata, shared_data = shared_data, anno = anno)",
+    "RegionPanel_RadialDistanceTabServer(id = 'Radial', intensity.matrix, metadata, bulk.metadata, shared_data, anno)",
+    "RegionPanel_GRNTabServer(id = 'RegionGRN', intensity.matrix, metadata, anno, bulk.metadata, shared_data)"
   )
   pixel_server <- c(
-    if (run_autocorrelation) "PixelSVMServer(id = 'PixelSVM', bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix, anno = anno, DEresults = bulkDEres, svm_identification = svm_identification, spatial.cross.cor = spatial.cross.cor)",
-    if (run_pixel_enrichment & run_enrichment) "PixelEnrichmentServer(id = 'pixelEnrichment', bulk.metadata = bulk.metadata, full.intensity.matrix = intensity.matrix, full.metadata = metadata, anno = anno, pixel_enrichment = pixel_enrichment)"
+    if (run_autocorrelation) "PixelPanel_SVMTabServer(id = 'PixelSVM', bulk.metadata = bulk.metadata, full.metadata = metadata, full.intensity.matrix = intensity.matrix, anno = anno, de.results = de_res, svm.identification = svm_identification, spatial.cross.cor = spatial.cross.cor)",
+    if (run_pixel_enrichment & run_enrichment) "PixelPanel_EnrichmentTabServer(id = 'pixelEnrichment', bulk.metadata = bulk.metadata, full.intensity.matrix = intensity.matrix, full.metadata = metadata, anno = anno, pixel.enrichment = pixel_enrichment)"
   )
   pseudobulk_server <- pseudobulk_server[!sapply(pseudobulk_server, is.null)]
   region_server <- region_server[!sapply(region_server, is.null)]
@@ -91,14 +93,14 @@ if (run_pixel_enrichment & run_enrichment) "pixel_enrichment <- readRDS('pixel_l
 "
 ui <- function(request) {
 bslib::page_navbar(
-title = tags$img(src='logo without text.png',width='70px'),
+title = tags$img(src='logo.png',width='70px'),
 window_title = 'SMEW: Spatial Metabolomics Enhanced Workflow',
 theme = bslib::bs_theme(bootswatch = 'flatly'),
 shiny::tabPanel('Introduction',
 shiny::tabsetPanel(
-IntroOverviewUI(id = 'Overview'),
-IntroAnnoUI(id = 'Anno', bulk.metadata = bulk.metadata),
-IntroSpatialVisUI(id = 'spatialVis', bulk.metadata = bulk.metadata, full.metadata = metadata)
+IntroPanel_OverviewTabUI(id = 'Overview'),
+IntroPanel_AnnoTabUI(id = 'Anno', bulk.metadata = bulk.metadata),
+IntroPanel_SpatialVisTabUI(id = 'spatialVis', bulk.metadata = bulk.metadata, full.metadata = metadata)
 )
 ),
 shiny::tabPanel('Pseudobulk Analysis',
@@ -125,11 +127,11 @@ font = 'sans'
 )
 
 # --- Introduction Panel Servers ---
-IntroOverviewServer(id = 'Overview')
-IntroAnnoServer(id = 'Anno',
+IntroPanel_OverviewTabServer(id = 'Overview')
+IntroPanel_AnnoTabServer(id = 'Anno',
 bulk.intensity.matrix = bulk.intensity.matrix,
 bulk.metadata = bulk.metadata, anno = anno)
-IntroSpatialVisServer(id = 'spatialVis',
+IntroPanel_SpatialVisTabServer(id = 'spatialVis',
 bulk.metadata = bulk.metadata,
 full.intensity.matrix = intensity.matrix,
 full.metadata = metadata, anno = anno)
@@ -160,31 +162,62 @@ shiny::shinyApp(ui, server)
   return(app_r_path)
 }
 
-# ---- Preprocessing Function ----
-##' Preprocess Data for App Generation
-##'
-##' This function runs all necessary preprocessing steps on the input data for the SMEW app.
-##'
-##' @param intensity_csv Path to the intensity matrix CSV file
-##' @param metadata_csv Path to the metadata CSV file
-##' @param output_dir Directory to save processed data
-##' @param denoise Logical; whether to denoise the data (default FALSE)
-##' @param anno Optional annotation data.frame or NULL
-##' @param adducts Optional adducts table or NULL
-##' @param ion_mode Ionization mode (character or NULL)
-##' @param organism Organism name (default 'Human')
-##' @param ppm Numeric; mass accuracy in ppm (default 10)
-##' @param only_annotated Logical; if TRUE, only annotated peaks are used (default FALSE)
-##' @param histology_images_dir Optional directory with histology images
-##' @param run_autocorrelation Logical; whether to run spatial autocorrelation (default FALSE)
-##' @param top_autocorrelated_peaks Integer; number of top autocorrelated peaks to use (default 10)
-##' @param n_cores Number of cores for parallel processing (default 1)
-##' @param run_pixel_enrichment Logical; whether to run pixel-level enrichment (default FALSE)
-##' @return List or path to processed data
-##' @export
-preprocess_for_app <- function(intensity_csv, metadata_csv, output_dir, denoise = F, anno = NULL, 
-                                adducts = NULL, ion_mode = NULL, organism = 'Human', 
-                                ppm = 10, only_annotated = FALSE, histology_images_dir = NULL, 
+#' Preprocesses data and creates files for SMEW app
+#'
+#' This is the main user-facing function to generate a ready-to-use SMEW Shiny app from your spatial metabolomics data. It performs all necessary preprocessing, saves processed data, and writes a static Shiny app (app.R) in the specified output directory. The resulting app enables interactive analysis and visualisation of spatial metabolomics data at bulk, region, and pixel levels.
+#'
+#' @param intensity_csv Path to the intensity matrix CSV file. The first column must be pixel IDs, and the remaining columns are m/z features (named as 'mz_<number>' or similar).
+#' @param metadata_csv Path to the metadata CSV file. Must contain columns 'pixel_id' (matching intensity matrix), 'x', 'y', and 'Sample'.
+#' @param output_dir Directory to save the processed data and the generated app. Will be created if it does not exist.
+#' @param denoise Logical; whether to denoise the data (default FALSE).
+#' @param anno Optional annotation data.frame or NULL. If provided, should map m/z features to metabolite names and KEGG IDs.
+#' @param adducts Optional vector of adducts used for annotation. Options include M-H [1-], M-2H [2-], M-3H [3-], M-H2O-H [1-], M-H+O [1-], M+K-2H [1-], M+Na-2H [1-], M+Cl [1-], M+Cl37 [1-], M+FA-H [1-], M+Hac-H [1-], M+Br [1-], M+Br81 [1-], M+TFA-H [1-], M+ACN-H [1-], M+HCOO [1-], M+CH3COO [1-], 2M-H [1-], 2M+FA-H [1-], 2M+Hac-H [1-], 3M-H [1-], M(C13)-H [1-], M(S34)-H [1-], M(Cl37)-H [1-] for negative mode; and M [1+], M+H [1+], M+2H [2+], M+3H [3+], M+Na [1+], M+2Na [2+], M+3Na [3+], M+H+Na [2+], M+H+2Na [3+], M+2H+Na [3+], M+2Na-H [1+], M+NaCl [1+], M+K [1+], M+H+K [2+], M+ACN+H [1+], M+ACN+2H [2+], M+ACN+Na [1+], M+2ACN+2H [2+], M+3ACN+2H [2+], M+2ACN+H [1+], M+H2O+H [1+], M-H2O+H [1+], M-H4O2+H [1+], M-HCOOH+H [1+], M+HCOONa [1+], M-HCOONa+H [1+], M+HCOOK [1+], M-HCOOK+H [1+], M-CO+H [1+], M-CO2+H [1+], M-C3H4O2+H [1+], M+CH3OH+H [1+], M-NH3+H [1+], M+H+NH4 [2+], M+NH4 [1+], M+IsoProp+H [1+], M+IsoProp+Na+H [1+], M+2K+H [1+], M+DMSO+H [1+], 2M+H [1+], 2M+NH4 [1+], 2M+Na [1+], 2M+3H2O+2H [2+], 2M+K [1+], 2M+ACN+H [1+], 2M+ACN+Na [1+], M(C13)+H [1+], M(C13)+2H [2+], M(C13)+3H [3+], M(S34)+H [1+], M(Cl37)+H [1+] for positive mode.
+#' @param ion_mode Ionisation mode ('Negative' or 'Positive'). Used for annotation.
+#' @param organism Organism name (default 'Human'). Used for annotation and pathway enrichment.
+#' @param ppm Numeric; mass accuracy in ppm (default 10). Used for annotation.
+#' @param only_annotated Logical; if TRUE, only annotated peaks are used (default FALSE).
+#' @param histology_images_dir Optional directory with histology images for overlay and visualisation.
+#' @param run_autocorrelation Logical (default: FALSE); whether to run spatial autocorrelation and SVM analysis.
+#' @param top_autocorrelated_peaks Integer; number of top autocorrelated peaks to use (default 10).
+#' @param n_cores Number of cores for parallel processing (default 1, where processes are run sequentially).
+#' @param run_pixel_enrichment Logical (default: FALSE); whether to run pixel-level pathway enrichment.
+#' @param multi_modal_path Optional path to multi-modal data file (for multi-omics integration).
+#' @param enrichment_controls Optional vector of control samples for enrichment analysis.
+#' @param enrichment_comparisons Optional vector of comparison samples for enrichment analysis.
+#'
+#' @details
+#' This function:
+#' \itemize{
+#'   \item Checks and validates input files and columns.
+#'   \item Orders metadata to match the intensity matrix.
+#'   \item Maps m/z features to metabolite annotations (if possible).
+#'   \item Optionally filters to only annotated peaks.
+#'   \item Computes grid spacing and transforms coordinates for spatial analysis.
+#'   \item Creates bulk-level and pixel-level data objects.
+#'   \item Optionally denoises the data.
+#'   \item Saves all processed data as .rds files in the output directory.
+#'   \item Optionally overlays pixel coordinates on histology images and copies images to the app directory.
+#'   \item Optionally runs spatial autocorrelation and cross-correlation analysis.
+#'   \item Optionally runs pixel-level pathway enrichment analysis.
+#'   \item Optionally integrates multi-modal data (e.g., transcriptomics, proteomics etc).
+#'   \item Writes a static app.R file for a fully functional SMEW Shiny app which can be shared with collaborators or the community.
+#' }
+#'
+#' The generated app supports interactive analysis at multiple levels, including quality control, differential analysis, pathway enrichment, network inference, clustering, spatial visualisation, and more. See the package documentation and vignette for a full description of the app features and input requirements.
+#'
+#' @return Invisibly returns the path to the generated app.R file. All processed data and app files are saved in the output directory.
+#' @examples 
+#' create_smew_app(
+#'   intensity_csv = system.file("extdata", "bleo_sub_intensity.csv", package = "smew"),
+#'   metadata_csv = system.file("extdata", "bleo_sub_meta.csv", package = "smew"),
+#'   output_dir = tempdir(),
+#'   organism = 'Mouse',
+#' )
+#' unlink(paste0(normalizePath(tempdir()), "/", dir(tempdir())), recursive = TRUE)
+#' @export
+create_smew_app <- function(intensity_csv, metadata_csv, output_dir, denoise = FALSE, anno = NULL,
+                                adducts = NULL, ion_mode = NULL, organism = 'Human',
+                                ppm = 10, only_annotated = FALSE, histology_images_dir = NULL,
                                 run_autocorrelation = FALSE, top_autocorrelated_peaks = 10, n_cores = 1,
                                 run_pixel_enrichment = FALSE, multi_modal_path = NULL,
                                 enrichment_controls = NULL, enrichment_comparisons = NULL) {
@@ -230,29 +263,52 @@ preprocess_for_app <- function(intensity_csv, metadata_csv, output_dir, denoise 
   message("Mapping m/z values to feature names...")
   intensity_header <- names(data.table::fread(intensity_csv, nrows = 0))[-1]
 
-  ## Here you would map m/z values to annotations and filter according to user preference
+  # Here you would map m/z values to annotations and filter according to user preference
   if (!is.null(anno)) {
     message("Using user-supplied annotations")
-    ## Make sure anno table is of the right format and filter to only annotated ones if wanted
-    # intensity <- intensity |> select(Sample, matches(paste(anno, collapse = "|")))
-    # Check that they are valid KEGG IDs and if not then set all enrichment to false and warn the user
-    # STUFF TO DO HERE!!
+    # Check that anno is a data.frame and has required columns
+    required_anno_cols <- c("m_z", "adduct", "name", "kegg_id", "display_name")
+    if (!is.data.frame(anno)) {
+      stop("The supplied annotation (anno) must be a data.frame.")
+    }
+    missing_cols <- setdiff(required_anno_cols, colnames(anno))
+    if (length(missing_cols) > 0) {
+      stop(paste0("The supplied annotation table is missing required column(s): ", paste(missing_cols, collapse=", "))) 
+    }
+    # Optionally filter to only annotated ones if wanted
+    # Check that KEGG IDs are valid (non-empty, non-NA) for enrichment
+    if (only_annotated) {
+      anno <- anno[!is.na(anno$name) & anno$name != "", ]
+      message(paste0("Filtered to only the ", nrow(anno), " annotated peaks in user-supplied annotation table."))
+    }
+    if (!any(!is.na(anno$kegg_id) & anno$kegg_id != "")) {
+      warning("No valid KEGG IDs found in user-supplied annotation table. Pathway enrichment will be disabled.")
+      enrichment_possible <- FALSE
+    } else {
+      enrichment_possible <- TRUE
+    }
   } else {
     message("No user-supplied annotations provided, using m/z values as feature names and mapping using internal annotation function")
     peak_list <- as.numeric(gsub('mz_', '', intensity_header))
-    if (any(is.na(peak_list))) {
+    # If adducts, ion_mode, or organism is NULL, skip annotation and set anno to NA
+    if (is.null(adducts) || is.null(ion_mode) || is.null(organism)) {
+      message("adducts, ion_mode, or organism is NULL; skipping annotation. anno will have NA names.")
+      peak_list <- intensity_header
+      anno <- data.frame(exp_peak = peak_list, adduct = NA, name = NA, kegg_id = NA, display_name = peak_list)
+      enrichment_possible <- FALSE
+    } else if (any(is.na(peak_list))) {
       message("Intensity header is not in expected format 'mz_<number>', using as is.")
       peak_list <- intensity_header
       anno <- data.frame(exp_peak = peak_list, adduct = NA, name = NA, kegg_id = NA, display_name = peak_list)
       enrichment_possible <- FALSE
-  } else {
-    message("Intensity header is in expected format, proceeding with m/z mapping.")
-    enrichment_possible <- TRUE
-    mapped_peaks <- map_peaks_to_kegg(peak_list, kegg_db, adducts, ion_mode,
-                                      neg_adduct_table, pos_adduct_table, ppm)
-    anno <- combine_peak_annotations(peak_list, mapped_peaks, fields = c('adduct','compound_name','compound_id'), sep = ', ', organism = organism)
-    message("Mapped peaks to KEGG: ", nrow(anno[!is.na(anno$name),]), " annotations generated.")
-  }
+    } else {
+      message("Intensity header is in expected format, proceeding with m/z mapping.")
+      enrichment_possible <- TRUE
+      mapped_peaks <- preprocessing_map_peaks_to_kegg(peak_list, kegg_db, adducts, ion_mode,
+                                        neg_adduct_table, pos_adduct_table, ppm)
+      anno <- preprocessing_combine_peak_annotations(peak_list, mapped_peaks, fields = c('adduct','compound_name','compound_id'), sep = ', ', organism = organism)
+      message("Mapped peaks to KEGG: ", nrow(anno[!is.na(anno$name),]), " annotations generated.")
+    }
   }
 
   # Filter to only annotated peaks if requested and if annotations are available
@@ -265,23 +321,23 @@ preprocess_for_app <- function(intensity_csv, metadata_csv, output_dir, denoise 
 
   # 3. Get GCD values for grid spacing
   message("Computing GCD values for grid spacing...")
-  gcd = get_gcds(metadata)
+  gcd = preprocessing_get_gcds(metadata)
   message("GCD values for grid spacing: ", paste(gcd, collapse = ", "))
 
   # 4. Transform coordinates to gcd 1 for app
   message("Transforming sample coordinates to gcd 1 for app...")
-  metadata <- transform_sample_coordinates(metadata)
+  metadata <- preprocessing_transform_sample_coordinates(metadata)
 
   # 5. Make bulk sample-level metadata and intensity matrix
   message("Creating bulk sample-level metadata and intensity matrix...")
   intensity <- data.table::fread(intensity_csv, select = (which(intensity_header %in% anno$m_z) + 1)) |> as.matrix()
   rownames(intensity) <- first_col_intensity
-  bulked = create_bulk_matrix(metadata,intensity)
+  bulked = suppressWarnings(preprocessing_create_bulk_matrix(metadata,intensity))
 
   # 5. Run denoising
   if (denoise) {
     message("Running denoising step...")
-    processed_data <- denoise_all_samples(metadata, intensity)
+    processed_data <- preprocessing_denoise_all_samples(metadata, intensity)
   } else {
     message("Skipping denoising step...")
     processed_data <- intensity
@@ -317,11 +373,11 @@ preprocess_for_app <- function(intensity_csv, metadata_csv, output_dir, denoise 
 
       for (sample_name in samples) {
         image_folder <- file.path(histology_images_dir, sample_name)
-        image_file <- file.path(image_folder, 'MSI_HE_aligned.jpg')
+        image_file <- file.path(image_folder, 'histology_aligned.jpg')
         coords <- metadata[metadata$Sample == sample_name, c('x', 'y', 'Sample')]
         if (file.exists(image_file)) {
           overlay_plot <- tryCatch({
-            plot_pixel_overlay_on_image(coords, sample_name, image_file,alpha=0.5, point_size = 0.5)
+            preprocessing_plot_pixel_overlay_on_image(coords, sample_name, image_file,alpha=0.5, point_size = 0.5)
           }, error = function(e) {
             message(paste('Overlay failed for sample', sample_name, ':', e$message))
             NULL
@@ -342,7 +398,7 @@ preprocess_for_app <- function(intensity_csv, metadata_csv, output_dir, denoise 
       message("Copying histology images over to app directory...")
       matching_images = intersect(list.files(histology_images_dir), bulked$bulk_metadata$Sample)
       new.dirs = setdiff(matching_images, list.files(file.path(output_dir, 'smew_app', 'images')))
-      for (new.path in new.dirs) { 
+      for (new.path in new.dirs) {
         if (!dir.exists(file.path(output_dir, 'smew_app', 'images', basename(new.path)))) dir.create(file.path(output_dir, 'smew_app', 'images', basename(new.path)))
       }
       for (image in matching_images){
@@ -379,10 +435,10 @@ preprocess_for_app <- function(intensity_csv, metadata_csv, output_dir, denoise 
     # 8. Run SVM step is requested
     if (run_autocorrelation) {
       message("Running spatial autocorrelation step...")
-      svm_results <- spatial_autocorrelation_pipeline(intensity, metadata)
+      svm_results <- preprocessing_spatial_autocorrelation_pipeline(intensity, metadata)
       saveRDS(svm_results, file = file.path(output_dir, 'smew_app', 'spatial_autocorrelation.rds'))
       svm_peaks = base::Reduce(base::union,lapply(FUN = function(x)utils::head(x$peak,top_autocorrelated_peaks),X=svm_results))
-      scc = spatial_cross_cor(svm_peaks, intensity, metadata, ncores = n_cores)
+      scc = preprocessing_spatial_cross_cor(svm_peaks, intensity, metadata, ncores = n_cores)
       saveRDS(scc, file = file.path(output_dir, 'smew_app', 'spatial_cross_correlation.rds'))
     }
 
@@ -391,7 +447,7 @@ preprocess_for_app <- function(intensity_csv, metadata_csv, output_dir, denoise 
         message("Pixel-level enrichment analysis cannot be run because m/z values could not be mapped to annotations. Please check your input data and annotation parameters.")
       } else {
         message("Running pixel-leavel enrichment analysis step...")
-        enrichment_results <- run_pixellevel_pipeline_parallel(
+        enrichment_results <- preprocessing_run_pixel_enrichment(
           intensity.matrix = intensity,
           bulk.intensity.matrix = bulked$bulk_intensity,
           metadata = metadata,
@@ -406,7 +462,7 @@ preprocess_for_app <- function(intensity_csv, metadata_csv, output_dir, denoise 
     }
 
     # ---- Write app.R after preprocessing ----
-    write_static_app_r(
+    preprocessing_write_app_file(
       app_dir = output_dir,
       run_enrichment = enrichment_possible,
       organism = organism,

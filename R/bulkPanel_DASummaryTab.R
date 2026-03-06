@@ -1,24 +1,24 @@
-#' Differential Expression Summary Panel
-#' @description Visual summaries of results from the Differential intensity analysis module.
-#' Provides heatmap of selected peaks, volcano/MA plots and interactive selection tables.
+#' Visualises bulk differential intensity results
+#' 
+#' Shiny module for visual summaries of results from the Differential intensity analysis module.
+#' Provides heatmap of selected peaks and volcano/MA plots.
 #'
-#' @details The panel pulls peak sets from the linked DE analysis module. Heatmap
+#' @details The panel pulls peak sets from the linked differential intensity analysis module. Heatmap
 #' rows can be clustered and annotated using sample metadata. Volcano/MA visual
 #' summarise differential peaks with convenient download options.
 #'
-#' @param id Module id
+#' @param id Shiny module id (for both UI and server)
 #' @param bulk.metadata A data.frame with sample-level metadata
 #' @param show Logical flag whether to include this tab in the UI (default TRUE)
-#' @keywords internal
-#' @name de_summary_panel
-#' @rdname de_summary_panel
+#' @name BulkPanel_DASummaryTab
+#' @rdname BulkPanel_DASummaryTab
 #' @export
-BulkDESummaryUI <- function(id, bulk.metadata, show = TRUE){
+BulkPanel_DASummaryTabUI <- function(id, bulk.metadata, show = TRUE){
   ns <- shiny::NS(id)
 
   if(show){
     shiny::tabPanel(
-      'Differential intensity analysis visualisation',
+      'Differential Analysis Summary',
       shiny::tags$h1("Peak heatmap"),
       shiny::sidebarLayout(
         shiny::sidebarPanel(
@@ -120,18 +120,16 @@ BulkDESummaryUI <- function(id, bulk.metadata, show = TRUE){
   }
 }
 
-# ============ SERVER FUNCTIONS ============
-
-#' @rdname de_summary_panel
 #' @param bulk.intensity.matrix Reactive matrix of peak intensities (rows = peaks, cols = samples)
-#' @param DEresults Reactive object returned by the DE analysis module (provides DEtable, DEtableSubset, selectedPeaks())
+#' @param de.results Reactive object returned by the DE analysis module (provides DEtable, DEtableSubset, selectedPeaks())
 #' @param anno Annotation data.frame for peaks (must contain m_z and display_name/name fields)
+#' @rdname BulkPanel_DASummaryTab
 #' @export
-BulkDESummaryServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresults, anno){
+BulkPanel_DASummaryTabServer <- function(id, bulk.intensity.matrix, bulk.metadata, de.results, anno){
 
   # check whether inputs (other than id) are reactive or not
   stopifnot({
-    shiny::is.reactive(DEresults)
+    shiny::is.reactive(de.results)
     shiny::is.reactive(bulk.intensity.matrix)
     shiny::is.reactive(bulk.metadata)
     !shiny::is.reactive(anno)
@@ -156,7 +154,7 @@ BulkDESummaryServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresu
     })
 
     heatmap.prep <- shiny::reactive({
-      selectedPeaks = DEresults()$selectedPeaks()
+      selectedPeaks = de.results()$selectedPeaks()
       if(length(selectedPeaks)){
         selectedPeakNames <- selectedPeaks
         peakSet <- c(selectedPeakNames, input[["peakName"]])
@@ -164,7 +162,7 @@ BulkDESummaryServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresu
         peakSet <- input[["peakName"]]
       }
       if (length(peakSet) == 0){
-        peakSet <- utils::head(DEresults()$DE()$DEtableSubset$m_z, 50)
+        peakSet <- utils::head(de.results()$DE()$DEtableSubset$m_z, 50)
       }
       peakIDs <- peakSet
       subsetExpression <- bulk.intensity.matrix[peakIDs, , drop = FALSE]
@@ -210,10 +208,10 @@ BulkDESummaryServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresu
     shiny::updateSelectizeInput(session, "peakNameVolcano", choices = anno$m_z, server = TRUE)
 
     DEplot <- shiny::reactive({
-      results = DEresults()$DE()
-      selectedPeakNames = DEresults()$selectedPeaks()
+      results = de.results()$DE()
+      selectedPeakNames = de.results()$selectedPeaks()
       if(input[['plotType']] == 'Volcano'){
-        myplot <- volcano_plot(
+        myplot <- bulk_utils_volcano_plot(
           peaks.de.results = results$DEtable,
           pval.threshold = results$pvalThreshold,
           lfc.threshold = results$lfcThreshold,
@@ -226,7 +224,7 @@ BulkDESummaryServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresu
         )
       }
       if (input[['plotType']] == 'MA'){
-        myplot <- ma_plot(
+        myplot <- bulk_utils_ma_plot(
           peaks.de.results = results$DEtable,
           pval.threshold = results$pvalThreshold,
           lfc.threshold = results$lfcThreshold,
@@ -246,7 +244,7 @@ BulkDESummaryServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresu
     #Define output table when you click on peak with all peaks or only DE
     output[['volcanoData']] <- shiny::renderTable({
       shiny::req(input[['plot_click']])
-      results = DEresults()$DE()
+      results = de.results()$DE()
       if (input[['allPeaks']]){
         data <- results$DEtable
       }else{
@@ -292,13 +290,3 @@ BulkDESummaryServer <- function(id, bulk.intensity.matrix, bulk.metadata, DEresu
 
   })
 }
-
-#DEsummaryPanelApp <- function(){
-#  shinyApp(
-#    ui = navbarPage("DE", tabPanel("", tabsetPanel(DEpanelUI('RNA'), DEsummaryPanelUI('RNA')))),
-#    server = function(input, output, session){
-#      DEresults <- DEpanelServer('RNA')
-#      DEsummaryPanelServer('RNA', DEresults)
-#    }
-#  )
-#}

@@ -1,20 +1,26 @@
-#' Introduction Panel - Annotation Module
-#' @description Simple browser for the peak/metabolite annotation table.
-#' Displays full annotation details with options to download as CSV.
-#'
-#' @details Provides read-only access to annotation data with interactive
-#' DataTable interface. Columns displayed: m_z, display_name, name, etc.
-#'
-#' @keywords internal
-#' @name intro_anno_panel
 
-#' @rdname intro_anno_panel
+#' Presents metabolite annotations in an interactive table
+#'
+#' @description UI and server logic for browsing the peak/metabolite annotation table. Displays full annotation details with options to download as CSV.
+#'
+#' @details
+#' \itemize{
+#'  \item{Provides read-only access to annotation data with an interactive DataTable interface.}
+#'  \item{Columns displayed: m_z, display_name, name, etc.}
+#'  \item{Download handler for exporting the annotation table as CSV.}
+#'}
+#' @name IntroPanel_AnnoTab
+#' @rdname IntroPanel_AnnoTab
+#' @param id Shiny module id (for both UI and server)
+#' @param bulk.metadata Data frame with bulk sample metadata
+#' @param show Logical; whether to render the panel (default: TRUE)
+#' @return A shiny::tabPanel containing the UI elements for the annotation table panel
 #' @export
-IntroAnnoUI <- function(id, bulk.metadata, show = TRUE){
+IntroPanel_AnnoTabUI <- function(id, bulk.metadata, show = TRUE){
   ns <- shiny::NS(id)
   if(show){
     shiny::tabPanel(
-      'Annotation table',
+      'Annotation Table',
       shinyWidgets::dropMenu(
         shinyWidgets::circleButton(ns("downloads"), icon = shiny::icon("download"),status = "success"),
         shiny::tags$div(
@@ -38,9 +44,11 @@ IntroAnnoUI <- function(id, bulk.metadata, show = TRUE){
 
 # ============ SERVER FUNCTIONS ============
 
-#' @rdname intro_anno_panel
+#' @rdname IntroPanel_AnnoTab
+#' @param bulk.intensity.matrix Numeric matrix of bulk sample intensities (features × samples)
+#' @param anno Data frame with annotation information (must include columns: m_z, display_name, name, etc.)
 #' @export
-IntroAnnoServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
+IntroPanel_AnnoTabServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
   ns <- shiny::NS(id)
   # check whether inputs (other than id) are reactive or not
   shiny::moduleServer(id, function(input, output, session){
@@ -56,12 +64,3 @@ IntroAnnoServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
     )
   })
 }
-
-# QCpanelApp <- function(){
-#   shinyApp(
-#     ui = fluidPage(QCpanelMetabUI('qc', bulk.metadata)),
-#     server = function(input, output, session){
-#       QCpanelMetabServer('qc', bulk.intensity.matrix[[1]], bulk.metadata[[1]])
-#     }
-#   )
-# }

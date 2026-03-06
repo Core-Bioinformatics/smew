@@ -1,58 +1,26 @@
-#' Spatial smoothing helpers
-#' @description Functions for smoothing cluster labels across spatial neighborhoods (used by the Cluster Smoothing tab).
-#' @keywords internal
-
-smoothed.cluster <- function(metadata.sub,cluster.col){
-  sample = base::unique(metadata.sub$Sample)
-  metadata.sub[,cluster.col] = base::as.character(metadata.sub[,cluster.col])
-  base::rownames(metadata.sub)=metadata.sub$pixel_id
-  cl <- parallel::makeCluster(parallel::detectCores()-1)
-  parallel::clusterExport(cl, c('metadata.sub','select.label'),envir=base::environment())
-    smoothed.clusters = pbapply::pbsapply(base::rownames(metadata.sub),FUN=function(x)select.label(x,metadata.sub,cluster.col),simplify = TRUE, cl=cl)
-  parallel::stopCluster(cl)
-  base::names(smoothed.clusters)=metadata.sub$pixel_id
-  return(smoothed.clusters)
-}
-
-
-select.label = function(i, current.metadata, cluster.col){
-  current.col = current.metadata[i,'x_tf']
-  current.row = current.metadata[i,'y_tf']
-    selected.cluster = dplyr::select(dplyr::filter(current.metadata, .data$x_tf == current.col & .data$y_tf == current.row), dplyr::one_of(cluster.col))
-  neighbour.clusters = dplyr::select(
-    dplyr::filter(
-      dplyr::filter(
-        dplyr::filter(current.metadata, .data$x_tf %in% base::seq(current.col-1,current.col+1)),
-        .data$y_tf %in% base::seq(current.row-1,current.row+1)),
-      .data$x_tf!=current.col | .data$y_tf!=current.row),
-    dplyr::one_of(cluster.col))
-  if (base::nrow(neighbour.clusters)<5){
-    return(selected.cluster[,cluster.col])
-  } else {
-    top.cluster = base::sort(base::table(neighbour.clusters[,cluster.col]),decreasing = TRUE)[1]
-    if (top.cluster > (0.5 * base::nrow(neighbour.clusters))){
-      return(base::names(top.cluster))
-    } else {
-      return(selected.cluster[,cluster.col])
-    }
-  }
-}
-
-# Jaccard similarity function
-jaccard_index <- function(x, y) {
-  base::mean(x == y, na.rm = TRUE)
-}
-
-
-#' RegionSmoothingUI
+#' Spatially smooths and denoises cluster labels across neighbouring spots
 #'
-#' UI for the region smoothing tab.
+#' @description UI and server logic for the Region Smoothing panel, enabling users to apply spatial smoothing to clusters and regions in spatial omics data. Supports visualisation of smoothed and original clusters, and download of all results for downstream analysis.
 #'
-#' @param id Shiny module id
-#' @return A shiny tabPanel object for the region smoothing tab
+#' @details
+#' \itemize{
+#'   \item{Apply spatial smoothing to clusters and regions to reduce noise and enhance spatial patterns.}
+#'   \item{Visualise both original and smoothed clusters for comparison.}
+#'   \item{Smoothed clusters can be used by subsequent analysis tabs.}
+#'   \item{All plots (original and smoothed) are available for download in publication-ready format.}
+#' }
+#'
+#' @param id Shiny module id (for both UI and server)
+#' @param full.metadata Data frame of full sample metadata (UI, server)
+#' @param shared_data Reactive or shared data object (server)
+#' @param show Logical; whether to show the panel (default TRUE, UI)
+#' @name RegionPanel_SpatialSmoothingTab
+#' @rdname RegionPanel_SpatialSmoothingTab
+#' @return UI: A shiny tabPanel object for the region smoothing tab. Server: None (side effects in Shiny module).
 #' @export
-RegionSmoothingUI <- function(id) {
+RegionPanel_SpatialSmoothingTabUI <- function(id, show = TRUE) {
   ns <- shiny::NS(id)
+  if (show){
   shiny::tabPanel(
     'Region Smoothing',
     bslib::accordion(
@@ -107,18 +75,14 @@ RegionSmoothingUI <- function(id) {
     shiny::tags$h4("Smoothed regions"),
     shiny::plotOutput(ns("smoothedPlot"),height = '600px')
   )
+  } else {
+    NULL
+  }
 }
 
-#' RegionSmoothingServer
-#'
-#' Server logic for the region smoothing tab.
-#'
-#' @param id Shiny module id
-#' @param shared_data Reactive or shared data object
-#' @param full.metadata Data frame of full sample metadata
-#' @return None; called for side effects in Shiny module
+#' @rdname RegionPanel_SpatialSmoothingTab
 #' @export
-RegionSmoothingServer <- function(id, shared_data, full.metadata) {
+RegionPanel_SpatialSmoothingTabServer <- function(id, shared_data, full.metadata) {
   shiny::moduleServer(id, function(input, output, session) {
     
     shiny::observe({
@@ -163,7 +127,7 @@ RegionSmoothingServer <- function(id, shared_data, full.metadata) {
         ggplot2::theme(aspect.ratio = 1)
       
     })
-    output[['downloadOriginal']] <- create_download_plot_handler(
+    output[['downloadOriginal']] <- utils_create_download_plot_handler(
       plot_func = function(){
         df <- shared_data$updated.metadata
         shown_samples = unique(df[!is.na(df[,input$col1]),]$Sample)
@@ -200,7 +164,7 @@ RegionSmoothingServer <- function(id, shared_data, full.metadata) {
         samples <- unique(current.metadata$Sample)
         for (i in seq_along(samples)){
           my.sample <- samples[i]
-          smoothed.clusters = c(smoothed.clusters, smoothed.cluster(current.metadata[current.metadata$Sample==my.sample,], input$col1))
+          smoothed.clusters = c(smoothed.clusters, region_utils_smooth_cluster(current.metadata[current.metadata$Sample==my.sample,], input$col1))
           shiny::incProgress(i/length(samples))
         }
         current.metadata[,paste0(input$col1,'_smoothed')] = smoothed.clusters
@@ -241,7 +205,7 @@ RegionSmoothingServer <- function(id, shared_data, full.metadata) {
         ggplot2::theme(aspect.ratio = 1)
 
     })
-    output[['downloadSmoothed']] <- create_download_plot_handler(
+    output[['downloadSmoothed']] <- utils_create_download_plot_handler(
       plot_func = function(){
         df <- smoothed_clusters()
         shown_samples = unique(df[!is.na(df[,input$col1]),]$Sample)

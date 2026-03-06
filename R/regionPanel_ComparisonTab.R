@@ -1,45 +1,29 @@
-#' Cluster Comparison Module
-#' @description This module provides visualization and analysis tools for comparing
-#' clustering results between different clustering methods or parameters. Includes:
-#' - Contingency table visualization (heatmap of cluster overlap)
-#' - Jaccard/Sørensen similarity indices between clusters
-#' - Proportional composition analysis across cluster assignments
-#' - Spatial visualization of cluster concordance
+#' Compares multiple regions and/or clusters
 #'
-#' @details The module operates on metadata columns representing different cluster
-#' assignments and computes various similarity metrics to assess agreement between them.
-#' Supports handling of NA values with configurable inclusion/exclusion.
+#' @description UI and server logic for comparing clustering results between different methods or parameters in the SMEW app. Includes contingency table visualization, similarity indices, proportional composition, and spatial concordance plots.
 #'
-#' @keywords internal
-#' @name region_comparison_panel
-NULL
-
-# ============ HELPER FUNCTIONS ============
-
-#' Jaccard Similarity Index
-#' @description Calculate Jaccard similarity between two vectors
-#' @param x Vector of cluster assignments (first method)
-#' @param y Vector of cluster assignments (second method)
-#' @return Numeric value between 0 and 1 representing Jaccard index
-#' @keywords internal
-jaccard_index <- function(x, y) {
-  mean(x == y, na.rm = TRUE)
-}
-
-# ============ UI FUNCTIONS ============
-
-
-#' RegionComparisonUI
-#'
-#' UI for the cross-clustering comparison tab.
-#'
+#' @details
+#' \itemize{
+#'  \item{Contingency table visualization (heatmap of cluster overlap)}
+#'  \item{Jaccard similarity indices between clusters}
+#'  \item{Proportional composition analysis across cluster assignments}
+#'  \item{Spatial visualization of cluster concordance}
+#'  \item{Download handlers for all plots}
+#' }
 #' @param id Shiny module id
-#' @return A shiny tabPanel object for the cross-clustering comparison tab
+#' @param shared_data Reactive or shared data object (server only)
+#' @param bulk.metadata Data frame of bulk sample metadata
+#' @param show Logical; whether to render the panel (default: TRUE)
+#' @return UI: A shiny::tabPanel object for the comparison panel. Server: None; called for side effects in Shiny module.
+#'
+#' @name RegionPanel_ComparisonTab
+#' @rdname RegionPanel_ComparisonTab
 #' @export
-RegionComparisonUI <- function(id) {
+RegionPanel_ComparisonTabUI <- function(id, show = TRUE) {
   ns <- shiny::NS(id)
+  if (show){
   shiny::tabPanel(
-    'Cross-Clustering Comparison',
+    'Region Comparison',
     bslib::accordion(
       bslib::accordion_panel(
         title = "Information",
@@ -154,21 +138,18 @@ RegionComparisonUI <- function(id) {
     shiny::tags$h4("Spatial Similarity (ECS) Plot"),
     shiny::plotOutput(ns("ecsSpatial"),height = '600px')
   )
+  } else {
+    NULL
+  }
 }
 
-# ============ SERVER FUNCTIONS ============
-
-
-#' RegionComparisonServer
-#'
-#' Server logic for the cross-clustering comparison tab.
-#'
+#' @rdname RegionPanel_ComparisonTab
 #' @param id Shiny module id
 #' @param shared_data Reactive or shared data object
 #' @param bulk.metadata Data frame of bulk sample metadata
 #' @return None; called for side effects in Shiny module
 #' @export
-RegionComparisonServer <- function(id, shared_data, bulk.metadata) {
+RegionPanel_ComparisonTabServer <- function(id, shared_data, bulk.metadata) {
   shiny::moduleServer(id, function(input, output, session) {
 
     shiny::observe({
@@ -221,7 +202,7 @@ RegionComparisonServer <- function(id, shared_data, bulk.metadata) {
           ggplot2::labs(x = input$col1, y = input$col2, fill = "Count") +
           ggplot2::theme_minimal()
       })
-      output[['downloadOverlap']] <- create_download_plot_handler(
+      output[['downloadOverlap']] <- utils_create_download_plot_handler(
         plot_func = function(){
           df <- dplyr::select(shared_data$updated.metadata, dplyr::all_of(unique(c(input$col1, input$col2))))
           comp1 <- df[[input$col1]]
@@ -263,7 +244,7 @@ RegionComparisonServer <- function(id, shared_data, bulk.metadata) {
           ggplot2::theme_minimal()
 
       })
-      output[['downloadOverlapJSI']] <- create_download_plot_handler(
+      output[['downloadOverlapJSI']] <- utils_create_download_plot_handler(
         plot_func = function(){
           df <- dplyr::select(shared_data$updated.metadata, dplyr::all_of(unique(c(input$col1, input$col2))))
           comp1 <- df[[input$col1]]
@@ -319,7 +300,7 @@ RegionComparisonServer <- function(id, shared_data, bulk.metadata) {
         propBar()
       })
 
-      output[['downloadProportion']] <- create_download_plot_handler(
+      output[['downloadProportion']] <- utils_create_download_plot_handler(
         plot_func = propBar,
         filename_func = function() input[['proportionFileName']],
         width_func = function() input[['proportionWidth']],
@@ -344,7 +325,7 @@ RegionComparisonServer <- function(id, shared_data, bulk.metadata) {
                          axis.line.y = ggplot2::element_blank()) + ggplot2::facet_wrap(ggplot2::vars(Sample),scales='free', nrow = max(1,floor(sqrt(length(unique(df$Sample))/1.5)))) +
           viridis::scale_color_viridis() + viridis::scale_fill_viridis() + ggplot2::theme(aspect.ratio = 1)
       })
-      output[['downloadECSSpatial']] <- create_download_plot_handler(
+      output[['downloadECSSpatial']] <- utils_create_download_plot_handler(
         plot_func = function(){
           df = shared_data$updated.metadata[!is.na(shared_data$updated.metadata[,input$col1]) &
                                               !is.na(shared_data$updated.metadata[,input$col2]), ]
@@ -368,7 +349,7 @@ RegionComparisonServer <- function(id, shared_data, bulk.metadata) {
         height_func = function() input[['ecsSpatialHeight']]
       )
 
-      output[['downloadClusterMetaProportion']] <- create_download_plot_handler(
+      output[['downloadClusterMetaProportion']] <- utils_create_download_plot_handler(
       plot_func = clusterPropPlot,
       filename_func = function() input[['clusterMetaProportionFileName']],
       width_func = function() input[['clusterMetaProportionWidth']],

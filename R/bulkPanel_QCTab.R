@@ -1,28 +1,28 @@
-#' Bulk Quality Control Panel Module
-#' @description Quality control and exploratory analysis module for bulk mass
-#' spectrometry data. Provides multiple perspectives on sample relationships and
-#' peak distributions. Features include:
-#' - Principal Component Analysis (PCA) with metadata annotation
-#' - Partial Least Squares Discriminant Analysis (PLS-DA) for supervised analysis
-#' - Individual peak intensity bar plots and box plots
-#' - Interactive visualization with downloadable plots
+#' Visualises bulk-level quality control
 #'
-#' @details The module performs dimension reduction on bulk peak intensity data,
-#' visualizing sample relationships and peak contributions. Supports filtering
-#' by metadata variables and includes confidence ellipses for grouped samples.
-#' All plots are interactive (plotly) with customizable download options.
+#' @description UI and server logic for quality control and exploratory analysis of bulk mass spectrometry data. Provides multiple perspectives on sample relationships and peak distributions.
 #'
-#' @keywords internal
-#' @name bulk_qc_panel
-
-#' @rdname bulk_qc_panel
+#' @details
+#' \itemize{
+#'   \item{Principal Component Analysis (PCA) with metadata annotation}
+#'   \item{Partial Least Squares Discriminant Analysis (PLS-DA) for supervised analysis}
+#'   \item{Individual peak intensity bar plots and box plots}
+#'   \item{Interactive visualization with downloadable plots}
+#'   \item{The module performs dimension reduction on bulk peak intensity data, visualizing sample relationships and peak contributions. Supports filtering by metadata variables and includes confidence ellipses for grouped samples. All plots are interactive (plotly) with customizable download options.}
+#' }
+#' @name BulkPanel_QCTab
+#' @rdname BulkPanel_QCTab
+#' @param id Shiny module id (for both UI and server)
+#' @param bulk.metadata Data frame with bulk sample metadata
+#' @param show Logical; whether to render the panel (default: TRUE)
+#' @return A shiny::tabPanel containing the UI elements for the QC panel
 #' @export
-BulkQCUI <- function(id, bulk.metadata, show = TRUE){
+BulkPanel_QCTabUI <- function(id, bulk.metadata, show = TRUE){
   ns <- shiny::NS(id)
 
   if(show){
     shiny::tabPanel(
-      'Quality checks',
+      'Quality Checks',
       shiny::tags$h1("Principal Component Analysis (PCA)"),
       shiny::sidebarLayout(
         shiny::sidebarPanel(
@@ -204,11 +204,11 @@ BulkQCUI <- function(id, bulk.metadata, show = TRUE){
   }
 }
 
-# ============ SERVER FUNCTIONS ============
-
-#' @rdname bulk_qc_panel
+#' @rdname BulkPanel_QCTab
+#' @param bulk.intensity.matrix Numeric matrix of bulk sample intensities (features × samples)
+#' @param anno Data frame with peak annotation (must include 'display_name' and 'm_z')
 #' @export
-BulkQCServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
+BulkPanel_QCTabServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
   ns <- shiny::NS(id)
   # check whether inputs (other than id) are reactive or not
 
@@ -216,9 +216,9 @@ BulkQCServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
 
     # Peak selectize setup via helper
     shiny::req(!is.null(anno), !is.null(anno$display_name))
-    update_peak_selectize(session, "barPeakName", choices = anno$display_name, selected_n = 2)
-    update_peak_selectize(session, "boxPeakName", choices = anno$display_name, selected_n = 2)
-    update_peak_selectize(session, "peakName", choices = anno$display_name, selected_n = 0)
+    utils_update_peak_selectize(session, "barPeakName", choices = anno$display_name, selected_n = 2)
+    utils_update_peak_selectize(session, "boxPeakName", choices = anno$display_name, selected_n = 2)
+    utils_update_peak_selectize(session, "peakName", choices = anno$display_name, selected_n = 0)
 
     run_pca <- shiny::reactive({
       expr.PCA.list <- bulk.intensity.matrix |>
@@ -229,7 +229,7 @@ BulkQCServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
       return(expr.PCA.res)
     })
     pca.plot <- shiny::reactive({
-      myplot <- plot_pca(
+      myplot <- bulk_utils_plot_pca(
         run_pca(),
         metadata = bulk.metadata,
         annotation.id = match(input[['pca.annotation']], colnames(bulk.metadata)),
@@ -240,7 +240,7 @@ BulkQCServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
     output[['pca']] <- plotly::renderPlotly(plotly::ggplotly(pca.plot()))
 
     pca.contrib <- shiny::reactive({
-      myplot <- pca_contrib(
+      myplot <- bulk_utils_pca_contrib(
         run_pca(),
         comp = input[['pca.comp']],
         anno = anno
@@ -250,7 +250,7 @@ BulkQCServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
     output[['pca_contrib']] <- plotly::renderPlotly(plotly::ggplotly(pca.contrib()))
 
     plsda.plot <- shiny::reactive({
-      myplot <- plot_plsda(
+      myplot <- bulk_utils_plot_plsda(
         intensity.matrix = bulk.intensity.matrix,
         metadata = bulk.metadata,
         separator.id = match(input[['plsda.separator']], colnames(bulk.metadata)),
@@ -262,7 +262,7 @@ BulkQCServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
     output[['plsda']] <- plotly::renderPlotly(plotly::ggplotly(plsda.plot()))
 
     plsda.contrib <- shiny::reactive({
-      myplot <- plsda_contrib(intensity.matrix=bulk.intensity.matrix,
+      myplot <- bulk_utils_plsda_contrib(intensity.matrix=bulk.intensity.matrix,
                               metadata=bulk.metadata,
                               separator.id = match(input[['plsda.separator']], colnames(bulk.metadata)),
                               comp = input[['plsda.comp']],
@@ -278,7 +278,7 @@ BulkQCServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
         sub.intensity.matrix <- data.frame(bulk.intensity.matrix[peak.ids,,drop=F])
       }
       rownames(sub.intensity.matrix) <- input[["barPeakName"]]
-      myplot <- peaks_barplot(
+      myplot <- bulk_utils_peaks_barplot(
         sub.intensity.matrix = sub.intensity.matrix,
         log.transformation = F,
         condition.vector = bulk.metadata[,input[['peak.barplot.colour']]])
@@ -294,7 +294,7 @@ BulkQCServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
         sub.intensity.matrix <- data.frame(bulk.intensity.matrix[peak.ids,,drop=F])
       }
       rownames(sub.intensity.matrix) <- input[["boxPeakName"]]
-      myplot <- peaks_boxplot(
+      myplot <- bulk_utils_peaks_boxplot(
         sub.intensity.matrix = sub.intensity.matrix,
         log.transformation = F,
         metadata = bulk.metadata,
@@ -302,10 +302,6 @@ BulkQCServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
       return(myplot)
     })
     output[['boxplot']] <- plotly::renderPlotly(plotly::ggplotly(box.plot()$plot))
-
-    # output$data <- renderTable({
-    #   nearPoints(box.plot()$table, input$boxplot_click)
-    # })
 
     output$plsda_contrib_data <- shiny::renderTable({
       if (is.null(input$plsda_hover$y)) return()
@@ -328,42 +324,42 @@ BulkQCServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
       utils::head(keeprows,5)
     })
 
-    output[['downloadPCAPlot']] <- create_download_plot_handler(
+    output[['downloadPCAPlot']] <- utils_create_download_plot_handler(
       plot_func = pca.plot,
       filename_func = function() input[['plotPCAFileName']],
       width_func = function() input[['PCAPlotWidth']],
       height_func = function() input[['PCAPlotHeight']]
     )
 
-    output[['downloadPCAContribPlot']] <- create_download_plot_handler(
+    output[['downloadPCAContribPlot']] <- utils_create_download_plot_handler(
       plot_func = pca.contrib,
       filename_func = function() input[['plotPCAContribFileName']],
       width_func = function() input[['PCAContribPlotWidth']],
       height_func = function() input[['PCAContribPlotHeight']]
     )
 
-    output[['downloadPLSDAPlot']] <- create_download_plot_handler(
+    output[['downloadPLSDAPlot']] <- utils_create_download_plot_handler(
       plot_func = plsda.plot,
       filename_func = function() input[['plotPLSDAFileName']],
       width_func = function() input[['PLSDAPlotWidth']],
       height_func = function() input[['PLSDAPlotHeight']]
     )
 
-    output[['downloadPLSDAContribPlot']] <- create_download_plot_handler(
+    output[['downloadPLSDAContribPlot']] <- utils_create_download_plot_handler(
       plot_func = function() plsda.contrib()$plot,
       filename_func = function() input[['plotPLSDAContribFileName']],
       width_func = function() input[['PLSDAContribPlotWidth']],
       height_func = function() input[['PLSDAContribPlotHeight']]
     )
 
-    output[['downloadBarPlot']] <- create_download_plot_handler(
+    output[['downloadBarPlot']] <- utils_create_download_plot_handler(
       plot_func = bar.plot,
       filename_func = function() input[['plotBarFileName']],
       width_func = function() input[['barPlotWidth']],
       height_func = function() input[['barPlotHeight']]
     )
 
-    output[['downloadBoxPlot']] <- create_download_plot_handler(
+    output[['downloadBoxPlot']] <- utils_create_download_plot_handler(
       plot_func = function() box.plot()$plot,
       filename_func = function() input[['plotBoxFileName']],
       width_func = function() input[['boxPlotWidth']],
@@ -373,12 +369,3 @@ BulkQCServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno){
 
   })
 }
-
-# QCpanelApp <- function(){
-#   shinyApp(
-#     ui = fluidPage(QCpanelMetabUI('qc', bulk.metadata)),
-#     server = function(input, output, session){
-#       QCpanelMetabServer('qc', bulk.intensity.matrix[[1]], bulk.metadata[[1]])
-#     }
-#   )
-# }

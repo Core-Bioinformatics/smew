@@ -1,12 +1,23 @@
-##' SMEW App Overview UI
-##'
-##' UI for the SMEW app overview tab, with placeholders for manuscript and GitHub links.
-##'
-##' @param id Shiny module id
-##' @return A shiny tabPanel object for the overview tab
-##' @export
-IntroOverviewUI <- function(id) {
+#' Overviews the structure and features of the SMEW app
+#'
+#' @description UI and server logic for the SMEW app overview tab, with placeholders for manuscript and GitHub links.
+#'
+#' @details
+#' \itemize{
+#'  \item{Provides a high-level overview of the SMEW application structure and features.}
+#'  \item{Includes links to documentation, GitHub, and manuscript (placeholders).}
+#'  \item{Describes the app's modular analysis workflow and available panels.}
+#'}
+#' @name IntroPanel_OverviewTab
+#' @rdname IntroPanel_OverviewTab
+#'
+#' @param id Shiny module id (for both UI and server)
+#' @param show Logical; whether to render the panel (default: TRUE)
+#' @return A shiny::tabPanel object for the overview tab
+#' @export
+IntroPanel_OverviewTabUI <- function(id, show = TRUE) {
   ns <- shiny::NS(id)
+  if (show){
   shiny::tabPanel("Overview",
     shiny::div(
       style = "display: flex; align-items: center; justify-content: space-between; background: #f5f6fa; padding: 36px 48px 28px 48px; border-radius: 10px; margin-bottom: 32px; min-height: 140px;",
@@ -15,7 +26,6 @@ IntroOverviewUI <- function(id) {
 
     shiny::div(
       style = "display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start; justify-content: flex-start;",
-      # Left column: App Structure
       shiny::div(
         style = "flex: 2 1 400px; min-width: 340px; background: #e3f2fd; border-radius: 10px; padding: 24px 32px; border: 1px solid #90caf9;",
         shiny::h2("SMEW Application Overview"),
@@ -75,21 +85,20 @@ IntroOverviewUI <- function(id) {
       )
     )
   )
+  } else {
+    NULL
+  }
 }
 
-##' SMEW App Overview Server
-##'
-##' Server logic for the SMEW app overview tab, with placeholders for manuscript and GitHub links.
-##'
-##' @param id Shiny module id
-##' @return A shiny tabPanel object for the overview tab
-##' @export
-IntroOverviewServer <- function(id) {
+
+#' @rdname IntroPanel_OverviewTab
+#' @export
+IntroPanel_OverviewTabServer <- function(id) {
   shiny::moduleServer(id, function(input, output, session) {
     
     output$overview_logo <- shiny::renderImage({
       list(
-        src = file.path("figures", "logo banner.png"),
+        src = file.path("figures", "logo_banner.png"),
         contentType = "image/png",
         width = NULL,
         height = 200,

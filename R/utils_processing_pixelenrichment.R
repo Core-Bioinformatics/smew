@@ -3,7 +3,7 @@
 
 ##' Get differential peaks for a pixel neighbourhood
 ##'
-##' For a given coordinate (x_tf, y_tf), compute differential peaks between the local neighbourhood and control samples using de_analysis.
+##' For a given coordinate (x_tf, y_tf), compute differential peaks between the local neighbourhood and control samples using \code{\link{bulk_utils_DA}}.
 ##'
 ##' @param x_tf Numeric; x_tf-coordinate of the target spot.
 ##' @param y_tf Numeric; y_tf-coordinate of the target spot.
@@ -14,11 +14,10 @@
 ##' @param pvalue.cutoff Numeric; adjusted p-value cutoff for significance.
 ##' @param lfc.cutoff Numeric; log-fold-change cutoff for calling significance.
 ##' @param test Character; statistical test to use (default 't-test').
-##' @param anno Data frame; annotation data for features used by de_analysis.
+##' @param anno Data frame; annotation data for features used by \code{\link{bulk_utils_DA}}.
 ##' @return Data frame of significantly differential peaks (or NULL if neighbourhood too small).
-##' @keywords pixel, differential, enrichment
-#' @keywords internal
-get_differential_peaks <- function(x_tf, y_tf, intensity.per.sample, metadata.per.sample, control.matrix, min.neighbours = 3, pvalue.cutoff = 0.05, lfc.cutoff = 0.5, test = 't-test', anno) {
+##' @keywords internal
+preprocessing_get_differential_peaks <- function(x_tf, y_tf, intensity.per.sample, metadata.per.sample, control.matrix, min.neighbours = 3, pvalue.cutoff = 0.05, lfc.cutoff = 0.5, test = 't-test', anno) {
   # Find the neighbours and check there are enough (gcd=1, use x_tf/y_tf)
   neighbours <- metadata.per.sample[
     abs(metadata.per.sample$x_tf - x_tf) <= 1 &
@@ -32,7 +31,7 @@ get_differential_peaks <- function(x_tf, y_tf, intensity.per.sample, metadata.pe
     rownames(intensity.sub) <- paste0('comparison_', 1:nrow(intensity.sub))
     intensity.sub <- t(intensity.sub)
     comparison.matrix <- cbind(control.matrix, intensity.sub)
-    de.table <- de_analysis(
+    de.table <- bulk_utils_DA(
       intensity_matrix = comparison.matrix,
       condition = c(rep('control', ncol(control.matrix)), rep('comparison', ncol(intensity.sub))),
       var1 = 'control',
@@ -65,8 +64,8 @@ get_differential_peaks <- function(x_tf, y_tf, intensity.per.sample, metadata.pe
 ##' @param anno Data frame; annotation data used by ORA/DE.
 ##' @param organism Character or code used by pathway DB lookup.
 ##' @return Data frame of ORA results annotated with x and y coordinates, or NULL if no pathways found.
-##' @keywords pixel, enrichment, ORA
-get_enriched_pathways_perpixel <- function(
+##' @keywords internal
+preprocessing_get_enriched_pathways_perpixel <- function(
     row,
     intensity.per.sample,
     metadata.per.sample,
@@ -82,7 +81,7 @@ get_enriched_pathways_perpixel <- function(
     anno,
     organism
 ) {
-  de.table <- get_differential_peaks(
+  de.table <- preprocessing_get_differential_peaks(
     metadata.per.sample[row, 'x_tf'],
     metadata.per.sample[row, 'y_tf'],
     intensity.per.sample,
@@ -96,7 +95,7 @@ get_enriched_pathways_perpixel <- function(
   )
   current.row <- c(x_tf = metadata.per.sample[row, 'x_tf'], y_tf = metadata.per.sample[row, 'y_tf'], 'significant' = if (!is.null(de.table)) paste(de.table$m_z, collapse = ',') else NA)
   if (!is.null(de.table)) {
-    ora <- execute_ora(
+    ora <- bulk_utils_execute_ora(
       de_peaks = de.table,
       path_dict = NULL,
       background = background,
@@ -128,22 +127,23 @@ get_enriched_pathways_perpixel <- function(
 ##' @param intensity.matrix Spot-by-feature intensity matrix (all samples concatenated).
 ##' @param bulk.intensity.matrix Feature-by-sample matrix used to build control sets.
 ##' @param metadata Data frame of per-spot metadata containing Sample and spot_id columns.
-##' @param anno Data frame; annotation data for features used by de_analysis.
+##' @param anno Data frame; annotation data for features used by bulk_utils_DA.
 ##' @param control.samples Character vector of sample IDs to use as controls.
 ##' @param min.neighbours Integer; minimum neighbours (unused but retained for compatibility).
 ##' @param pvalue.cutoff Numeric; DE adjusted p-value cutoff.
 ##' @param lfc.cutoff Numeric; log fold-change cutoff.
-##' @param test Character; statistical test to use for de_analysis.
+##' @param test Character; statistical test to use for bulk_utils_DA.
 ##' @param background Optional background gene list for ORA.
 ##' @param min_path_size Integer; minimum ORA pathway size.
 ##' @param ora_pvalue_cutoff Numeric; ORA p-value cutoff.
+
+##' @param comparison.samples Character vector of sample IDs to use as comparison samples.
 ##' @param min_pathway_hits Integer; minimum pathway hits required.
 ##' @param ncores Integer; number of cores for parallel execution.
 ##' @param organism Character; organism code for pathway lookup.
 ##' @return Named list where each element is a data frame of ORA results for a sample.
-##' @keywords pixel, enrichment, parallel
-
-run_pixellevel_pipeline_parallel <- function(
+##' @keywords internal
+preprocessing_run_pixel_enrichment <- function(
   intensity.matrix,
   bulk.intensity.matrix,
   metadata,
@@ -178,14 +178,14 @@ for (sample in comparison.samples) {
       parallel::clusterExport(
         cl,
         c(
-          "get_differential_peaks", "execute_ora", "metadata.sub", "control.matrix", "de_analysis",
-          "get_enriched_pathways_perpixel", "anno", "organism", "run_ORA","kegg_db", "intensity.sub"
+          "preprocessing_get_differential_peaks", "bulk_utils_execute_ora", "metadata.sub", "control.matrix", "bulk_utils_DA",
+          "preprocessing_get_enriched_pathways_perpixel", "anno", "organism", "bulk_utils_run_ORA","kegg_db", "intensity.sub"
         ),
         envir = environment()
       )
       outlist <- pbapply::pblapply(
         seq_len(nrow(metadata.sub)),
-        FUN = function(x) get_enriched_pathways_perpixel(
+        FUN = function(x) preprocessing_get_enriched_pathways_perpixel(
           x,
           intensity.per.sample = intensity.sub,
           metadata.per.sample = metadata.sub,
@@ -213,7 +213,7 @@ for (sample in comparison.samples) {
       message(paste0("Running pixel-level enrichment for sample ", sample, " sequentially..."))
             outlist <- pbapply::pblapply(
               seq_len(nrow(metadata.sub)),
-              FUN = function(x) get_enriched_pathways_perpixel(
+              FUN = function(x) preprocessing_get_enriched_pathways_perpixel(
                 x,
                 intensity.per.sample = intensity.sub,
                 metadata.per.sample = metadata.sub,
@@ -239,8 +239,3 @@ for (sample in comparison.samples) {
 }
   return(listofoutputs)
 }
-
-
-
-
-

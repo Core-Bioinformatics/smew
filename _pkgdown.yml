@@ -1,0 +1,39 @@
+url: ~
+template:
+  bootstrap: 5
+reference:
+  - title: "App creation"
+    contents:
+      - create_smew_app
+
+  - title: "Introductory tabs"
+    contents:
+      - matches("^IntroPanel")
+
+  - title: "Bulk-level tabs"
+    contents:
+      - matches("^BulkPanel_QC")
+      - matches("^BulkPanel_DATab")
+      - matches("^BulkPanel_DASummary")
+      - matches("^BulkPanel_ORA")
+      - matches("^BulkPanel_GRN")
+      - matches("^BulkPanel_MultiComp")
+      - matches("^BulkPanel_MultiGRN")
+
+
+  - title: "Region-level tabs"
+    contents:
+      - matches("^RegionPanel_Dim")
+      - matches("^RegionPanel_Clust")
+      - matches("^RegionPanel_Voting")
+      - matches("^RegionPanel_Hist")
+      - matches("^RegionPanel_SpatialClust")
+      - matches("^RegionPanel_SpatialSmooth")
+      - matches("^RegionPanel_Comparison")
+      - matches("^RegionPanel_DA")
+      - matches("^RegionPanel_Radial")
+      - matches("^RegionPanel_GRN")
+
+  - title: "Pixel-level tabs"
+    contents:
+      - matches("^PixelPanel")

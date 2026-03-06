@@ -1,16 +1,93 @@
-##' RegionVotingServer
-##'
-##' Server logic for the region-level voting scheme tab in the SMEW app.
-##'
-##' @param id Shiny module id
-##' @param bulk.metadata Data frame of bulk sample metadata
-##' @param full.metadata Data frame of full sample metadata
-##' @param full.intensity.matrix Matrix of intensities (features x samples)
-##' @param anno Data frame of peak annotations
-##' @param shared_data Reactive or shared data object
-##' @return None; called for side effects in Shiny module
-##' @export
- RegionVotingServer <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, anno, shared_data){
+#' Creates and visualises regions of interest using a voting scheme across multiple peaks
+#'
+#' @description UI and server logic for the Voting Scheme panel, enabling users to create regions of interest using a voting scheme across multiple peaks in spatial omics data. Supports peak selection, thresholding, visualisation of voting results, and download of all results for downstream analysis.
+#'
+#' @details
+#' \itemize{
+#'   \item{Select one or more peaks and define a voting threshold to create consensus regions or clusters.}
+#'   \item{Apply a voting scheme to identify pixels/regions where a specified percentage or minimum number of selected peaks are above threshold.}
+#'   \item{Visualise the resulting regions/clusters and download plots for downstream analysis.}
+#'   \item{Supports flexible peak selection and region creation based on user-defined criteria.}
+#' }
+#'
+#' @param id Shiny module id (for both UI and server)
+#' @param bulk.metadata Data frame of bulk sample metadata
+#' @param full.metadata Data frame of full sample metadata
+#' @param full.intensity.matrix Matrix of full intensity data (features x samples)
+#' @param anno Data frame of annotation information (must include columns: m_z, display_name)
+#' @param show Logical; whether to show the panel (default TRUE)
+#' @return UI: A shiny tabPanel object for the voting scheme tab. Server: None (side effects in Shiny module).
+#' @name RegionPanel_VotingTab
+#' @rdname RegionPanel_VotingTab
+#' @export
+RegionPanel_VotingTabUI <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, anno, show = TRUE){
+  ns <- shiny::NS(id)
+  if(show){
+    shiny::tabPanel(
+      'Voting Scheme',
+      shiny::br(),
+      bslib::accordion(
+        bslib::accordion_panel(
+          title = "Information",
+          icon = bsicons::bs_icon("info-circle"),
+          open = FALSE,
+          shiny::tags$ul(
+            shiny::tags$li("This tab allows you to create regions of interest using a voting scheme across multiple peaks."),
+            shiny::tags$li("Select multiple peaks, set the top x% threshold for each, and specify the minimum number of peaks a pixel must pass to be included."),
+            shiny::tags$li("The resulting region can be added to shared_data for downstream analysis.")
+          )
+        ),
+        bslib::accordion_panel(
+          title = "Sample selection",
+          icon = bsicons::bs_icon("gear"),
+          shiny::selectInput(
+            inputId = ns("samplesToFactor"),
+            label = "Select samples to include",
+            choices = unique(bulk.metadata[, 1]),
+            selected = unique(bulk.metadata[, 1]),
+            multiple = TRUE
+          )
+        ),
+        bslib::accordion_panel(
+        title = "Downloads",
+        icon = bsicons::bs_icon("download"),
+        shiny::tags$div(
+          shiny::tags$h4("Download output plots and tables"),
+          shiny::fluidRow(
+              shiny::tags$strong("Spatial distance plot"),
+              shiny::textInput(ns('spatialVotingFileName'), 'File name', value ='SpatialVotingScheme.png'),
+              shiny::numericInput(ns('spatialVotingWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+              shiny::numericInput(ns('spatialVotingHeight'),value = 4,label = 'Height (in)',min = 1,max = 50,step = 1),
+              shiny::downloadButton(ns('downloadSpatialVoting'), 'Download spatial distance')
+          )
+        )
+        ),
+        id = ns("acc"),
+        open = "Sample selection"
+      ),
+      shiny::fluidRow(
+        shiny::column(4,
+          shiny::selectizeInput(ns("voting_peaks"), "Select peaks:", choices = c(), multiple = TRUE),
+          shiny::sliderInput(ns("voting_percent"), "Top x% of pixels per peak:", min = 1, max = 50, value = 10),
+          shiny::numericInput(ns("voting_min_peaks"), "Minimum number of peaks to pass:", value = 1, min = 1),
+          shiny::actionButton(ns("run_voting"), "Apply Voting Scheme"),
+          shiny::textInput(ns("voting_region_name"), "Name for clusters:", value = "VotingRegion"),
+          shiny::actionButton(ns("add_to_shared"), "Add clusters to object")
+        ),
+        shiny::column(8,
+          shiny::plotOutput(ns("voting_plot"), height = '600px')
+        )
+      )
+    )
+  } else {
+    NULL
+  }
+}
+
+#' @rdname RegionPanel_VotingTab
+#' @param shared_data Reactive or shared data object (server)
+#' @export
+RegionPanel_VotingTabServer <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, anno, shared_data){
    shiny::moduleServer(id, function(input, output, session){
      voting_result <- shiny::reactiveVal(NULL)
 
@@ -83,87 +160,11 @@
       shared_data$updated.metadata <- shiny::isolate(meta)
     })
 
-      output[['downloadSpatialVoting']] <- create_download_plot_handler(
+      output[['downloadSpatialVoting']] <- utils_create_download_plot_handler(
         plot_func = voting_plot,
         filename_func = function() input[['spatialVotingFileName']],
         width_func = function() input[['spatialVotingWidth']],
         height_func = function() input[['spatialVotingHeight']]
     )
   })
-}
-
-##' RegionVotingUI
-##'
-##' UI for the region-level voting scheme tab in the SMEW app.
-##'
-##' @param id Shiny module id
-##' @param bulk.metadata Data frame of bulk sample metadata
-##' @param full.metadata Data frame of full sample metadata
-##' @param full.intensity.matrix Matrix of intensities (features x samples)
-##' @param anno Data frame of peak annotations
-##' @param show Logical; whether to show the panel (default TRUE)
-##' @return A shiny tabPanel object for the voting scheme tab
-##' @export
-RegionVotingUI <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, anno, show = TRUE){
-  ns <- shiny::NS(id)
-  if(show){
-    shiny::tabPanel(
-      'Voting Scheme',
-      shiny::br(),
-      bslib::accordion(
-        bslib::accordion_panel(
-          title = "Information",
-          icon = bsicons::bs_icon("info-circle"),
-          open = FALSE,
-          shiny::tags$ul(
-            shiny::tags$li("This tab allows you to create regions of interest using a voting scheme across multiple peaks."),
-            shiny::tags$li("Select multiple peaks, set the top x% threshold for each, and specify the minimum number of peaks a pixel must pass to be included."),
-            shiny::tags$li("The resulting region can be added to shared_data for downstream analysis.")
-          )
-        ),
-        bslib::accordion_panel(
-          title = "Sample selection",
-          icon = bsicons::bs_icon("gear"),
-          shiny::selectInput(
-            inputId = ns("samplesToFactor"),
-            label = "Select samples to include",
-            choices = unique(bulk.metadata[, 1]),
-            selected = unique(bulk.metadata[, 1]),
-            multiple = TRUE
-          )
-        ),
-        bslib::accordion_panel(
-        title = "Downloads",
-        icon = bsicons::bs_icon("download"),
-        shiny::tags$div(
-          shiny::tags$h4("Download output plots and tables"),
-          shiny::fluidRow(
-              shiny::tags$strong("Spatial distance plot"),
-              shiny::textInput(ns('spatialVotingFileName'), 'File name', value ='SpatialVotingScheme.png'),
-              shiny::numericInput(ns('spatialVotingWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
-              shiny::numericInput(ns('spatialVotingHeight'),value = 4,label = 'Height (in)',min = 1,max = 50,step = 1),
-              shiny::downloadButton(ns('downloadSpatialVoting'), 'Download spatial distance')
-          )
-        )
-        ),
-        id = ns("acc"),
-        open = "Sample selection"
-      ),
-      shiny::fluidRow(
-        shiny::column(4,
-          shiny::selectizeInput(ns("voting_peaks"), "Select peaks:", choices = c(), multiple = TRUE),
-          shiny::sliderInput(ns("voting_percent"), "Top x% of pixels per peak:", min = 1, max = 50, value = 10),
-          shiny::numericInput(ns("voting_min_peaks"), "Minimum number of peaks to pass:", value = 1, min = 1),
-          shiny::actionButton(ns("run_voting"), "Apply Voting Scheme"),
-          shiny::textInput(ns("voting_region_name"), "Name for region:", value = "VotingRegion"),
-          shiny::actionButton(ns("add_to_shared"), "Create region")
-        ),
-        shiny::column(8,
-          shiny::plotOutput(ns("voting_plot"), height = '600px')
-        )
-      )
-    )
-  } else {
-    NULL
-  }
 }

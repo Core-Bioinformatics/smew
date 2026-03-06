@@ -1,20 +1,34 @@
-#' RegionHistologyUI
+#' Allows users to manually select regions of interest, optionally using histology images
 #'
-#' UI for manual region selection and histology overlay tab.
+#' @description UI and server logic for the Manual Region Selection and Histology Overlay panel, enabling users to overlay metabolic data with histology images, draw custom regions of interest, and export region/cluster assignments in spatial omics data. Supports sample selection, overlay customisation, and download of results.
 #'
-#' @param id Shiny module id
-#' @param bulk.metadata Data frame of bulk sample metadata
-#' @param full.metadata Data frame of full sample metadata
-#' @param full.intensity.matrix Matrix of intensities (features x samples)
-#' @param show Logical; whether to show the panel (default TRUE)
-#' @return A shiny tabPanel object for the manual region selection tab
+#' @details
+#' \itemize{
+#'   \item{Overlay metabolic information with histology images (if available) and manually draw custom regions of interest.}
+#'   \item{Customise cluster/region names.}
+#'   \item{Select samples to display and interactively define regions.}
+#'   \item{Export region or cluster assignments for downstream analysis.}
+#'   \item{All results and overlays are available for download.}
+#' }
+#'
+#' @param id Shiny module id (for both UI and server)
+#' @param bulk.metadata Data frame of bulk sample metadata (UI)
+#' @param full.metadata Data frame of full sample metadata (UI, server)
+#' @param full.intensity.matrix Matrix of intensities (features x samples, UI, server)
+#' @param show Logical; whether to show the panel (default TRUE, UI)
+#' @param anno Data frame of peak annotations (server)
+#' @param shared_data Reactive or shared data object (server)
+#' @name RegionPanel_HistologyTab
+#' @rdname RegionPanel_HistologyTab
+#' @return UI: A shiny tabPanel object for the manual region selection tab. Server: None (side effects in Shiny module).
 #' @export
-RegionHistologyUI <- function(id, bulk.metadata, full.metadata, full.intensity.matrix,show = TRUE){
+RegionPanel_HistologyTabUI <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, show = TRUE){
   ns <- shiny::NS(id)
-  shiny::tabPanel('Manual Region Selection',
-                  shiny::br(),
-                  bslib::accordion(
-                    bslib::accordion_panel(
+  if(show){
+    shiny::tabPanel('Manual Region Selection',
+                    shiny::br(),
+                    bslib::accordion(
+                      bslib::accordion_panel(
                       title = "Information",
                       icon = bsicons::bs_icon("info-circle"),
                       shiny::tags$ul(
@@ -90,21 +104,14 @@ RegionHistologyUI <- function(id, bulk.metadata, full.metadata, full.intensity.m
                   shiny::textInput(ns('clusterName'),label = 'Name for clusters'),
                   shiny::actionButton(ns('lock_cluster'),'Add clusters to object')
   )
+  } else {
+    NULL
+  }
 }
 
-#' RegionHistologyServer
-#'
-#' Server logic for manual region selection and histology overlay tab.
-#'
-#' @param id Shiny module id
-#' @param full.intensity.matrix Matrix of intensities (features x samples)
-#' @param full.metadata Data frame of full sample metadata
-#' @param bulk.metadata Data frame of bulk sample metadata
-#' @param anno Data frame of peak annotations
-#' @param shared_data Reactive or shared data object
-#' @return None; called for side effects in Shiny module
+#' @rdname RegionPanel_HistologyTab
 #' @export
-RegionHistologyServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, anno, shared_data) {
+RegionPanel_HistologyTabServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, anno, shared_data) {
   shiny::moduleServer(id, function(input, output, session){
     
     coords_df <- shiny::reactiveVal(NULL)
@@ -114,8 +121,8 @@ RegionHistologyServer <- function(id, full.intensity.matrix, full.metadata, bulk
     
     # Replace with your actual objects
     tissue_img <- shiny::reactive({
-      if (file.exists(paste0('images/',input$samplesToDisplay,'/MSI_HE_aligned.jpg'))){
-        img <- jpeg::readJPEG(paste0('images/',input$samplesToDisplay,'/MSI_HE_aligned.jpg'))
+      if (file.exists(paste0('images/',input$samplesToDisplay,'/histology_aligned.jpg'))){
+        img <- jpeg::readJPEG(paste0('images/',input$samplesToDisplay,'/histology_aligned.jpg'))
         return(img)
       }
     })
@@ -147,8 +154,9 @@ RegionHistologyServer <- function(id, full.intensity.matrix, full.metadata, bulk
     
     overlay_plot <- function(){
       df <- static_coords()
-      
-      if (file.exists(paste0('images/', input$samplesToDisplay, '/MSI_HE_aligned.jpg'))) {
+      shiny::req(df)
+      shiny::req(input$feature)
+      if (file.exists(paste0('images/', input$samplesToDisplay, '/histology_aligned.jpg'))) {
         img <- tissue_img()
         if (input$feature == "None") {
           p <- ggplot2::ggplot(df, ggplot2::aes(x = .data$x, y = -.data$y)) +
@@ -183,7 +191,7 @@ RegionHistologyServer <- function(id, full.intensity.matrix, full.metadata, bulk
     output$overlay <- plotly::renderPlotly({
       plotly::ggplotly(overlay_plot()) |> plotly::layout(dragmode = "lasso")
     })
-    output[['downloadOverlay']] <- create_download_plot_handler(
+    output[['downloadOverlay']] <- utils_create_download_plot_handler(
       plot_func = overlay_plot,
       filename_func = function() input[['overlayFileName']],
       width_func = function() input[['overlayWidth']],
@@ -233,7 +241,7 @@ RegionHistologyServer <- function(id, full.intensity.matrix, full.metadata, bulk
     
     selected_plot <- function(){
       df <- coords_df()
-      if (file.exists(paste0('images/', input$samplesToDisplay, '/MSI_HE_aligned.jpg'))) {
+      if (file.exists(paste0('images/', input$samplesToDisplay, '/histology_aligned.jpg'))) {
         img <- tissue_img()
         ggplot2::ggplot(df, ggplot2::aes(x = .data$x, y = -.data$y)) +
           ggplot2::annotation_raster(img, 0, ncol(img), -nrow(img), 0) +
@@ -258,7 +266,7 @@ RegionHistologyServer <- function(id, full.intensity.matrix, full.metadata, bulk
     }
     # Show updated selection
     output$selected <- shiny::renderPlot({ selected_plot() })
-    output[['downloadSelected']] <- create_download_plot_handler(
+    output[['downloadSelected']] <- utils_create_download_plot_handler(
       plot_func = selected_plot,
       filename_func = function() input[['selectedFileName']],
       width_func = function() input[['selectedWidth']],
@@ -285,7 +293,7 @@ RegionHistologyServer <- function(id, full.intensity.matrix, full.metadata, bulk
       }
     }
     output$overview <- shiny::renderPlot({ overview_plot() })
-    output[['downloadOverview']] <- create_download_plot_handler(
+    output[['downloadOverview']] <- utils_create_download_plot_handler(
       plot_func = overview_plot,
       filename_func = function() input[['overviewFileName']],
       width_func = function() input[['overviewWidth']],

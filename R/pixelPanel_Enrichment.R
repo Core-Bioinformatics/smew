@@ -1,19 +1,33 @@
-##' Pixel Enrichment UI
-##'
-##' Provides the UI for spatial pathway enrichment analysis in the SMEW app.
-##'
-##' @param id Shiny module id
-##' @param bulk.metadata Data frame of bulk sample metadata
-##' @param full.metadata Data frame of full sample metadata
-##' @param pixel_enrichment List or data structure with pixel-level enrichment results
-##' @param show Logical; whether to show the panel (default TRUE)
-##' @return A shiny tabPanel object for the enrichment panel
-##' @export
-PixelEnrichmentUI <- function(id, bulk.metadata, full.metadata, pixel_enrichment, show = TRUE) {
+
+#' Performs and visualises spatial pathway enrichment analysis
+#'
+#' @description UI and server logic for spatial pathway enrichment analysis at the pixel level in the SMEW app. Visualizes spatially-resolved pathway enrichment p-values, distributions, and significance across samples.
+#'
+#' @details
+#' \itemize{
+#'  \item{Visualize pre-computed spatial pathway enrichment p-values across samples.}
+#'  \item{Show adjusted p-values or -log10(p-values) spatially.}
+#'  \item{Density and bar plots for p-value distributions and proportion of significant pixels.}
+#'  \item{Download handlers for spatial and bar plots.}
+#'  \item{Interactive controls for pathway selection, capping, and significance threshold.}
+#' }
+#' @param id Shiny module id
+#' @param bulk.metadata Data frame of bulk sample metadata
+#' @param full.metadata Data frame of full sample metadata
+#' @param pixel.enrichment List or data structure with pixel-level enrichment results
+#' @param show Logical; whether to show the panel (default TRUE, UI only)
+#' @param full.intensity.matrix Matrix of intensities (features x samples, server only)
+#' @param anno Data frame of peak annotations (server only)
+#'
+#' @return UI: A shiny::tabPanel object for the enrichment panel. Server: None; called for side effects in Shiny module.
+#' @export
+#' @name PixelPanel_EnrichmentTab
+#' @rdname PixelPanel_EnrichmentTab
+PixelPanel_EnrichmentTabUI <- function(id, bulk.metadata, full.metadata, pixel.enrichment, show = TRUE) {
   ns <- shiny::NS(id)
   if (show) {
     shiny::tabPanel(
-      'Spatial enrichment',
+      'Spatial Enrichment',
       bslib::accordion(
         bslib::accordion_panel(
           title = "Information",
@@ -109,34 +123,25 @@ PixelEnrichmentUI <- function(id, bulk.metadata, full.metadata, pixel_enrichment
   }
 }
 
-##' PixelEnrichmentServer
-##'
-##' Provides the server logic for spatial pathway enrichment analysis in the SMEW app.
-##'
-##' @name PixelEnrichmentServer
-##' @title Pixel Enrichment Server
-##' @param id Shiny module id
-##' @param bulk.metadata Data frame of bulk sample metadata
-##' @param full.metadata Data frame of full sample metadata
-##' @param full.intensity.matrix Matrix of intensities (features x samples)
-##' @param anno Data frame of peak annotations
-##' @param pixel_enrichment List or data structure with pixel-level enrichment results
-##' @return None; called for side effects in Shiny module
-##' @export
-PixelEnrichmentServer <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, anno, pixel_enrichment){
+#' @rdname PixelPanel_EnrichmentTab
+#' @param full.intensity.matrix Matrix of intensities (features x samples)
+#' @param anno Data frame of peak annotations
+#' @return None; called for side effects in Shiny module
+#' @export
+PixelPanel_EnrichmentTabServer <- function(id, bulk.metadata, full.metadata, full.intensity.matrix, anno, pixel.enrichment){
 
   shiny::moduleServer(id, function(input, output, session){
 
     shiny::updateSelectInput(
       session,
       "samplesToShow",
-      choices = names(pixel_enrichment),
+      choices = names(pixel.enrichment),
       )
     ordered_pathway_list <- shiny::reactive({
       shiny::req(input[['samplesToShow']])
       shiny::withProgress(message = 'Sorting pathways by significance...', value = 0, {
         shiny::incProgress(0.3)
-        pathway_table = pixel_enrichment[input[['samplesToShow']]]
+        pathway_table = pixel.enrichment[input[['samplesToShow']]]
         pathway_table = dplyr::bind_rows(pathway_table, .id = "sample")
         pathway_table$pathwaySig = ifelse(pathway_table$FDR>input[['sigThreshold']],NA,pathway_table$FDR)
         pathway_table = pathway_table |> dplyr::group_by(.data$pathway) |> dplyr::summarise(non_na_count = sum(!is.na(.data$pathwaySig)), .groups = 'drop') |>
@@ -156,7 +161,7 @@ PixelEnrichmentServer <- function(id, bulk.metadata, full.metadata, full.intensi
       shiny::req(input[['samplesToShow']])
       shiny::withProgress(message = 'Preparing pathway table...', value = 0, {
         shiny::incProgress(0.4)
-        pathway_table = pixel_enrichment[input[['samplesToShow']]]
+        pathway_table = pixel.enrichment[input[['samplesToShow']]]
         pathway_table = dplyr::bind_rows(pathway_table, .id = "sample")
         shiny::incProgress(0.6)
         return(pathway_table)
@@ -225,7 +230,7 @@ PixelEnrichmentServer <- function(id, bulk.metadata, full.metadata, full.intensi
 
     show_peak_zoom <- shiny::reactive({
       shiny::req(input[['pathwayName']], input$peak_click$panelvar1)
-      pathway_table = pixel_enrichment[[input$peak_click$panelvar1]] |> dplyr::filter(.data$pathway==input[['pathwayName']])
+      pathway_table = pixel.enrichment[[input$peak_click$panelvar1]] |> dplyr::filter(.data$pathway==input[['pathwayName']])
       pathway_table = merge(full.metadata |> dplyr::filter(.data$Sample == input$peak_click$panelvar1),pathway_table,all.x=T)
 
       pathway_table$pathwaySig = ifelse(pathway_table$FDR>input[['sigThreshold']],NA,pathway_table$FDR)
@@ -272,14 +277,14 @@ PixelEnrichmentServer <- function(id, bulk.metadata, full.metadata, full.intensi
       show_peak()$density
     })
 
-    output[['downloadSpatial']] <- create_download_plot_handler(
+    output[['downloadSpatial']] <- utils_create_download_plot_handler(
       plot_func = function() show_peak()$spatial,
       filename_func = function() input[['spatialFileName']],
       width_func = function() input[['spatialWidth']],
       height_func = function() input[['spatialHeight']]
     )
 
-    output[['downloadBar']] <- create_download_plot_handler(
+    output[['downloadBar']] <- utils_create_download_plot_handler(
       plot_func = prop_significant,
       filename_func = function() input[['barFileName']],
       width_func = function() input[['barWidth']],

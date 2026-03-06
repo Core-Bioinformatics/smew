@@ -1,31 +1,29 @@
-#' Multi-Modal Metabolite Peak Regulatory Network Inference Module
-#' @description Performs comparative GRN inference across multiple sample groups
-#' using combined bulk and multi-modal data. Enables side-by-side comparison of
-#' metabolite peak regulatory relationships across different conditions or sample sets.
-#' 
-#' Key features:
-#' - Multi-network inference (1-4 networks) from independent sample subsets
-#' - GENIE3-based GRN construction from combined bulk/multi-modal data
-#' - Network visualization with recurring regulators highlighted
-#' - Interactive upset plots showing regulator overlap across networks
-#' - Customizable connection filtering and network topology visualization
+#' Infers multi-omics covariation networks
 #'
-#' @details Accepts bulk intensity matrix and multi-modal data, combining them
-#' for joint GRN inference. Removes constant features before analysis. Supports
-#' flexible sample selection per network and identifies regulatory patterns that
-#' are conserved or divergent across conditions.
+#' @description UI and server logic for comparative GRN inference across multiple sample groups using combined bulk and multi-modal data. Enables side-by-side comparison of metabolite peak regulatory relationships across different conditions or sample sets.
 #'
-#' @keywords internal
-#' @name multi_grn_panel
-
-#' @rdname multi_grn_panel
+#' @details
+#' \itemize{
+#'   \item{Multi-network inference (1-4 networks) from independent sample subsets}
+#'   \item{GENIE3-based GRN construction from combined bulk/multi-modal data}
+#'   \item{Network visualization with recurring regulators highlighted}
+#'   \item{Interactive upset plots showing regulator overlap across networks}
+#'   \item{Customizable connection filtering and network topology visualization}
+#'   \item{Accepts bulk intensity matrix and multi-modal data, combining them for joint GRN inference. Removes constant features before analysis. Supports flexible sample selection per network and identifies regulatory patterns that are conserved or divergent across conditions.}
+#' }
+#' @name BulkPanel_MultiGRNTab
+#' @rdname BulkPanel_MultiGRNTab
+#' @param id Shiny module id (for both UI and server)
+#' @param bulk.metadata Data frame with bulk sample metadata
+#' @param show Logical; whether to render the panel (default: TRUE)
+#' @return A shiny::tabPanel containing the UI elements for the multi-modal GRN panel
 #' @export
-BulkMultiGRNUI <- function(id, bulk.metadata, show = TRUE){
+BulkPanel_MultiGRNTabUI <- function(id, bulk.metadata, show = TRUE){
   ns <- shiny::NS(id)
   
   if(show){
     shiny::tabPanel(
-      'Multi-modal covariation network inference',
+      'Multi-Modal Covariation Network Inference',
       shiny::sidebarLayout(
         shiny::sidebarPanel(
             shiny::div(style = "display: flex; gap: 10px; align-items: center; margin-top: 10px;",
@@ -89,7 +87,7 @@ BulkMultiGRNUI <- function(id, bulk.metadata, show = TRUE){
             shiny::selectInput(ns('samples4'), 'Samples for GRN #4:', unique(data.frame('Sample'=colnames(bulk.metadata),'Sample2'=colnames(bulk.metadata))$Sample),
                         selected = unique(data.frame('Sample'=colnames(bulk.metadata),'Sample2'=colnames(bulk.metadata))$Sample), multiple = TRUE),
           ),
-          shiny::selectizeInput(ns("targets"), "Target metabolite peaks:", multiple = TRUE, choices = NULL),
+          shiny::selectizeInput(ns("targets"), "Target metabolite peaks or from other modality:", multiple = TRUE, choices = NULL),
           shinyjs::disabled(shiny::actionButton(ns('goGRN'), label = 'Start GRN inference')),
           shiny::numericInput(ns("plotConnections"), "Connections to plot:", 5, 0, 100),
           shiny::textInput(ns('plotFileName'), 'File name for plot download', value ='GRNplot.html'),
@@ -155,18 +153,14 @@ BulkMultiGRNUI <- function(id, bulk.metadata, show = TRUE){
   }
 }
 
-# ============ SERVER FUNCTIONS ============
 
-#' @rdname multi_grn_panel
+#' @rdname BulkPanel_MultiGRNTab
+#' @param bulk.intensity.matrix Numeric matrix of bulk sample intensities (features × samples)
+#' @param anno Data frame with peak annotation (must include 'display_name' and 'm_z')
+#' @param multi_modal Numeric matrix of multi-modal data (features × samples)
 #' @export
-BulkMultiGRNServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno, multi_modal){
+BulkPanel_MultiGRNTabServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno, multi_modal){
   
-  # stopifnot({
-  #   is.reactive(intensity.matrix)
-  #   is.reactive(metadata)
-  #   !is.reactive(anno)
-  # })
-  # 
   shiny::moduleServer(id, function(input, output, session){
     
     combined_data <- shiny::reactive({
@@ -234,7 +228,7 @@ BulkMultiGRNServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno, m
     GRNresults1 <- shiny::reactive({
       shinyjs::disable("goGRN")
       if(n_networks() >= 1){
-        weightMat <- infer_GRN(
+        weightMat <- bulk_utils_infer_GRN(
           intensity_matrix = combined_data(),
           metadata = data.frame('Sample'=colnames(combined_data()),'Sample2'=colnames(combined_data())),
           anno = anno,
@@ -255,7 +249,7 @@ BulkMultiGRNServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno, m
     GRNresults2 <- shiny::reactive({
       shinyjs::disable("goGRN")
       if(n_networks() >= 2){
-        weightMat <- infer_GRN(
+        weightMat <- bulk_utils_infer_GRN(
           intensity_matrix = combined_data(),
           metadata = data.frame('Sample'=colnames(combined_data()),'Sample2'=colnames(combined_data())),
           anno = anno,
@@ -276,7 +270,7 @@ BulkMultiGRNServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno, m
     GRNresults3 <- shiny::reactive({
       shinyjs::disable("goGRN")
       if(n_networks() >= 3){
-        weightMat <- infer_GRN(
+        weightMat <- bulk_utils_infer_GRN(
           intensity_matrix = combined_data(),
           metadata = data.frame('Sample'=colnames(combined_data()),'Sample2'=colnames(combined_data())),
           anno = anno,
@@ -297,7 +291,7 @@ BulkMultiGRNServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno, m
     GRNresults4 <- shiny::reactive({
       shinyjs::disable("goGRN")
       if(n_networks() >= 4){
-        weightMat <- infer_GRN(
+        weightMat <- bulk_utils_infer_GRN(
           intensity_matrix = combined_data(),
           metadata = data.frame('Sample'=colnames(combined_data()),'Sample2'=colnames(combined_data())),
           anno = anno,
@@ -334,10 +328,10 @@ BulkMultiGRNServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno, m
     })
     
     recurring_regulators <- shiny::reactive({
-      find_regulators_with_recurring_edges(weightMatList(), input[["plotConnections"]])
+      bulk_utils_find_regulators_with_recurring_edges(weightMatList(), input[["plotConnections"]])
     })
     
-    GRNplot1 <- shiny::reactive(plot_GRN(
+    GRNplot1 <- shiny::reactive(bulk_utils_plot_GRN(
       weightMat = GRNresults1(),
       anno = anno,
       plotConnections = input[["plotConnections"]],
@@ -345,7 +339,7 @@ BulkMultiGRNServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno, m
       n_networks = n_networks(),
       recurring_regulators = recurring_regulators()
     ))
-    GRNplot2 <- shiny::reactive(plot_GRN(
+    GRNplot2 <- shiny::reactive(bulk_utils_plot_GRN(
       weightMat = GRNresults2(),
       anno = anno,
       plotConnections = input[["plotConnections"]],
@@ -353,7 +347,7 @@ BulkMultiGRNServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno, m
       n_networks = n_networks(),
       recurring_regulators = recurring_regulators()
     ))
-    GRNplot3 <- shiny::reactive(plot_GRN(
+    GRNplot3 <- shiny::reactive(bulk_utils_plot_GRN(
       weightMat = GRNresults3(),
       anno = anno,
       plotConnections = input[["plotConnections"]],
@@ -361,7 +355,7 @@ BulkMultiGRNServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno, m
       n_networks = n_networks(),
       recurring_regulators = recurring_regulators()
     ))
-    GRNplot4 <- shiny::reactive(plot_GRN(
+    GRNplot4 <- shiny::reactive(bulk_utils_plot_GRN(
       weightMat = GRNresults4(),
       anno = anno,
       plotConnections = input[["plotConnections"]],
@@ -370,14 +364,14 @@ BulkMultiGRNServer <- function(id, bulk.intensity.matrix, bulk.metadata, anno, m
       recurring_regulators = recurring_regulators()
     ))
     
-    upsetPlot <- shiny::reactive(plot_upset(weightMatList(), input[["plotConnections"]]))
+    upsetPlot <- shiny::reactive(bulk_utils_plot_upset(weightMatList(), input[["plotConnections"]]))
     
     output[['plot1']] <- visNetwork::renderVisNetwork(GRNplot1())
     output[['plot2']] <- visNetwork::renderVisNetwork(GRNplot2())
     output[['plot3']] <- visNetwork::renderVisNetwork(GRNplot3())
     output[['plot4']] <- visNetwork::renderVisNetwork(GRNplot4())
     output[['plotUpset']] <- shiny::renderPlot(upsetPlot())
-    output[['downloadUpsetPlot']] <- create_download_plot_handler(
+    output[['downloadUpsetPlot']] <- utils_create_download_plot_handler(
       plot_func = upsetPlot,
       filename_func = function() input[['upsetFileName']],
       width_func = function() input[['upsetWidth']],
