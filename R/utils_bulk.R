@@ -824,54 +824,66 @@ bulk_utils_run_ORA = function (pathways, metabolites, universe, minSize = 1, max
 
 #' Execute Over-Representation Analysis (ORA) for Up/Down Peaks
 #'
-#' @description Runs ORA for up- and down-regulated peaks, using KEGG pathway definitions and organism-specific filtering.
+#' @description Runs ORA for up- and down-regulated peaks, using user-supplied pathway definitions.
 #'
-#' @param de_peaks Data frame of differential peaks, must include columns 'lfc' and 'kegg_id'.
-#' @param path_dict Not used (legacy argument, ignored).
-#' @param background Not used (legacy argument, ignored).
+#' @param de_peaks Data frame of differential peaks, must include columns 'lfc' and 'metabolite_id'.
+#' @param anno Data frame with annotation, must include 'metabolite_id'.
+#' @param pathway_db Data frame of pathway definitions with columns PathwayID, PathwayName, and MetaboliteIDs.
 #' @param min_path_size Minimum pathway size to include in ORA.
-#' @param ora_pvalue_cutoff Not used (legacy argument, ignored).
 #' @param min_pathway_hits Minimum number of hits in a pathway to include in results.
-#' @param peak_direction Not used (legacy argument, ignored).
-#' @param organism Character string: 'Human', 'Mouse', or 'Rat'. Used to filter KEGG pathways.
-#' @param anno Data frame with annotation, must include 'kegg_id'.
-#' @param kegg_db Data frame with KEGG pathway definitions, must include columns 'pathway_name', 'compound_id', and organism-specific columns.
 #' @keywords internal
 #' @return Data frame of ORA results for up- and down-regulated peaks, or NULL if no peaks are present.
-#' @details Used internally by the ORA Shiny panel. Pathways with <2 or >500 entries are excluded. Only pathways for the specified organism are used.
-bulk_utils_execute_ora <- function(de_peaks, path_dict, background, min_path_size, ora_pvalue_cutoff, min_pathway_hits, peak_direction,organism, anno, kegg_db) {
+#' @details Used internally by the ORA Shiny panel. Pathways with <2 or >500 entries are excluded.
+bulk_utils_execute_ora <- function(
+  de_peaks,
+  anno,
+  pathway_db,
+  min_path_size = 3,
+  min_pathway_hits = 2
+) {
 
-  up_peaks = unique(strsplit(paste(de_peaks[de_peaks$lfc>0,]$kegg_id,collapse=', '),split = ', ')[[1]])
-  down_peaks = unique(strsplit(paste(de_peaks[de_peaks$lfc<0,]$kegg_id,collapse=', '),split = ', ')[[1]])
+  if (!('metabolite_id' %in% colnames(de_peaks))) {
+    stop("de_peaks must include a 'metabolite_id' column.")
+  }
+  if (!('metabolite_id' %in% colnames(anno))) {
+    stop("anno must include a 'metabolite_id' column.")
+  }
+  required_path_cols <- c('PathwayID', 'PathwayName', 'MetaboliteIDs')
+  missing_path_cols <- setdiff(required_path_cols, colnames(pathway_db))
+  if (length(missing_path_cols) > 0) {
+    stop("Pathway table is missing required column(s): ", paste(missing_path_cols, collapse = ', '))
+  }
+
+  parse_ids <- function(x) {
+    vals <- unlist(strsplit(as.character(x), "[,;|]"))
+    vals <- trimws(vals)
+    vals[vals != "" & !is.na(vals)]
+  }
+
+  up_peaks = unique(parse_ids(paste(de_peaks[de_peaks$lfc > 0, ]$metabolite_id, collapse = ',')))
+  down_peaks = unique(parse_ids(paste(de_peaks[de_peaks$lfc < 0, ]$metabolite_id, collapse = ',')))
 
   # if no peaks are up AND down regulated, return NULL and display message
   if (length(c(up_peaks,down_peaks)) == 0) {
     return(NULL)
   }
-  if (organism == 'Human'){
-    kegg_db_filt = kegg_db[kegg_db$human_pathway == 'True',]
-  } else if (organism == 'Mouse'){
-    kegg_db_filt = kegg_db[kegg_db$mouse_pathway == 'True',]
-  } else if (organism == 'Rat'){
-    kegg_db_filt = kegg_db[kegg_db$rat_pathway == 'True',]
-  } else {
-    stop('Organism not supported')
-  }
-  # prepare a pathway:peak dictionary
-  path_list = unique(kegg_db_filt$pathway_name)
-  names(path_list) = path_list
 
-  pathway2peaks = lapply(path_list, function (x) {
-    a = unique(kegg_db_filt[kegg_db_filt$pathway_name == x,]$compound_id)
-    a[!is.na(a)]
-  })
+  # Prepare pathway -> metabolite ID dictionary from user-supplied pathway table.
+  pathway_names <- ifelse(is.na(pathway_db$PathwayName) | pathway_db$PathwayName == "",
+                          as.character(pathway_db$PathwayID),
+                          as.character(pathway_db$PathwayName))
+  pathway2peaks <- split(pathway_db$MetaboliteIDs, pathway_names)
+  pathway2peaks <- lapply(pathway2peaks, function(vals) unique(parse_ids(paste(vals, collapse = ','))))
 
   # keep only pathways with < 500 and > 1 entries
   pathway2peaks = pathway2peaks[which(lapply(pathway2peaks, length) < 500 & lapply(pathway2peaks, length) > 1)]
+
+  universe_ids <- unique(parse_ids(paste(anno$metabolite_id, collapse = ',')))
+
   ora_up = bulk_utils_run_ORA(
     pathways = pathway2peaks,
     metabolites = up_peaks,
-    universe = unique(strsplit(paste(anno$kegg_id,collapse=', '),split = ', ')[[1]]),
+    universe = universe_ids,
     minSize = min_path_size,
     maxSize = 500,
     direction = 'up'
@@ -880,7 +892,7 @@ bulk_utils_execute_ora <- function(de_peaks, path_dict, background, min_path_siz
   ora_down = bulk_utils_run_ORA(
     pathways = pathway2peaks,
     metabolites = down_peaks,
-    universe = unique(strsplit(paste(anno$kegg_id,collapse=', '),split = ', ')[[1]]),
+    universe = universe_ids,
     minSize = min_path_size,
     maxSize = 500,
     direction = 'down'

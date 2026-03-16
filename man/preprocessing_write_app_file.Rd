@@ -7,10 +7,11 @@
 preprocessing_write_app_file(
   app_dir,
   run_enrichment = FALSE,
-  organism = NULL,
   run_autocorrelation = FALSE,
   run_pixel_enrichment = FALSE,
   has_multi_modal = FALSE,
+  has_pathway_table = FALSE,
+  has_pathway_classification = FALSE,
   multi_modal_path = NULL
 )
 }
@@ -19,13 +20,15 @@ preprocessing_write_app_file(
 
 \item{run_enrichment}{Logical; whether to include enrichment panel}
 
-\item{organism}{Character; organism name}
-
 \item{run_autocorrelation}{Logical; whether to include autocorrelation panel}
 
 \item{run_pixel_enrichment}{Logical; whether to include pixel enrichment panel}
 
 \item{has_multi_modal}{Logical; whether multi-modal data is present}
+
+\item{has_pathway_table}{Logical; whether pathway table is present}
+
+\item{has_pathway_classification}{Logical; whether pathway classification table is present}
 
 \item{multi_modal_path}{Path to multi-modal data file (optional)}
 }

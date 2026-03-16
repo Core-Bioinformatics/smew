@@ -12,7 +12,6 @@ create_smew_app(
   anno = NULL,
   adducts = NULL,
   ion_mode = NULL,
-  organism = "Human",
   ppm = 10,
   only_annotated = FALSE,
   histology_images_dir = NULL,
@@ -22,7 +21,10 @@ create_smew_app(
   run_pixel_enrichment = FALSE,
   multi_modal_path = NULL,
   enrichment_controls = NULL,
-  enrichment_comparisons = NULL
+  enrichment_comparisons = NULL,
+  metabolite_table = NULL,
+  pathway_table = NULL,
+  pathway_classification = NULL
 )
 }
 \arguments{
@@ -34,13 +36,11 @@ create_smew_app(
 
 \item{denoise}{Logical; whether to denoise the data (default FALSE).}
 
-\item{anno}{Optional annotation data.frame or NULL. If provided, should map m/z features to metabolite names and KEGG IDs.}
+\item{anno}{Optional annotation data.frame or NULL. If provided, should map m/z features to metabolite names and metabolite IDs.}
 
 \item{adducts}{Optional vector of adducts used for annotation. Options include M-H [1-], M-2H [2-], M-3H [3-], M-H2O-H [1-], M-H+O [1-], M+K-2H [1-], M+Na-2H [1-], M+Cl [1-], M+Cl37 [1-], M+FA-H [1-], M+Hac-H [1-], M+Br [1-], M+Br81 [1-], M+TFA-H [1-], M+ACN-H [1-], M+HCOO [1-], M+CH3COO [1-], 2M-H [1-], 2M+FA-H [1-], 2M+Hac-H [1-], 3M-H [1-], M(C13)-H [1-], M(S34)-H [1-], M(Cl37)-H [1-] for negative mode; and M [1+], M+H [1+], M+2H [2+], M+3H [3+], M+Na [1+], M+2Na [2+], M+3Na [3+], M+H+Na [2+], M+H+2Na [3+], M+2H+Na [3+], M+2Na-H [1+], M+NaCl [1+], M+K [1+], M+H+K [2+], M+ACN+H [1+], M+ACN+2H [2+], M+ACN+Na [1+], M+2ACN+2H [2+], M+3ACN+2H [2+], M+2ACN+H [1+], M+H2O+H [1+], M-H2O+H [1+], M-H4O2+H [1+], M-HCOOH+H [1+], M+HCOONa [1+], M-HCOONa+H [1+], M+HCOOK [1+], M-HCOOK+H [1+], M-CO+H [1+], M-CO2+H [1+], M-C3H4O2+H [1+], M+CH3OH+H [1+], M-NH3+H [1+], M+H+NH4 [2+], M+NH4 [1+], M+IsoProp+H [1+], M+IsoProp+Na+H [1+], M+2K+H [1+], M+DMSO+H [1+], 2M+H [1+], 2M+NH4 [1+], 2M+Na [1+], 2M+3H2O+2H [2+], 2M+K [1+], 2M+ACN+H [1+], 2M+ACN+Na [1+], M(C13)+H [1+], M(C13)+2H [2+], M(C13)+3H [3+], M(S34)+H [1+], M(Cl37)+H [1+] for positive mode.}
 
 \item{ion_mode}{Ionisation mode ('Negative' or 'Positive'). Used for annotation.}
-
-\item{organism}{Organism name (default 'Human'). Used for annotation and pathway enrichment.}
 
 \item{ppm}{Numeric; mass accuracy in ppm (default 10). Used for annotation.}
 
@@ -61,6 +61,12 @@ create_smew_app(
 \item{enrichment_controls}{Optional vector of control samples for enrichment analysis.}
 
 \item{enrichment_comparisons}{Optional vector of comparison samples for enrichment analysis.}
+
+\item{metabolite_table}{Optional path to a CSV file with columns MetaboliteID, ExactMass, and MetaboliteName for ID-based annotation.}
+
+\item{pathway_table}{Optional path to a CSV file with columns PathwayID, PathwayName, and MetaboliteIDs used for ORA.}
+
+\item{pathway_classification}{Optional path to a CSV file with columns PathwayName, PathwayID, Category1, and Category2 for ORA category overlays.}
 }
 \value{
 Invisibly returns the path to the generated app.R file. All processed data and app files are saved in the output directory.
@@ -93,7 +99,6 @@ create_smew_app(
   intensity_csv = system.file("extdata", "bleo_sub_intensity.csv", package = "smew"),
   metadata_csv = system.file("extdata", "bleo_sub_meta.csv", package = "smew"),
   output_dir = tempdir(),
-  organism = 'Mouse',
 )
 unlink(paste0(normalizePath(tempdir()), "/", dir(tempdir())), recursive = TRUE)
 }

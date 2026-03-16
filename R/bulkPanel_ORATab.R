@@ -84,12 +84,6 @@ BulkPanel_ORATabUI <- function(id, bulk.metadata, show = TRUE){
               shiny::numericInput(ns('volcanoHeight'),value = 6,label = 'Height of downloaded figure (in inches)',min = 1,max = 50,step = 1),
               shiny::downloadButton(ns('downloadVolcano'), 'Download volcano plot'),
               shiny::tags$hr(),
-              shiny::tags$h4("Pathway Categories"),
-              shiny::textInput(ns('categoriesFileName'),'File name for download', value ='pathwayCategories.png', placeholder = 'pathwayCategories.png'),
-              shiny::numericInput(ns('categoriesWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
-              shiny::numericInput(ns('categoriesHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
-              shiny::downloadButton(ns('downloadCategories'), 'Download category figure'),
-              shiny::tags$hr(),
               shiny::tags$h4("Pathway Network"),
               shiny::textInput(ns('networkFileName'),'File name for download', value ='network.html', placeholder = 'network.html'),
               shiny::downloadButton(ns('downloadNetwork'), 'Download network')
@@ -107,16 +101,15 @@ BulkPanel_ORATabUI <- function(id, bulk.metadata, show = TRUE){
           shiny::tags$h2("Pathway Enrichment Volcano Plot"),
           plotly::plotlyOutput(ns('oraVolcano')),
           shiny::tableOutput(ns('oraVolcanoData')),
-          shiny::tags$h2("Pathway Category Plot"),
-          shiny::plotOutput(ns('pathwayCategories')),
 
         )
       ),
       shiny::sidebarLayout(
         shiny::sidebarPanel(
-          shiny::selectInput(ns('selectedClassification'),label = 'Select pathway categories to show in network',choices = c('None','Top Level','More Granular'),selected = 'Top Level',multiple = F),
+          shiny::uiOutput(ns('classificationUI')),
         ),
         shiny::mainPanel(
+          shiny::uiOutput(ns('categoryPlotUI')),
           shiny::tags$h2("Pathway Co-occurrence Network"),
           visNetwork::visNetworkOutput(ns('ORAnetwork'),height="600")
         )
@@ -131,9 +124,10 @@ BulkPanel_ORATabUI <- function(id, bulk.metadata, show = TRUE){
 #' @param bulk.intensity.matrix Numeric matrix of bulk sample intensities (features × samples)
 #' @param de.results Reactive expression or data frame of differential expression results
 #' @param anno Data frame with peak annotation (must include 'display_name' and 'm_z')
-#' @param organism Character string specifying the organism (for KEGG mapping)
+#' @param pathway_table Optional pathway table with columns PathwayID, PathwayName, and MetaboliteIDs.
+#' @param pathway_classification Optional pathway classification table. If NULL, category-specific UI/plots are hidden.
 #' @export
-BulkPanel_ORATabServer <- function(id, bulk.intensity.matrix, bulk.metadata, de.results, anno, organism){
+BulkPanel_ORATabServer <- function(id, bulk.intensity.matrix, bulk.metadata, de.results, anno, pathway_table = NULL, pathway_classification = NULL){
 
   # check whether inputs (other than id) are reactive or not
   stopifnot({
@@ -141,17 +135,62 @@ BulkPanel_ORATabServer <- function(id, bulk.intensity.matrix, bulk.metadata, de.
   })
 
   shiny::moduleServer(id, function(input, output, session){
+    ns <- session$ns
+
+    has_pathway_table <- !is.null(pathway_table) &&
+      is.data.frame(pathway_table) &&
+      all(c('PathwayID', 'PathwayName', 'MetaboliteIDs') %in% colnames(pathway_table))
+
+    parse_ids <- function(x) {
+      vals <- unlist(strsplit(as.character(x), "[,;|]"))
+      vals <- trimws(vals)
+      vals[vals != "" & !is.na(vals)]
+    }
+
+    has_classification <- !is.null(pathway_classification) &&
+      is.data.frame(pathway_classification) &&
+      all(c('PathwayName', 'PathwayID', 'Category1', 'Category2') %in% colnames(pathway_classification))
+
+    output$classificationUI <- shiny::renderUI({
+      if (has_classification) {
+        shiny::tagList(
+          shiny::selectInput(ns('selectedClassification'),
+                             label = 'Select pathway categories to show in network',
+                             choices = c('None','Top Level','More Granular'),
+                             selected = 'Top Level',
+                             multiple = FALSE),
+          shiny::tags$hr(),
+          shiny::tags$h4("Pathway Categories"),
+          shiny::textInput(ns('categoriesFileName'),'File name for download', value ='pathwayCategories.png', placeholder = 'pathwayCategories.png'),
+          shiny::numericInput(ns('categoriesWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+          shiny::numericInput(ns('categoriesHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+          shiny::downloadButton(ns('downloadCategories'), 'Download category figure')
+        )
+      } else {
+        shiny::tags$p("No pathway classification table supplied; category overlays are disabled.")
+      }
+    })
+
+    output$categoryPlotUI <- shiny::renderUI({
+      if (has_classification) {
+        shiny::tagList(
+          shiny::tags$h2("Pathway Category Plot"),
+          shiny::plotOutput(ns('pathwayCategories'), height = "600px")
+        )
+      } else {
+        NULL
+      }
+    })
 
     get_ORA <- shiny::reactive({
-      bulk_utils_execute_ora(de_peaks = de.results()$DE()$DEtableSubset,
-                  path_dict = NULL,
-                  background = input[['background_selector']],
-                  min_path_size = input[['min_pathway_size']],
-                  ora_pvalue_cutoff = input[['ora_pvalue_cutoff']],
-                  min_pathway_hits = input[['min_pathway_hits']],
-                  organism=organism,
-                  anno=anno,
-                  kegg_db = kegg_db)
+      shiny::validate(shiny::need(has_pathway_table, "Pathway enrichment is unavailable because pathway_table was not supplied."))
+      bulk_utils_execute_ora(
+        de_peaks = de.results()$DE()$DEtableSubset,
+        anno = anno,
+        pathway_db = pathway_table,
+        min_path_size = input[['min_pathway_size']],
+        min_pathway_hits = input[['min_pathway_hits']]
+      )
     }) |> shiny::bindEvent(input[["submit_from_ora"]])
 
     dataTable <- shiny::reactive({
@@ -183,23 +222,29 @@ BulkPanel_ORATabServer <- function(id, bulk.intensity.matrix, bulk.metadata, de.
         dplyr::filter(.data$FDR<input[['ora_pvalue_cutoff']]) |>
         dplyr::mutate(`-log10pval` = -log10(.data$FDR),
                       lfc = ifelse(.data$direction=='up',log2(.data$hits/.data$expected),-log2(.data$hits/.data$expected)))
-      pathway.list = list()
-      # could consider switching to overlap in the DE metabolites rather than just overall
-      for (pathway in unique(kegg_db$pathway_name)){
-        pathway.list[[pathway]]=unique(kegg_db[kegg_db$pathway_name==pathway,]$compound_id)
-      }
+      pathway_names <- ifelse(is.na(pathway_table$PathwayName) | pathway_table$PathwayName == "",
+                              as.character(pathway_table$PathwayID),
+                              as.character(pathway_table$PathwayName))
+      pathway.list <- split(pathway_table$MetaboliteIDs, pathway_names)
+      pathway.list <- lapply(pathway.list, function(vals) unique(parse_ids(paste(vals, collapse = ','))))
+      pathway.list <- pathway.list[unique(ora$pathway)]
       # might be issues here if a pathway comes up as up and down
       nodes = data.frame(label=ora$pathway,id=ora$pathway,shape='circle',color=ora$lfc,font.color='white')
       nodes$label = stringr::str_wrap(nodes$label,10)
-      edges = data.frame(t(utils::combn(names(pathway.list), 2)))
-      edges = edges[edges$X1!=edges$X2,]
-      colnames(edges)=c('from','to')
+      if (length(pathway.list) >= 2) {
+        edges = data.frame(t(utils::combn(names(pathway.list), 2)))
+        edges = edges[edges$X1!=edges$X2,]
+        colnames(edges)=c('from','to')
+      } else {
+        edges <- data.frame(from = character(), to = character())
+      }
       weight.vector = c()
-      for (i in 1:nrow(edges)){
-        from.met = pathway.list[[edges[i,'from']]]
-        to.met = pathway.list[[edges[i,'to']]]
-        weight.vector = c(weight.vector,(length(intersect(from.met,to.met))/length(union(from.met,to.met))))
-        #  weight.vector = c(weight.vector,(length(intersect(from.met,to.met))))
+      if (nrow(edges) > 0) {
+        for (i in seq_len(nrow(edges))){
+          from.met = pathway.list[[edges[i,'from']]]
+          to.met = pathway.list[[edges[i,'to']]]
+          weight.vector = c(weight.vector,(length(intersect(from.met,to.met))/length(union(from.met,to.met))))
+        }
       }
       edges$value = weight.vector
       edges = edges[edges$value!=0,]
@@ -216,16 +261,17 @@ BulkPanel_ORATabServer <- function(id, bulk.intensity.matrix, bulk.metadata, de.
 
       nodes = network$nodes
       edges = network$edges
-      if (input[['selectedClassification']]!='None'){
-        kegg_classification_sub = kegg_classification[kegg_classification$pathway_name%in%ora$pathway,]
+      if (has_classification && !is.null(input[['selectedClassification']]) && input[['selectedClassification']]!='None'){
+        pathway_classification_sub = pathway_classification[pathway_classification$PathwayName %in% ora$pathway,]
         if (input[['selectedClassification']]=='Top Level'){
-          kegg_classification_sub$category = kegg_classification_sub$category1
+          pathway_classification_sub$category = pathway_classification_sub$Category1
         } else {
-          kegg_classification_sub$category = kegg_classification_sub$category2
+          pathway_classification_sub$category = pathway_classification_sub$Category2
         }
-        classification_edges = data.frame('from'=kegg_classification_sub$category,'to'=kegg_classification_sub$pathway_name,value=min(edges$value))
+        min_edge <- if (nrow(edges) > 0) min(edges$value) else 1
+        classification_edges = data.frame('from'=pathway_classification_sub$category,'to'=pathway_classification_sub$PathwayName,value=min_edge)
         edges = rbind(edges,classification_edges)
-        classification_nodes = data.frame('label'=unique(kegg_classification_sub$category),'id'=unique(kegg_classification_sub$category),
+        classification_nodes = data.frame('label'=unique(pathway_classification_sub$category),'id'=unique(pathway_classification_sub$category),
                                           'shape'='box','color'='grey',font.color='white')
         classification_nodes = classification_nodes[!(classification_nodes$id %in% nodes$id),]
         nodes = rbind(nodes,classification_nodes)
@@ -239,13 +285,14 @@ BulkPanel_ORATabServer <- function(id, bulk.intensity.matrix, bulk.metadata, de.
 
     # if there's more than a certain number, just show the dots and allow to hover!
     pathwayCategories <- shiny::reactive({
+      shiny::req(has_classification)
       significant.pathways = get_ORA()[get_ORA()$FDR<input[['ora_pvalue_cutoff']],]
-      kegg_classification_sub = kegg_classification
-      kegg_classification_sub$pathway = kegg_classification_sub$pathway_name
-      kegg_classification_sub$category1 = factor(kegg_classification_sub$category1)
-      kegg_classification_sub$category2 = factor(kegg_classification_sub$category2)
-      kegg_classification_sub$pathway_id = paste0('map',kegg_classification_sub$pathway_id)
-      significant.pathways = merge(significant.pathways,kegg_classification_sub)
+      pathway_classification_sub = pathway_classification
+      pathway_classification_sub$pathway = pathway_classification_sub$PathwayName
+      pathway_classification_sub$category1 = factor(pathway_classification_sub$Category1)
+      pathway_classification_sub$category2 = factor(pathway_classification_sub$Category2)
+      pathway_classification_sub$pathway_id = paste0('map',pathway_classification_sub$PathwayID)
+      significant.pathways = merge(significant.pathways,pathway_classification_sub)
       return(ggplot2::ggplot(significant.pathways,ggplot2::aes(x=.data$category2,y=-log10(.data$FDR),color=.data$category2))+
                ggplot2::geom_point()+
                ggplot2::facet_wrap(~.data$category1,scales = 'free_x',ncol=2)+
@@ -296,12 +343,14 @@ BulkPanel_ORATabServer <- function(id, bulk.intensity.matrix, bulk.metadata, de.
     # }, digits = 4)
 
     output[['pathwayCategories']] <- shiny::renderPlot({
+      shiny::req(has_classification)
       pathwayCategories()
     })
 
     output[['downloadCategories']] <- shiny::downloadHandler(
       filename = function() { input[['categoriesFileName']] },
       content = function(file) {
+        shiny::req(has_classification)
         ggplot2::ggsave(file, plot = pathwayCategories(), dpi = 300,
                width=input[['categoriesWidth']],height=input[['categoriesHeight']])
       }

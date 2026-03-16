@@ -2,10 +2,10 @@
 % Please edit documentation in R/utils_processing.R
 \name{preprocessing_get_matched_peaks}
 \alias{preprocessing_get_matched_peaks}
-\title{Match experimental peaks to known compounds (KEGG)}
+\title{Match experimental peaks to known compounds}
 \usage{
 preprocessing_get_matched_peaks(
-  kegg_db = NULL,
+  metabolite_db = NULL,
   peak_list = NULL,
   ppm = 5,
   ion_mode = NULL,
@@ -15,7 +15,7 @@ preprocessing_get_matched_peaks(
 )
 }
 \arguments{
-\item{kegg_db}{Data frame with known compound information (must include complete_compound_mass).}
+\item{metabolite_db}{Data frame with known compound information. Expected columns are MetaboliteID, ExactMass, and MetaboliteName.}
 
 \item{peak_list}{Numeric vector of experimental m/z values.}
 
@@ -31,6 +31,6 @@ preprocessing_get_matched_peaks(
 Data frame of matched peaks with compound annotations and adduct information.
 }
 \description{
-Matches experimental m/z peaks against a compound database (KEGG) using specified ionization mode and adduct formulas. Validates all input parameters.
+Matches experimental m/z peaks against a metabolite database using specified ionization mode and adduct formulas. Validates all input parameters.
 }
 \keyword{internal}

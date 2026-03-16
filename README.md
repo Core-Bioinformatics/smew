@@ -125,9 +125,11 @@ library(smew)
 create_smew_app(
   intensity_csv = 'testdata/intensity.csv', metadata_csv = 'testdata/meta.csv', 
   output_dir = 'test_app', 
+  metabolite_table = 'path/to/metabolite_table.csv',
+  pathway_table = 'path/to/pathway_table.csv',
+  pathway_classification = 'path/to/pathway_classification.csv',
   adducts = 'M-H [1-]', 
   ion_mode = 'Negative', 
-  organism = 'Mouse', 
   only_annotated = TRUE)
 
 
@@ -161,7 +163,7 @@ Here we describe the structure of a SMEW app and the components of each section.
 
 **DA Summary:** Summarise and visualize results from DA comparisons using heatmaps and volcano plots.
 
-**Pathway ORA (if available):** Test for enrichment of differentially abundant peaks in known pathways using over-representation analysis based on KEGG pathways.
+**Pathway ORA (if available):** Test for enrichment of differentially abundant peaks in known pathways using over-representation analysis based on a user-supplied pathway table.
 
 **Covariation Network Inference:** Infer regulatory networks from sample-level data using GENIE3, with interactive network visualisation and comparison between multiple networks.
 

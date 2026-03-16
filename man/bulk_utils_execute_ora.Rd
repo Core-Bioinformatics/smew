@@ -6,45 +6,30 @@
 \usage{
 bulk_utils_execute_ora(
   de_peaks,
-  path_dict,
-  background,
-  min_path_size,
-  ora_pvalue_cutoff,
-  min_pathway_hits,
-  peak_direction,
-  organism,
   anno,
-  kegg_db
+  pathway_db,
+  min_path_size = 3,
+  min_pathway_hits = 2
 )
 }
 \arguments{
-\item{de_peaks}{Data frame of differential peaks, must include columns 'lfc' and 'kegg_id'.}
+\item{de_peaks}{Data frame of differential peaks, must include columns 'lfc' and 'metabolite_id'.}
 
-\item{path_dict}{Not used (legacy argument, ignored).}
+\item{anno}{Data frame with annotation, must include 'metabolite_id'.}
 
-\item{background}{Not used (legacy argument, ignored).}
+\item{pathway_db}{Data frame of pathway definitions with columns PathwayID, PathwayName, and MetaboliteIDs.}
 
 \item{min_path_size}{Minimum pathway size to include in ORA.}
 
-\item{ora_pvalue_cutoff}{Not used (legacy argument, ignored).}
-
 \item{min_pathway_hits}{Minimum number of hits in a pathway to include in results.}
-
-\item{peak_direction}{Not used (legacy argument, ignored).}
-
-\item{organism}{Character string: 'Human', 'Mouse', or 'Rat'. Used to filter KEGG pathways.}
-
-\item{anno}{Data frame with annotation, must include 'kegg_id'.}
-
-\item{kegg_db}{Data frame with KEGG pathway definitions, must include columns 'pathway_name', 'compound_id', and organism-specific columns.}
 }
 \value{
 Data frame of ORA results for up- and down-regulated peaks, or NULL if no peaks are present.
 }
 \description{
-Runs ORA for up- and down-regulated peaks, using KEGG pathway definitions and organism-specific filtering.
+Runs ORA for up- and down-regulated peaks, using user-supplied pathway definitions.
 }
 \details{
-Used internally by the ORA Shiny panel. Pathways with <2 or >500 entries are excluded. Only pathways for the specified organism are used.
+Used internally by the ORA Shiny panel. Pathways with <2 or >500 entries are excluded.
 }
 \keyword{internal}

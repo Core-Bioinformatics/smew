@@ -1,0 +1,536 @@
+---
+title: "Building custom metabolite and pathway databases for SMEW"
+output:
+  rmarkdown::html_vignette:
+    vignette: >
+      %\VignetteIndexEntry{Building custom metabolite and pathway databases for SMEW}
+      %\VignetteEngine{knitr::rmarkdown}
+      \usepackage[utf8]{inputenc}
+---
+<div style="text-align: justify">
+
+```{r options, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "##>"
+)
+```
+
+SMEW can use user-supplied annotation and pathway resources during `create_smew_app()`.
+
+This vignette explains how to build the three optional CSV inputs:
+
+* `metabolite_table`: maps exact masses to metabolite IDs and names
+* `pathway_table`: defines which metabolites belong to each pathway
+* `pathway_classification`: optional categories used for ORA category visualisation
+
+## Where these files are used
+
+You can pass these files directly to `create_smew_app()`:
+
+```{r, eval = FALSE}
+create_smew_app(
+  intensity_csv = "path/to/intensity.csv",
+  metadata_csv = "path/to/metadata.csv",
+  output_dir = "test_app",
+  metabolite_table = "path/to/metabolite_table.csv",
+  pathway_table = "path/to/pathway_table.csv",
+  pathway_classification = "path/to/pathway_classification.csv",
+  adducts = c("M-H [1-]"),
+  ion_mode = "Negative"
+)
+```
+
+These files can be generated using custom databases or based on public resources. Users should however ensure that usage is consistent with the relevant licenses for any public databases used as sources for these files and that such databases are cited appropriately in any publications using SMEW.
+
+## Required structure of the input files
+
+The three tables must be in CSV format and have the following required columns:
+- `metabolite_table.csv`: `MetaboliteID`, `ExactMass`, `MetaboliteName`
+- `pathway_table.csv`: `PathwayID`, `PathwayName`, `MetaboliteIDs`
+- `pathway_classification.csv`: `PathwayName`, `PathwayID`, `Category1`, `Category2`
+
+The MetaboliteIDs column in `pathway_table.csv` should be a comma-delimited string of metabolite IDs. The metabolite IDs can be any stable IDs of your choice, but they must match the `MetaboliteID` column in `metabolite_table.csv` for the corresponding metabolites. The `PathwayName` column in `pathway_classification.csv` should match the `PathwayName` column in `pathway_table.csv` for the corresponding pathways.
+
+Here we walk through generating the required structure from some example databases.
+
+## Workflow roadmap
+
+This vignette is organised as follows:
+
+1. A complete KEGG workflow to build all three SMEW input files.
+2. Alternative sources for `metabolite_table.csv`.
+3. Alternative sources for `pathway_table.csv`.
+4. Final validation checks before running `create_smew_app()`.
+
+## 1) Using KEGG to build `metabolite_table.csv`, `pathway_table.csv` and `pathway_classification.csv`
+
+The KEGG database provides comprehensive information on metabolites and pathways, making it a valuable resource for building the required tables for SMEW. Below is an example of how to extract and format data from KEGG to create the necessary CSV files.
+
+As an example, here is what the first few rows of each table might look like based on KEGG data:
+
+```{r, example_tables, echo = TRUE}
+# Example metabolite_table
+metabolite_table <- read.csv('databases/metabolite_masses.csv')
+print(head(metabolite_table))
+
+# Example pathway_table
+pathway_table <- read.csv('databases/pathways.csv')
+print(head(pathway_table))
+
+# Example pathway_classification
+pathway_classification <- read.csv('databases/pathway_classification.csv')
+print(head(pathway_classification))
+```
+
+To build these tables from KEGG, you can use the KEGG REST API to retrieve information on metabolites and pathways. Below are the general steps to do this:
+
+We load some libraries for data manipulation and API access:
+```{r, load_libraries, message = F, warning = F}
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(progress)
+library(pbapply)
+library(httr)
+library(readr)
+```
+
+1. **Build `pathway_table.csv`**: 
+
+Use the KEGG API to get a list of pathways and their associated metabolites. Create a data frame with the required columns (`PathwayID`, `PathwayName`, `MetaboliteIDs`). The `PathwayID` can be the KEGG pathway ID (e.g., hsa00010 for glycolysis), and the `MetaboliteIDs` column should contain a comma-delimited string of the corresponding metabolite IDs.
+
+First we retrieve the compound-pathway links from KEGG:
+```{r, kegg_example}
+download_kegg_pathway_links <- function() {
+  url <- "https://rest.kegg.jp/link/pathway/compound"
+  message("Downloading KEGG compound–pathway links...")
+  txt <- readLines(url, warn = FALSE)
+  df <- tibble(raw = txt) |>
+    separate(raw, into = c("compound", "pathway"), sep = "\t")
+  return(df)
+}
+
+kegg_links <- download_kegg_pathway_links()
+print(head(kegg_links))
+```
+
+Next we clean up the IDs to remove the prefixes:
+
+```{r, kegg_cleanup}
+kegg_links <- kegg_links |>
+  mutate(
+    compound = str_remove(compound, "cpd:"),
+    pathway = str_remove(pathway, "path:")
+  )
+print(head(kegg_links))
+```
+
+Now we associate pathway names with the pathway IDs:
+```{r, kegg_pathway_names}    
+download_kegg_pathway_names <- function() {
+  url <- "https://rest.kegg.jp/list/pathway"
+  message("Downloading KEGG pathway names...")
+  txt <- readLines(url, warn = FALSE)
+  df <- tibble(raw = txt) |>
+    separate(raw, into = c("pathway", "name"), sep = "\t")
+  df <- df |>
+    mutate(pathway = str_remove(pathway, "path:"))
+  return(df)
+}
+kegg_pathways <- download_kegg_pathway_names()
+print(head(kegg_pathways))
+```
+
+Now finally, we combine the information to build the pathway table with the required columns:
+
+```{r, kegg_pathway_table}
+kegg_pathway_db <- kegg_links |>
+  left_join(kegg_pathways, by = "pathway")
+
+kegg_pathway_sets <- kegg_pathway_db |>
+  group_by(pathway, name) |>
+  summarise(
+    compounds = paste(unique(compound),collapse = ','),
+    .groups = "drop"
+  )
+
+pathway_table <- kegg_pathway_sets |>
+  rename(PathwayID = pathway, PathwayName = name, MetaboliteIDs = compounds)
+print(head(pathway_table))
+```
+
+To use within smew, the pathway table should be saved as a CSV file:
+
+```{r, eval = FALSE}
+write.csv(pathway_table, "pathway_table.csv", row.names = FALSE)
+```
+
+2. **Build `metabolite_table.csv`**: 
+
+Extract the exact masses and names of the metabolites from KEGG and create a data frame with the required columns (`MetaboliteID`, `ExactMass`, `MetaboliteName`). The `MetaboliteID` can be the KEGG compound ID (e.g., C00031 for glucose).
+
+To build the `metabolite_table.csv`, you need to retrieve a list of compounds and their properties. This process can be time-consuming due to the large number of compounds in KEGG, so it's recommended to limit the retrieval to compounds that are relevant to your study (e.g., those that appear in your pathway table). Below is an example of how to retrieve compound information and build the metabolite table:
+
+```{r, kegg_metabolite_table}
+# Function to retrieve compound mass information
+get_kegg_compound <- function(id) {
+  url <- paste0("https://rest.kegg.jp/get/", id)
+  txt <- readLines(url, warn = FALSE)
+  exact_mass <- txt[grepl("EXACT_MASS", txt)]
+  formula <- txt[grepl("FORMULA", txt)]
+  exact_mass <- str_extract(exact_mass, "[0-9]+\\.[0-9]+")
+  formula <- str_trim(sub("FORMULA", "", formula))
+  tibble(
+    kegg_id = id,
+    formula = formula,
+    exact_mass = as.numeric(exact_mass)
+  )
+}
+
+# Function to retrieve compound name information
+ download_kegg_compounds <- function() {
+  url <- "https://rest.kegg.jp/list/compound"
+  res <- GET(url)
+  stop_for_status(res)
+  txt <- content(res, "text")
+  lines <- strsplit(txt, "\n")[[1]]
+  df <- tibble(raw = lines) |>
+    filter(raw != "") |>
+    separate(raw, into = c("kegg_id", "name"), sep = "\t")
+  return(df)
+ }
+ kegg_list <- download_kegg_compounds()
+
+ # Here we only keep the compounds that are in our pathway table to speed up the process and get the most relevant annotations but you can also run this with all possible compounds in KEGG if you want a more comprehensive database (but be aware this will take a long time to run. 
+ # ids <- kegg_list$kegg_id
+
+ # For demonstration we will only retrieve the first few compounds:
+ # ids = sort(unique(kegg_pathway_db$compound))
+ ids = head(sort(unique(kegg_pathway_db$compound)), 20)
+ 
+db_list <- pblapply(ids, function(id) {
+  Sys.sleep(0.2) # to avoid hitting KEGG API rate limits
+  tryCatch(
+    get_kegg_compound(id),
+    error = function(e) NULL
+  )
+})
+
+db <- bind_rows(db_list)
+db <- left_join(db, kegg_list, by = "kegg_id")
+# Optionally, simplify the names by taking the first name before any semicolon (as KEGG often lists multiple names separated by semicolons)
+db$short_name = stringr::word(db$name,sep=';',1,1)
+db_output = db[,c(1,3,5)]
+colnames(db_output)=c('MetaboliteID','ExactMass','MetaboliteName')
+
+print(head(db_output))
+```
+
+To use within smew, the metabolite table should be saved as a CSV file:
+
+```{r, eval = FALSE}
+write.csv(db_output, "metabolite_table.csv", row.names = FALSE)
+```
+
+3. **Build `pathway_classification.csv` (optional)**
+
+This table is optional and only used for ORA category overlays/plots.
+
+Required columns:
+
+- `PathwayName`: must match pathway names used in ORA output
+- `PathwayID`: pathway ID (for reference and plotting labels)
+- `Category1`: top-level category
+- `Category2`: more specific subcategory
+
+Example structure:
+
+```{r classification_template, echo = TRUE}
+parse_kegg_hierarchy <- function(file){
+  lines <- readLines(file)
+  print(head(lines))
+  lvl1 <- NA
+  lvl2 <- NA
+  
+  out <- list()
+  for(line in lines){ 
+    if(str_starts(line,"A")){ lvl1 <- gsub("^A","",line) }
+    if(str_starts(line,"B")){ lvl2 <- trimws(gsub("^B ","",line)) }
+    if(str_starts(line,"C ")){
+      path <- gsub("^C","",line)
+      path_id <- str_extract(path,"[0-9]+")
+      path_name <- str_remove(path,"[0-9]+\\s+")
+      out[[length(out)+1]] <- data.frame(
+        PathwayID = path_id,
+        PathwayName = path_name,
+        Category1 = lvl1,
+        Category2 = lvl2,
+        stringsAsFactors = FALSE
+      )
+    }
+  }
+  bind_rows(out)
+}
+# download.file("https://rest.kegg.jp/get/br:br08901",destfile = 'databases/kegg_hierarchy.txt')
+pathway_classification <- parse_kegg_hierarchy("databases/kegg_hierarchy.txt")
+print(head(pathway_classification))
+```
+
+Write to CSV:
+
+```{r, eval = FALSE}
+write.csv(pathway_classification, "pathway_classification.csv", row.names = FALSE)
+```
+
+## Alternative sources for `metabolite_table.csv`
+
+### HMDB example for `metabolite_table.csv`
+
+Use this when you want HMDB-native identifiers and rich metabolite metadata.
+
+Another valuable resource for metabolite annotation is the Human Metabolome Database (HMDB). To build a mass table, you first need to download the relevant .xls metabolites table from [https://hmdb.ca/downloads](https://hmdb.ca/downloads) (e.g., the "All Metabolites" table). This will be a large .xls file containing information on all the metabolites in HMDB, including their exact masses and names. Using HMDB you can download data with either HMDB or ChEBI IDs for comparison against pathway tables.
+
+You can then process it into the required table format for SMEW as follows:
+
+```{r, hmdb_processing, warning=F}
+library(xml2)
+library(data.table)
+library(purrr)
+
+doc <- read_xml("databases/hmdb_metabolites.xml")
+doc <- xml_ns_strip(doc)
+metabolites <- xml_find_all(doc, "//d1:metabolite")
+
+# You can parallelise the process like follows to speed it up:
+parse_one_text <- function(xml_text_string) {
+node <- read_xml(xml_text_string)
+tibble(
+    MetaboliteID = xml_text(xml_find_first(node, ".//accession")),
+    ChEBI = xml_text(xml_find_first(node, ".//chebi_id")),
+    MetaboliteName = xml_text(xml_find_first(node, ".//name")),
+    ExactMass = xml_double(xml_find_first(node, ".//monisotopic_molecular_weight"))
+)
+}
+# Here we give an example on how to extract the first 20 metabolites but you can of course run this for all metabolites in the HMDB database (but be aware this will take a long time to run).
+metabolite_texts <- as.character(head(metabolites,20))
+annotation <- map_dfr(metabolite_texts, parse_one_text, .progress = TRUE)
+
+# You can parallelise the process like follows to speed it up:
+# library(furrr)
+# plan(multisession, workers = n_cores)
+# annotation <- future_map_dfr(metabolite_texts, parse_one_text, .progress = TRUE)
+
+print(head(annotation))
+```
+
+Depending on the pathway database you want to use, you can set either the HMDB ID column or the ChEBI column to be the MetaboliteID column for SMEW analysis.
+
+### LipidMaps example for `metabolite_table.csv`
+
+Use this when your panel is lipid-heavy and you want LipidMaps IDs and masses.
+
+LipidMaps is a valuable resource for lipid annotation. You can download the relevant data and process it into the required format for SMEW as follows:
+```{r, lipidmaps_download, eval=F}
+download.file(
+  "https://www.lipidmaps.org/files/?file=LMSD&ext=sdf.zip",
+  "databases/LMSD.zip"
+)
+unzip("databases/LMSD.zip",exdir = 'databases/')
+```
+
+You can then read the .sdf file and extract the relevant information to build the `metabolite_table.csv` as follows:
+```{r, lipidmaps_processing}
+lines <- readLines("databases/structures.sdf")
+records <- split(lines, cumsum(lines == "$$$$"))
+records <- records[lengths(records) > 1]
+
+parse_record <- function(rec){
+  
+  text <- paste(rec, collapse="\n")
+  
+  tibble(
+    MetaboliteID = stringr::str_match(text, "> <LM_ID>\\s*\\n([^\\n]+)")[,2],
+    MetaboliteName = stringr::str_match(text, "> <NAME>\\s*\\n([^\\n]+)")[,2],
+    ExactMass = as.numeric(stringr::str_match(text, "> <EXACT_MASS>\\s*\\n([^\\n]+)")[,2])
+  )
+  
+}
+
+annotation <- map_dfr(records, parse_record)
+print(head(annotation))
+```
+
+## Alternative sources for `pathway_table.csv`
+
+### WikiPathways example for `pathway_table.csv`
+
+Use this when you want curated pathway graphs for a specific organism.
+
+The WikiPathways database is another valuable resource for pathway information. You can download the relevant pathway data for your organism from [https://data.wikipathways.org/current/gpml/](https://data.wikipathways.org/current/gpml/), selecting your organism of interest. You can use steps like the following to download the data:
+
+```{r, wikipathways_download, eval=F}
+dir.create("databases/wikipathways", recursive = TRUE, showWarnings = FALSE)
+download.file(
+  "https://data.wikipathways.org/current/gpml/wikipathways-20260310-gpml-Mus_musculus.zip",
+  "databases/wikipathways/mouse_gpml.zip",
+  mode = "wb"
+)
+unzip("databases/wikipathways/mouse_gpml.zip", exdir = "databases/wikipathways/gpml")
+```
+
+To then create a pathway table for SMEW you can do the following:
+```{r, wikipathway_parsing}
+library(xml2)
+library(dplyr)
+library(purrr)
+library(progress)
+
+parse_wikipathway <- function(file){
+  
+  doc <- read_xml(file)
+  doc <- xml2::xml_ns_strip(doc)
+  pathway_node <- xml2::xml_find_first(doc, "//Pathway")
+  pathway_name <- xml2::xml_attr(pathway_node, "Name")
+  version <- xml2::xml_attr(pathway_node, "Version")
+  pathway_id <- sub("_.*", "", version)
+ 
+  nodes <- xml_find_all(doc, "//DataNode[@Type='Metabolite']")
+  
+  if(length(nodes) == 0) return(NULL)
+  tibble(
+    PathwayID = pathway_id,
+    PathwayName = pathway_name,
+    MetaboliteID = xml_attr(xml_find_first(nodes, ".//Xref"), "ID"),
+    Database = xml_attr(xml_find_first(nodes, ".//Xref"), "Database")
+  )
+}
+
+files <- list.files("databases/wikipathways/gpml", full.names = TRUE)
+pb <- progress_bar$new(total = length(files))
+metabolite_pathways <- map_dfr(files, function(f){
+  pb$tick()
+  parse_wikipathway(f)
+})
+
+# Here are the types of databases included:
+print(unique(metabolite_pathways$Database))
+
+# You can then filter to the relevant metabolite IDs you are using
+# For example to use KEGG IDs:
+metabolite_pathways_filtered <- metabolite_pathways %>%
+  filter(Database %in% c("KEGG Compound"))
+
+pathway_table <- metabolite_pathways_filtered %>%
+  filter(!is.na(MetaboliteID)) %>%
+  group_by(PathwayID, PathwayName) %>%
+  summarise(
+    MetaboliteIDs = paste(unique(MetaboliteID), collapse = ","),
+    .groups = "drop"
+  )
+print(head(pathway_table))
+
+# Or to use LipidMaps:
+metabolite_pathways_filtered <- metabolite_pathways %>%
+  filter(Database %in% c("LIPID MAPS"))
+
+pathway_table <- metabolite_pathways_filtered %>%
+  filter(!is.na(MetaboliteID)) %>%
+  group_by(PathwayID, PathwayName) %>%
+  summarise(
+    MetaboliteIDs = paste(unique(MetaboliteID), collapse = ","),
+    .groups = "drop"
+  )
+print(head(pathway_table))
+```
+
+### Reactome example for `pathway_table.csv`
+
+Use this when your metabolite IDs are ChEBI and you want organism-specific pathway mapping.
+
+The Reactome database can be used to link ChEBI IDs to pathways. You can download the [https://reactome.org/download/current/ChEBI2Reactome.txt](https://reactome.org/download/current/ChEBI2Reactome.txt) table and then process it into the required format for SMEW as follows:
+
+```{r, reactome_download, eval=F}
+dir.create("databases/reactome", recursive = TRUE, showWarnings = FALSE)
+download.file(
+  "https://reactome.org/download/current/ChEBI2Reactome.txt",
+  "databases/reactome/ChEBI2Reactome.txt",
+  mode = "wb"
+)
+```
+
+```{r, reactome_processing}
+reactome <- read.delim(
+  "databases/ChEBI2Reactome.txt",
+  header = FALSE,
+  sep = "\t",
+  stringsAsFactors = FALSE
+)
+# You can then filter to the relevant organism like this
+reactome_mouse <- reactome |>
+  dplyr::filter(V6 == "Mus musculus")
+
+# Then group by pathway and summarise the ChEBI IDs into a comma-delimited string for the MetaboliteIDs column:
+reactome_pathways <- reactome_mouse |>
+  dplyr::transmute(
+    PathwayID = V2,
+    PathwayName = V4,
+    MetaboliteID = V1
+  ) |>
+  dplyr::group_by(PathwayID, PathwayName) |>
+  dplyr::summarise(
+    IDs = paste(unique(MetaboliteID), collapse = ","),
+    .groups = "drop"
+  )
+print(head(reactome_pathways))
+```
+
+### HMDB example for `pathway_table.csv`
+
+Use this when you want pathway associations directly from HMDB metadata.
+
+You can also extract pathway information directly from HMDB, although it is not as comprehensive as other databases for this purpose:
+
+```{r, hmdb_pathways}
+library(purrr)
+library(dplyr)
+
+parse_hmdb_pathways <- function(xml_text_string){
+  node <- read_xml(xml_text_string)
+  id <- xml2::xml_text(xml2::xml_find_first(node, ".//accession"))
+  pathways <- xml2::xml_find_all(node, ".//pathway")
+  
+  if(length(pathways) == 0) return(NULL)
+  
+  data.frame(
+    MetaboliteID = id,
+    PathwayName = xml2::xml_text(xml2::xml_find_first(pathways, ".//name")),
+    SMPDB_ID = xml2::xml_text(xml2::xml_find_first(pathways, ".//smpdb_id")),
+    KEGG_ID = xml2::xml_text(xml2::xml_find_first(pathways, ".//kegg_map_id")),
+    stringsAsFactors = FALSE
+  )
+}
+
+# for demonstration we will only parse the first 100 metabolites but you can of course run this for all metabolites in the HMDB database (but be aware this will take a long time to run).
+metabolite_texts <- as.character( head(metabolites,100) ) 
+metabolite_pathway_table = map_dfr(metabolite_texts, parse_hmdb_pathways)
+
+pathway_table <- metabolite_pathway_table |>
+  filter(!is.na(KEGG_ID), KEGG_ID != "") |>
+  group_by(PathwayID = KEGG_ID, PathwayName) |>
+  summarise(
+    MetaboliteIDs = paste(unique(MetaboliteID), collapse = ","),
+    .groups = "drop"
+  )
+print( head(pathway_table) )
+```
+
+Again in this case, you can set either SMPDB_ID or KEGG_ID as the PathwayID for SMEW analysis depending on your preference and the pathway database you want to use.
+
+## Final checks before `create_smew_app()`
+
+- Confirm all required columns are present with exact names.
+- Confirm every ID used in `pathway_table.csv` exists in `metabolite_table.csv`.
+- Check for duplicate metabolite or pathway rows unless intentional.
+- Use a single delimiter style in `MetaboliteIDs` (comma-delimited).
+- Save all three files as CSV and verify they load cleanly with `read.csv()`.

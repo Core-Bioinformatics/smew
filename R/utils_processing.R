@@ -1,4 +1,4 @@
-
+utils::globalVariables(c("complete_compound_mass", "mw", "exp_peak", "allowed_tolerance"))
 
 ##' Transform sample coordinates to normalized grid
 ##'
@@ -69,7 +69,7 @@ preprocessing_get_matched_comps <- function(adducts_table, mz_list, allowed_dppm
 
   # Convert to long format
   long_adducts_table <- adducts_dedup |>
-    tidyr::pivot_longer(cols = -c(.data$mw), names_to = 'adduct',
+    tidyr::pivot_longer(cols = -c(mw), names_to = 'adduct',
                         values_to = 'adduct_mass')
 
   # Create difference matrix (experimental vs theoretical)
@@ -85,7 +85,7 @@ preprocessing_get_matched_comps <- function(adducts_table, mz_list, allowed_dppm
 
   # Convert to long format
   diff_df_long <- tidyr::pivot_longer(diff_df,
-                                      cols = -c(.data$exp_peak, .data$allowed_tolerance),
+                                      cols = -c(exp_peak, allowed_tolerance),
                                       names_to = 'mw_adduct_adductmass',
                                       values_to = 'observed_difference')
 
@@ -131,11 +131,11 @@ preprocessing_get_matched_comps <- function(adducts_table, mz_list, allowed_dppm
   return(diff_df_long)
 }
 
-##' Match experimental peaks to known compounds (KEGG)
+##' Match experimental peaks to known compounds
 ##'
-##' Matches experimental m/z peaks against a compound database (KEGG) using specified ionization mode and adduct formulas. Validates all input parameters.
+##' Matches experimental m/z peaks against a metabolite database using specified ionization mode and adduct formulas. Validates all input parameters.
 ##'
-##' @param kegg_db Data frame with known compound information (must include complete_compound_mass).
+##' @param metabolite_db Data frame with known compound information. Expected columns are MetaboliteID, ExactMass, and MetaboliteName.
 ##' @param peak_list Numeric vector of experimental m/z values.
 ##' @param ppm Numeric; mass tolerance in parts per million (default: 5).
 ##' @param ion_mode Character; ionisation mode - either "Positive" or "Negative".
@@ -143,15 +143,15 @@ preprocessing_get_matched_comps <- function(adducts_table, mz_list, allowed_dppm
 ##' @param neg_adduct_formulas,pos_adduct_formulas Data frames with negative/positive ionisation adduct formulas.
 ##' @return Data frame of matched peaks with compound annotations and adduct information.
 ##' @keywords internal
-preprocessing_get_matched_peaks <- function(kegg_db = NULL, peak_list = NULL,
+preprocessing_get_matched_peaks <- function(metabolite_db = NULL, peak_list = NULL,
                                ppm = 5, ion_mode = NULL,
                                adducts = NULL, neg_adduct_formulas = NULL,
                                pos_adduct_formulas = NULL) {
   # ========================================================================
   # INPUT VALIDATION
   # ========================================================================
-  if (is.null(kegg_db)) {
-    stop('Provide kegg_db (KEGG database)')
+  if (is.null(metabolite_db)) {
+    stop('Provide metabolite_db')
   }
   if (is.null(peak_list)) {
     stop('Provide peak_list (experimental m/z values)')
@@ -165,6 +165,18 @@ preprocessing_get_matched_peaks <- function(kegg_db = NULL, peak_list = NULL,
   if (!ion_mode %in% c('Negative', 'Positive')) {
     stop('Ionisation mode must be either "Positive" or "Negative".')
   }
+
+  required_cols <- c('MetaboliteID', 'ExactMass', 'MetaboliteName')
+  missing_cols <- setdiff(required_cols, colnames(metabolite_db))
+  if (length(missing_cols) > 0) {
+    stop('metabolite_db is missing required columns: ', paste(missing_cols, collapse = ', '))
+  }
+
+  # Standardise to internal fields used by matching functions.
+  metabolite_db$compound_id <- as.character(metabolite_db$MetaboliteID)
+  metabolite_db$compound_name <- as.character(metabolite_db$MetaboliteName)
+  metabolite_db$complete_compound_mass <- suppressWarnings(as.numeric(metabolite_db$ExactMass))
+
   exp_peak_list = unique(as.numeric(peak_list))
   # select adducts of interest
   if (ion_mode == 'Negative') {
@@ -174,24 +186,21 @@ preprocessing_get_matched_peaks <- function(kegg_db = NULL, peak_list = NULL,
     my_adduct_formulas = pos_adduct_formulas[pos_adduct_formulas$Ion_Name %in% adducts,]
   }
 
-  # keep only data for pathways with at least path_size compounds under it
-  filt_kegg_db = kegg_db #|> filter(pathway_id %in% filter(plyr::count(kegg_db$pathway_id), freq >= path_size)$x)
+  filt_metabolite_db = metabolite_db
 
   # drop rows without given mass
-  nbefore = dplyr::n_distinct(filt_kegg_db$compound_id)
-  filt_kegg_db = filt_kegg_db |> tidyr::drop_na(.data$complete_compound_mass)
-  nafter = dplyr::n_distinct(filt_kegg_db$compound_id)
+  filt_metabolite_db = filt_metabolite_db |> tidyr::drop_na(complete_compound_mass)
 
   # compute theoretical masses for all compounds+adducts in the kegg dataset
-  adducts_computed = preprocessing_compute_adduct_weights(my_adduct_formulas,filt_kegg_db$complete_compound_mass)
+  adducts_computed = preprocessing_compute_adduct_weights(my_adduct_formulas,filt_metabolite_db$complete_compound_mass)
 
   # match experimental peaks to calculated adducts
   matched_comps = preprocessing_get_matched_comps(adducts_table = adducts_computed,
                                     mz_list = exp_peak_list,
                                     allowed_dppm = ppm)
 
-  # merge with kegg data for complete annotation (join on theoretical mass)
-  matched_comps_annot = dplyr::left_join(matched_comps, filt_kegg_db, by = c('theoretical_mass' = 'complete_compound_mass'), relationship = 'many-to-many')
+  # merge with metabolite data for complete annotation (join on theoretical mass)
+  matched_comps_annot = dplyr::left_join(matched_comps, filt_metabolite_db, by = c('theoretical_mass' = 'complete_compound_mass'), relationship = 'many-to-many')
 
   # convert theoretical_mass to numeric
   matched_comps_annot$theoretical_mass = as.numeric(matched_comps_annot$theoretical_mass)
@@ -199,8 +208,7 @@ preprocessing_get_matched_peaks <- function(kegg_db = NULL, peak_list = NULL,
   # add mode column
   matched_comps_annot$ion_mode = ion_mode
 
-  # reorder columns, now including ppm_error if present
-  # Check if ppm_error exists (for backward compatibility)
+  # Keep core output columns for downstream annotation.
   col_order <- c(
     'exp_peak',
     'allowed_tolerance',
@@ -211,105 +219,12 @@ preprocessing_get_matched_peaks <- function(kegg_db = NULL, peak_list = NULL,
     'ppm_error',
     'ion_mode',
     'compound_id',
-    'compound_name',
-    'compound_synonyms',
-    'compound_formula',
-    'is_hmdb',
-    'is_lm',
-    'lm_id',
-    'lm_name',
-    'lm_abbrev',
-    'lm_formula',
-    'pathway_id',
-    'pathway_name',
-    'human_pathway',
-    'rat_pathway',
-    'mouse_pathway'
+    'compound_name'
   )
   col_order <- col_order[col_order %in% colnames(matched_comps_annot)]
   matched_comps_annot <- matched_comps_annot[, col_order]
 
   return(matched_comps_annot)
-}
-
-
-##' Create bulk dataset from pixel-wise intensity matrix
-##'
-##' Aggregates pixel-wise intensity matrix to sample-level means and annotates with sample metadata and matched peaks.
-##'
-##' @param intensity.matrix Data frame of intensities (pixels x features).
-##' @param metadata Data frame with pixel metadata (must include sample id and coordinates).
-##' @param sample.id.column Name or index of column in metadata table specifying sample of origin.
-##' @param sample.wide.columns Names or indices of columns in metadata table with sample-wide information.
-##' @param organism Character; organism for pathway filtering ('Human', 'Mouse', 'Rat').
-##' @param adducts Character vector of adduct names to use.
-##' @param ion_mode Character; ionisation mode.
-##' @param ppm Numeric; mass tolerance in ppm.
-##' @return List with: intensity_matrix (features x samples), metadata (sample-level), matched_peaks (data frame), annotation_table (data frame).
-##' @keywords internal
-preprocessing_create_bulk_exp <- function(intensity.matrix,
-                            metadata,
-                            sample.id.column = 4,
-                            sample.wide.columns = c(),
-                            organism = 'Mouse',
-                            adducts = c('M-H [1-]','M-H20-H [1-]','M+Cl [1-]'),
-                            ion_mode = 'Negative',
-                            ppm = 5
-                            ) {
-  # add extra checks
-#  intensity.matrix = t(unique(t(intensity.matrix)))
-  intensity.matrix$sample <- metadata[,sample.id.column]
-  intensity.matrix.mean <- intensity.matrix |>
-          dplyr::group_by(sample) |>
-          dplyr::summarise(dplyr::across(dplyr::everything(), mean), .groups = 'drop')
-  sample.names = intensity.matrix.mean$sample
-  intensity.matrix.mean <- intensity.matrix.mean |>
-          dplyr::select(-sample) |>
-          as.matrix() |>
-          t() |>
-          as.data.frame() |>
-          dplyr::rename_with(~sample.names)
-  metadata.mean = unique(metadata[,c(sample.id.column,sample.wide.columns)])
-  if (nrow(metadata.mean)!=ncol(intensity.matrix.mean)){
-    stop('Please check all your sample.wide.columns are indeed sample-wide.')
-  }
-
-  #finished current stuff
-  matched_peaks = preprocessing_get_matched_peaks(kegg_db = kegg_db,
-                                    peak_list = gsub('mz_','',rownames(intensity.matrix.mean)),
-                                    ppm = ppm,
-                                    ion_mode = ion_mode,
-                                    adducts = adducts,
-                                    neg_adduct_formulas = neg_adduct_table,
-                                    pos_adduct_formulas = pos_adduct_table)
-  if (organism == 'Human'){
-    matched_peaks = matched_peaks[matched_peaks$human_pathway == 'True',]
-  } else if (organism == 'Mouse'){
-    matched_peaks = matched_peaks[matched_peaks$mouse_pathway == 'True',]
-  } else if (organism == 'Rat'){
-    matched_peaks = matched_peaks[matched_peaks$rat_pathway == 'True',]
-  } else {
-    message('Organism supplied is not supported, no filtering applied')
-    return(NULL)
-  }
-  annotation_table = matched_peaks[,c(1,6,8,9)]
-  colnames(annotation_table)=c('m_z','adduct','kegg_id','name')
-  annotation_table$m_z = paste0('mz_',annotation_table$m_z)
-#  annotation_table$m_z = paste0('X',annotation_table$m_z)
-  full_table = data.frame('m_z'=rownames(intensity.matrix.mean))
-  annotation_table = merge(full_table,annotation_table,all.x=T)
-  annotation_table = unique(annotation_table)
-  annotation_table = annotation_table |>
-    dplyr::group_by(.data$m_z) |>
-    dplyr::summarise("adduct" = paste(.data$adduct,collapse = ', '),
-          "kegg_id" = paste(.data$kegg_id,collapse = ', '),
-          "name" = paste(.data$name,collapse = ', '), .groups = 'drop')
-  annotation_table$display_name = ifelse(is.na(annotation_table$name),annotation_table$m_z,
-                                               paste0(annotation_table$m_z,'_',annotation_table$name))
-  return(list('intensity_matrix'=intensity.matrix.mean,
-              'metadata'=metadata.mean,
-              'matched_peaks'=matched_peaks,
-              'annotation_table'=annotation_table))
 }
 
 ##' Greatest common divisor for grid spacing
@@ -508,22 +423,30 @@ preprocessing_create_bulk_matrix <- function(metadata, intensity.matrix, agg_fun
   return(list(bulk_intensity = bulk_intensity, bulk_metadata = bulk_metadata))
 }
 
-##' Map peak masses to KEGG names
+##' Map peak masses to user-supplied metabolite IDs
 ##'
-##' Maps a vector of m/z peak values to KEGG compound names and adducts using \code{\link{preprocessing_get_matched_peaks}}.
+##' Maps a vector of m/z peak values to a user-supplied metabolite table
+##' (MetaboliteID, ExactMass, MetaboliteName) and selected adducts using
+##' \\code{\\link{preprocessing_get_matched_peaks}}.
 ##'
 ##' @param peak_list Numeric vector of experimental m/z values.
-##' @param kegg_db Data frame with KEGG compound information.
+##' @param metabolite_table Data frame with columns MetaboliteID, ExactMass, MetaboliteName.
 ##' @param adducts Character vector of adduct names to use.
 ##' @param ion_mode Character; ionization mode - either "Positive" or "Negative".
 ##' @param neg_adduct_formulas,pos_adduct_formulas Data frames with negative/positive adduct formulas.
 ##' @param ppm Numeric; mass tolerance in ppm (default: 5).
-##' @return Data frame mapping each peak to KEGG compound/adduct info.
+##' @return Data frame mapping each peak to metabolite IDs/names and adduct information.
 ##' @keywords internal
-preprocessing_map_peaks_to_kegg <- function(peak_list, kegg_db, adducts, ion_mode,
-                             neg_adduct_formulas, pos_adduct_formulas, ppm = 5) {
+preprocessing_map_peaks_to_ids <- function(peak_list,
+                                           metabolite_table,
+                                           adducts,
+                                           ion_mode,
+                                           neg_adduct_formulas,
+                                           pos_adduct_formulas,
+                                           ppm = 5) {
+
   matched_peaks <- preprocessing_get_matched_peaks(
-    kegg_db = kegg_db,
+    metabolite_db = metabolite_table,
     peak_list = peak_list,
     ppm = ppm,
     ion_mode = ion_mode,
@@ -531,7 +454,7 @@ preprocessing_map_peaks_to_kegg <- function(peak_list, kegg_db, adducts, ion_mod
     neg_adduct_formulas = neg_adduct_formulas,
     pos_adduct_formulas = pos_adduct_formulas
   )
-  # Select and format output columns, now including ppm_error
+
   out <- matched_peaks[, c(
     'exp_peak',
     'adduct',
@@ -542,11 +465,13 @@ preprocessing_map_peaks_to_kegg <- function(peak_list, kegg_db, adducts, ion_mod
     'observed_difference',
     'allowed_tolerance',
     'ppm_error',
-    'ion_mode',
-    'human_pathway',
-    'mouse_pathway',
-    'rat_pathway'
+    'ion_mode'
   )]
+
+  # Provide explicit generic-ID aliases for downstream use.
+  out$MetaboliteID <- out$compound_id
+  out$MetaboliteName <- out$compound_name
+
   out <- unique(out)
   return(out)
 }
@@ -556,25 +481,12 @@ preprocessing_map_peaks_to_kegg <- function(peak_list, kegg_db, adducts, ion_mod
 ##' For a given peak list and annotation table, create a combined annotation table in the order of the input peaks. Multiple annotations are pasted together, and NAs are included if no match exists.
 ##'
 ##' @param peak_list Numeric vector of original peaks (order preserved).
-##' @param anno_table Data frame from preprocessing_map_peaks_to_kegg.
+##' @param anno_table Data frame from preprocessing_map_peaks_to_ids.
 ##' @param fields Character vector of annotation columns to combine (default: c('adduct','compound_name','compound_id')).
 ##' @param sep Separator for multiple annotations (default: ', ').
-##' @param organism Character; organism for pathway filtering ('Human', 'Mouse', 'Rat').
 ##' @return Data frame with one row per peak, columns for each annotation field, and display_name.
 ##' @keywords internal
-preprocessing_combine_peak_annotations <- function(peak_list, anno_table, fields = c('adduct','compound_name','compound_id'), sep = ', ', organism = 'Human') {
-  if (!is.null(organism)) {
-    if (organism == 'Human'){
-      anno_table = anno_table[anno_table$human_pathway == 'True',]
-  } else if (organism == 'Mouse'){
-    anno_table = anno_table[anno_table$mouse_pathway == 'True',]
-  } else if (organism == 'Rat'){
-    anno_table = anno_table[anno_table$rat_pathway == 'True',]
-  } else {
-    message('Organism supplied is not supported, no filtering applied')
-    return(anno_table)
-  }
-  }
+preprocessing_combine_peak_annotations <- function(peak_list, anno_table, fields = c('adduct','compound_name','compound_id'), sep = ', ') {
   anno_table = unique(anno_table[,c('exp_peak',fields,'ppm_error')])
   res <- lapply(peak_list, function(pk) {
     # Subset matches for this peak
@@ -591,9 +503,10 @@ preprocessing_combine_peak_annotations <- function(peak_list, anno_table, fields
     }
   })
   res_df <- as.data.frame(do.call(rbind, res), stringsAsFactors = FALSE)
-  colnames(res_df) <- c('adduct','name','kegg_id')
+  colnames(res_df) <- c('adduct','name','metabolite_id')
   res_df <- cbind(m_z = paste0('mz_', peak_list), res_df)
   res_df$display_name <- ifelse(is.na(res_df$name), res_df$m_z, paste0(res_df$m_z, '_', res_df$name))
+
   rownames(res_df) <- NULL
   return(res_df)
 }

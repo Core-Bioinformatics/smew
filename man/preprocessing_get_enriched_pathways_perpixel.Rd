@@ -17,9 +17,9 @@ preprocessing_get_enriched_pathways_perpixel(
   min_path_size = 3,
   ora_pvalue_cutoff = 1.01,
   min_pathway_hits = 2,
-  gap,
+  gap = NULL,
   anno,
-  organism
+  pathway_table
 )
 }
 \arguments{
@@ -51,7 +51,7 @@ preprocessing_get_enriched_pathways_perpixel(
 
 \item{anno}{Data frame; annotation data used by ORA/DE.}
 
-\item{organism}{Character or code used by pathway DB lookup.}
+\item{pathway_table}{Data frame of pathway definitions with columns PathwayID, PathwayName, and MetaboliteIDs.}
 }
 \value{
 Data frame of ORA results annotated with x and y coordinates, or NULL if no pathways found.

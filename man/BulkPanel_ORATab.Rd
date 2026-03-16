@@ -14,7 +14,8 @@ BulkPanel_ORATabServer(
   bulk.metadata,
   de.results,
   anno,
-  organism
+  pathway_table = NULL,
+  pathway_classification = NULL
 )
 }
 \arguments{
@@ -30,7 +31,9 @@ BulkPanel_ORATabServer(
 
 \item{anno}{Data frame with peak annotation (must include 'display_name' and 'm_z')}
 
-\item{organism}{Character string specifying the organism (for KEGG mapping)}
+\item{pathway_table}{Optional pathway table with columns PathwayID, PathwayName, and MetaboliteIDs.}
+
+\item{pathway_classification}{Optional pathway classification table. If NULL, category-specific UI/plots are hidden.}
 }
 \value{
 A shiny::tabPanel containing the UI elements for the ORA panel

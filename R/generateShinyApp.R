@@ -4,14 +4,15 @@
 #'
 #' @param app_dir Directory to write the app.R file
 #' @param run_enrichment Logical; whether to include enrichment panel
-#' @param organism Character; organism name
 #' @param run_autocorrelation Logical; whether to include autocorrelation panel
 #' @param run_pixel_enrichment Logical; whether to include pixel enrichment panel
 #' @param has_multi_modal Logical; whether multi-modal data is present
+#' @param has_pathway_table Logical; whether pathway table is present
+#' @param has_pathway_classification Logical; whether pathway classification table is present
 #' @param multi_modal_path Path to multi-modal data file (optional)
 #' @return Path to the written app.R file
 #' @keywords internal
-preprocessing_write_app_file <- function(app_dir, run_enrichment = FALSE, organism = NULL, run_autocorrelation = FALSE, run_pixel_enrichment = FALSE, has_multi_modal = FALSE, multi_modal_path = NULL) {
+preprocessing_write_app_file <- function(app_dir, run_enrichment = FALSE, run_autocorrelation = FALSE, run_pixel_enrichment = FALSE, has_multi_modal = FALSE, has_pathway_table = FALSE, has_pathway_classification = FALSE, multi_modal_path = NULL) {
   # Build UI and server code blocks based on parameters
   pseudobulk_panels <- c(
     "BulkPanel_QCTabUI(id = 'BulkQC', bulk.metadata = bulk.metadata)",
@@ -50,7 +51,8 @@ preprocessing_write_app_file <- function(app_dir, run_enrichment = FALSE, organi
     "BulkPanel_QCTabServer(id = 'BulkQC', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno)",
     "de_res <- BulkPanel_DATabServer(id = 'BulkDA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno)",
     "BulkPanel_DASummaryTabServer(id = 'BulkSummaryDA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, anno = anno, de.results = de_res)",
-    if (run_enrichment) "BulkPanel_ORATabServer(id = 'BulkORA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, de.results = de_res, anno = anno, organism = organism)",
+    if (run_enrichment && has_pathway_classification) "BulkPanel_ORATabServer(id = 'BulkORA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, de.results = de_res, anno = anno, pathway_table = pathway_table, pathway_classification = pathway_classification)",
+    if (run_enrichment && !has_pathway_classification) "BulkPanel_ORATabServer(id = 'BulkORA', bulk.intensity.matrix = bulk.intensity.matrix, bulk.metadata = bulk.metadata, de.results = de_res, anno = anno, pathway_table = pathway_table, pathway_classification = NULL)",
     "BulkPanel_GRNTabServer('BulkGRN', bulk.intensity.matrix, bulk.metadata, anno)",
     "BulkPanel_MultiCompareTabServer('BulkMultiCompare', bulk.intensity.matrix, bulk.metadata, anno)",
     if (has_multi_modal) "BulkPanel_MultiGRNTabServer('BulkMultiGRN', bulk.intensity.matrix, bulk.metadata, anno, multi_modal)"
@@ -76,7 +78,6 @@ preprocessing_write_app_file <- function(app_dir, run_enrichment = FALSE, organi
   region_server <- region_server[!sapply(region_server, is.null)]
   pixel_server <- pixel_server[!sapply(pixel_server, is.null)]
 
-  organism_literal <- if (!is.null(organism)) paste0('"', organism, '"') else 'NULL'
   app_r_code <- paste0(
 "library(shiny)
 library(smew)
@@ -88,6 +89,8 @@ metadata <- readRDS('processed_metadata.rds')
 anno <- readRDS('processed_anno.rds')
 ",
 if (has_multi_modal) "multi_modal <- readRDS('processed_multi_modal.rds')\n" else "",
+if (has_pathway_table) "pathway_table <- readRDS('processed_pathway_table.rds')\n" else "",
+if (has_pathway_classification) "pathway_classification <- readRDS('processed_pathway_classification.rds')\n" else "",
 if (run_autocorrelation) "spatial.cross.cor <- readRDS('spatial_cross_correlation.rds')\nsvm_identification <- readRDS('spatial_autocorrelation.rds')\n" else "",
 if (run_pixel_enrichment & run_enrichment) "pixel_enrichment <- readRDS('pixel_level_enrichment.rds')\n" else "",
 "
@@ -150,9 +153,6 @@ paste(region_server, collapse = "\n"),
 paste(pixel_server, collapse = "\n"), "
 }
 
-# --- Organism parameter for reference ---
-organism <- ", organism_literal, "
-
 shiny::shinyApp(ui, server)
 "
 )
@@ -170,10 +170,9 @@ shiny::shinyApp(ui, server)
 #' @param metadata_csv Path to the metadata CSV file. Must contain columns 'pixel_id' (matching intensity matrix), 'x', 'y', and 'Sample'.
 #' @param output_dir Directory to save the processed data and the generated app. Will be created if it does not exist.
 #' @param denoise Logical; whether to denoise the data (default FALSE).
-#' @param anno Optional annotation data.frame or NULL. If provided, should map m/z features to metabolite names and KEGG IDs.
+#' @param anno Optional annotation data.frame or NULL. If provided, should map m/z features to metabolite names and metabolite IDs.
 #' @param adducts Optional vector of adducts used for annotation. Options include M-H [1-], M-2H [2-], M-3H [3-], M-H2O-H [1-], M-H+O [1-], M+K-2H [1-], M+Na-2H [1-], M+Cl [1-], M+Cl37 [1-], M+FA-H [1-], M+Hac-H [1-], M+Br [1-], M+Br81 [1-], M+TFA-H [1-], M+ACN-H [1-], M+HCOO [1-], M+CH3COO [1-], 2M-H [1-], 2M+FA-H [1-], 2M+Hac-H [1-], 3M-H [1-], M(C13)-H [1-], M(S34)-H [1-], M(Cl37)-H [1-] for negative mode; and M [1+], M+H [1+], M+2H [2+], M+3H [3+], M+Na [1+], M+2Na [2+], M+3Na [3+], M+H+Na [2+], M+H+2Na [3+], M+2H+Na [3+], M+2Na-H [1+], M+NaCl [1+], M+K [1+], M+H+K [2+], M+ACN+H [1+], M+ACN+2H [2+], M+ACN+Na [1+], M+2ACN+2H [2+], M+3ACN+2H [2+], M+2ACN+H [1+], M+H2O+H [1+], M-H2O+H [1+], M-H4O2+H [1+], M-HCOOH+H [1+], M+HCOONa [1+], M-HCOONa+H [1+], M+HCOOK [1+], M-HCOOK+H [1+], M-CO+H [1+], M-CO2+H [1+], M-C3H4O2+H [1+], M+CH3OH+H [1+], M-NH3+H [1+], M+H+NH4 [2+], M+NH4 [1+], M+IsoProp+H [1+], M+IsoProp+Na+H [1+], M+2K+H [1+], M+DMSO+H [1+], 2M+H [1+], 2M+NH4 [1+], 2M+Na [1+], 2M+3H2O+2H [2+], 2M+K [1+], 2M+ACN+H [1+], 2M+ACN+Na [1+], M(C13)+H [1+], M(C13)+2H [2+], M(C13)+3H [3+], M(S34)+H [1+], M(Cl37)+H [1+] for positive mode.
 #' @param ion_mode Ionisation mode ('Negative' or 'Positive'). Used for annotation.
-#' @param organism Organism name (default 'Human'). Used for annotation and pathway enrichment.
 #' @param ppm Numeric; mass accuracy in ppm (default 10). Used for annotation.
 #' @param only_annotated Logical; if TRUE, only annotated peaks are used (default FALSE).
 #' @param histology_images_dir Optional directory with histology images for overlay and visualisation.
@@ -184,6 +183,9 @@ shiny::shinyApp(ui, server)
 #' @param multi_modal_path Optional path to multi-modal data file (for multi-omics integration).
 #' @param enrichment_controls Optional vector of control samples for enrichment analysis.
 #' @param enrichment_comparisons Optional vector of comparison samples for enrichment analysis.
+#' @param metabolite_table Optional path to a CSV file with columns MetaboliteID, ExactMass, and MetaboliteName for ID-based annotation.
+#' @param pathway_table Optional path to a CSV file with columns PathwayID, PathwayName, and MetaboliteIDs used for ORA.
+#' @param pathway_classification Optional path to a CSV file with columns PathwayName, PathwayID, Category1, and Category2 for ORA category overlays.
 #'
 #' @details
 #' This function:
@@ -211,16 +213,17 @@ shiny::shinyApp(ui, server)
 #'   intensity_csv = system.file("extdata", "bleo_sub_intensity.csv", package = "smew"),
 #'   metadata_csv = system.file("extdata", "bleo_sub_meta.csv", package = "smew"),
 #'   output_dir = tempdir(),
-#'   organism = 'Mouse',
 #' )
 #' unlink(paste0(normalizePath(tempdir()), "/", dir(tempdir())), recursive = TRUE)
 #' @export
 create_smew_app <- function(intensity_csv, metadata_csv, output_dir, denoise = FALSE, anno = NULL,
-                                adducts = NULL, ion_mode = NULL, organism = 'Human',
+                                adducts = NULL, ion_mode = NULL,
                                 ppm = 10, only_annotated = FALSE, histology_images_dir = NULL,
                                 run_autocorrelation = FALSE, top_autocorrelated_peaks = 10, n_cores = 1,
                                 run_pixel_enrichment = FALSE, multi_modal_path = NULL,
-                                enrichment_controls = NULL, enrichment_comparisons = NULL) {
+                                enrichment_controls = NULL, enrichment_comparisons = NULL,
+                                metabolite_table = NULL, pathway_table = NULL,
+                                pathway_classification = NULL) {
 
   # Create output directory if it doesn't exist
   ifelse(!dir.exists(file.path(output_dir)), dir.create(file.path(output_dir)), FALSE)
@@ -252,6 +255,22 @@ create_smew_app <- function(intensity_csv, metadata_csv, output_dir, denoise = F
     stop(paste("The following pixel_id(s) in the intensity matrix are missing from metadata:", paste(utils::head(missing_pixels, 10), collapse=", "), if(length(missing_pixels)>10) "..." else ""))
   }
 
+  # 5. Optional reference tables (CSV paths)
+  read_optional_csv <- function(path, label) {
+    if (is.null(path)) return(NULL)
+    if (!file.exists(path)) {
+      stop(label, " file not found: ", path)
+    }
+    tryCatch(
+      utils::read.csv(path, check.names = FALSE),
+      error = function(e) stop("Failed to read ", label, " CSV: ", e$message)
+    )
+  }
+
+  metabolite_table_df <- read_optional_csv(metabolite_table, "metabolite_table")
+  pathway_table_df <- read_optional_csv(pathway_table, "pathway_table")
+  pathway_classification_df <- read_optional_csv(pathway_classification, "pathway_classification")
+
   # ----- Preprocessing Steps ----
   # 1. Ensure metadata is ordered to match intensity matrix
   message("Ordering metadata to match intensity matrix...")
@@ -267,7 +286,7 @@ create_smew_app <- function(intensity_csv, metadata_csv, output_dir, denoise = F
   if (!is.null(anno)) {
     message("Using user-supplied annotations")
     # Check that anno is a data.frame and has required columns
-    required_anno_cols <- c("m_z", "adduct", "name", "kegg_id", "display_name")
+    required_anno_cols <- c("m_z", "adduct", "name", "metabolite_id", "display_name")
     if (!is.data.frame(anno)) {
       stop("The supplied annotation (anno) must be a data.frame.")
     }
@@ -276,13 +295,13 @@ create_smew_app <- function(intensity_csv, metadata_csv, output_dir, denoise = F
       stop(paste0("The supplied annotation table is missing required column(s): ", paste(missing_cols, collapse=", "))) 
     }
     # Optionally filter to only annotated ones if wanted
-    # Check that KEGG IDs are valid (non-empty, non-NA) for enrichment
+    # Check that metabolite IDs are valid (non-empty, non-NA) for enrichment
     if (only_annotated) {
       anno <- anno[!is.na(anno$name) & anno$name != "", ]
       message(paste0("Filtered to only the ", nrow(anno), " annotated peaks in user-supplied annotation table."))
     }
-    if (!any(!is.na(anno$kegg_id) & anno$kegg_id != "")) {
-      warning("No valid KEGG IDs found in user-supplied annotation table. Pathway enrichment will be disabled.")
+    if (!any(!is.na(anno$metabolite_id) & anno$metabolite_id != "")) {
+      warning("No valid metabolite IDs found in user-supplied annotation table. Pathway enrichment will be disabled.")
       enrichment_possible <- FALSE
     } else {
       enrichment_possible <- TRUE
@@ -290,24 +309,40 @@ create_smew_app <- function(intensity_csv, metadata_csv, output_dir, denoise = F
   } else {
     message("No user-supplied annotations provided, using m/z values as feature names and mapping using internal annotation function")
     peak_list <- as.numeric(gsub('mz_', '', intensity_header))
-    # If adducts, ion_mode, or organism is NULL, skip annotation and set anno to NA
-    if (is.null(adducts) || is.null(ion_mode) || is.null(organism)) {
-      message("adducts, ion_mode, or organism is NULL; skipping annotation. anno will have NA names.")
+    # If adducts or ion_mode is NULL, skip annotation and set anno to NA
+    if (is.null(adducts) || is.null(ion_mode)) {
+      message("adducts or ion_mode is NULL; skipping annotation. anno will have NA names.")
       peak_list <- intensity_header
-      anno <- data.frame(exp_peak = peak_list, adduct = NA, name = NA, kegg_id = NA, display_name = peak_list)
+      anno <- data.frame(exp_peak = peak_list, adduct = NA, name = NA, metabolite_id = NA, display_name = peak_list)
       enrichment_possible <- FALSE
     } else if (any(is.na(peak_list))) {
       message("Intensity header is not in expected format 'mz_<number>', using as is.")
       peak_list <- intensity_header
-      anno <- data.frame(exp_peak = peak_list, adduct = NA, name = NA, kegg_id = NA, display_name = peak_list)
+      anno <- data.frame(exp_peak = peak_list, adduct = NA, name = NA, metabolite_id = NA, display_name = peak_list)
       enrichment_possible <- FALSE
     } else {
       message("Intensity header is in expected format, proceeding with m/z mapping.")
       enrichment_possible <- TRUE
-      mapped_peaks <- preprocessing_map_peaks_to_kegg(peak_list, kegg_db, adducts, ion_mode,
-                                        neg_adduct_table, pos_adduct_table, ppm)
-      anno <- preprocessing_combine_peak_annotations(peak_list, mapped_peaks, fields = c('adduct','compound_name','compound_id'), sep = ', ', organism = organism)
-      message("Mapped peaks to KEGG: ", nrow(anno[!is.na(anno$name),]), " annotations generated.")
+      if (is.null(metabolite_table_df)) {
+        stop("Provide metabolite_table CSV path when anno is NULL. This table should have columns MetaboliteID, ExactMass, and MetaboliteName for ID-based annotation. ")
+      }
+      required_metabolite_cols <- c('MetaboliteID', 'ExactMass', 'MetaboliteName')
+      missing_met_cols <- setdiff(required_metabolite_cols, colnames(metabolite_table_df))
+      if (length(missing_met_cols) > 0) {
+        stop("metabolite_table is missing required column(s): ", paste(missing_met_cols, collapse = ', '))
+      }
+      message("Using user-supplied metabolite_table CSV for ID-based annotation.")
+      mapped_peaks <- preprocessing_map_peaks_to_ids(
+        peak_list = peak_list,
+        metabolite_table = metabolite_table_df,
+        adducts = adducts,
+        ion_mode = ion_mode,
+        neg_adduct_formulas = neg_adduct_table,
+        pos_adduct_formulas = pos_adduct_table,
+        ppm = ppm
+      )
+      anno <- preprocessing_combine_peak_annotations(peak_list, mapped_peaks, fields = c('adduct','compound_name','compound_id'), sep = ', ')
+      message("Mapped peaks to metabolite IDs: ", nrow(anno[!is.na(anno$name),]), " annotations generated.")
     }
   }
 
@@ -317,6 +352,28 @@ create_smew_app <- function(intensity_csv, metadata_csv, output_dir, denoise = F
     anno <- anno[!is.na(anno$name), ]
   } else {
     message(paste0("Keeping all ", nrow(anno), " peaks for downstream analysis."))
+  }
+
+  has_pathway_table <- !is.null(pathway_table_df) && is.data.frame(pathway_table_df)
+  if (has_pathway_table) {
+    required_path_cols <- c('PathwayID', 'PathwayName', 'MetaboliteIDs')
+    missing_path_cols <- setdiff(required_path_cols, colnames(pathway_table_df))
+    if (length(missing_path_cols) > 0) {
+      stop("pathway_table is missing required column(s): ", paste(missing_path_cols, collapse = ', '))
+    }
+  }
+  pathway_enrichment_possible <- enrichment_possible && has_pathway_table
+  if (enrichment_possible && !has_pathway_table) {
+    warning("Annotation is available but pathway_table is missing. Pathway enrichment (bulk and pixel-level) will be disabled.")
+  }
+
+  has_pathway_classification <- !is.null(pathway_classification_df) && is.data.frame(pathway_classification_df)
+  if (has_pathway_classification) {
+    required_class_cols <- c('PathwayName', 'PathwayID', 'Category1', 'Category2')
+    missing_class_cols <- setdiff(required_class_cols, colnames(pathway_classification_df))
+    if (length(missing_class_cols) > 0) {
+      stop("pathway_classification is missing required column(s): ", paste(missing_class_cols, collapse = ', '))
+    }
   }
 
   # 3. Get GCD values for grid spacing
@@ -364,6 +421,12 @@ create_smew_app <- function(intensity_csv, metadata_csv, output_dir, denoise = F
   saveRDS(metadata, file = file.path(output_dir,'smew_app','processed_metadata.rds'))
   saveRDS(bulked, file = file.path(output_dir, 'smew_app', 'processed_bulked.rds'))
   saveRDS(anno, file = file.path(output_dir, 'smew_app', 'processed_anno.rds'))
+  if (has_pathway_table) {
+    saveRDS(pathway_table_df, file = file.path(output_dir, 'smew_app', 'processed_pathway_table.rds'))
+  }
+  if (has_pathway_classification) {
+    saveRDS(pathway_classification_df, file = file.path(output_dir, 'smew_app', 'processed_pathway_classification.rds'))
+  }
 
   # 7. Check histology images overlay with coordinates if available
     if (!is.null(histology_images_dir)) {
@@ -442,9 +505,15 @@ create_smew_app <- function(intensity_csv, metadata_csv, output_dir, denoise = F
       saveRDS(scc, file = file.path(output_dir, 'smew_app', 'spatial_cross_correlation.rds'))
     }
 
+    run_pixel_enrichment_for_app <- run_pixel_enrichment
     if (run_pixel_enrichment){
-      if (!enrichment_possible) {
-        message("Pixel-level enrichment analysis cannot be run because m/z values could not be mapped to annotations. Please check your input data and annotation parameters.")
+      if (!pathway_enrichment_possible) {
+        message("Pixel-level enrichment analysis cannot be run because required annotation and/or pathway_table inputs are unavailable.")
+        run_pixel_enrichment_for_app <- FALSE
+      } else if (is.null(enrichment_controls) || length(enrichment_controls) == 0 ||
+                 is.null(enrichment_comparisons) || length(enrichment_comparisons) == 0) {
+        message("Pixel-level enrichment was requested, but enrichment_controls and/or enrichment_comparisons were not supplied. Skipping pixel-level enrichment.")
+        run_pixel_enrichment_for_app <- FALSE
       } else {
         message("Running pixel-leavel enrichment analysis step...")
         enrichment_results <- preprocessing_run_pixel_enrichment(
@@ -452,10 +521,10 @@ create_smew_app <- function(intensity_csv, metadata_csv, output_dir, denoise = F
           bulk.intensity.matrix = bulked$bulk_intensity,
           metadata = metadata,
           anno = anno,
+          pathway_table = pathway_table_df,
           control.samples = enrichment_controls, # Define control samples as needed
           comparison.samples = enrichment_comparisons, # Define comparison samples as needed
-          ncores = n_cores,
-          organism = organism
+          ncores = n_cores
         )
         saveRDS(enrichment_results, file = file.path(output_dir, 'smew_app', 'pixel_level_enrichment.rds'))
       }
@@ -464,11 +533,12 @@ create_smew_app <- function(intensity_csv, metadata_csv, output_dir, denoise = F
     # ---- Write app.R after preprocessing ----
     preprocessing_write_app_file(
       app_dir = output_dir,
-      run_enrichment = enrichment_possible,
-      organism = organism,
+      run_enrichment = pathway_enrichment_possible,
       run_autocorrelation = run_autocorrelation,
-      run_pixel_enrichment = run_pixel_enrichment,
+      run_pixel_enrichment = run_pixel_enrichment_for_app,
       has_multi_modal = has_multi_modal,
+      has_pathway_table = has_pathway_table,
+      has_pathway_classification = has_pathway_classification,
       multi_modal_path = multi_modal_path
     )
 }

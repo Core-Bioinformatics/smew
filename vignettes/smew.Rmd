@@ -101,20 +101,21 @@ To create a SMEW app, you can use the `create_smew_app()` function. This functio
 create_smew_app(
   intensity_csv = system.file("extdata", "bleo_sub_intensity.csv", package = "smew"),
   metadata_csv = system.file("extdata", "bleo_sub_meta.csv", package = "smew"),
-  output_dir = "test_app",
-  organism = 'Mouse'
+  output_dir = "test_app"
 )
 ```
 
 
-The default call to the function using parameters like above will create an app with all the bulk-level and region-level tabs except for those which require KEGG annotations. In order to run the pathway enrichment steps, you either need to run the peak annotation steps within SMEW or provide your own annotations using the `anno` parameter of the `create_smew_app()` function. You can run the annotation step like follows:
+The default call to the function using parameters like above will create an app with all the bulk-level and region-level tabs except for those which require pathway enrichment inputs. In order to run annotation within SMEW, provide a `metabolite_table` (with `MetaboliteID`, `ExactMass`, `MetaboliteName`) together with adduct settings. In order to run pathway enrichment steps, also provide a `pathway_table` (with `PathwayID`, `PathwayName`, `MetaboliteIDs`). For a full guide on preparing these files, see the [custom database vignette](databases.html). You can run the annotation and enrichment setup like follows:
 
 ```{r create_app_anno, warning = F}
 create_smew_app(
   intensity_csv = system.file("extdata", "bleo_sub_intensity.csv", package = "smew"),
   metadata_csv = system.file("extdata", "bleo_sub_meta.csv", package = "smew"),
   output_dir = "test_app",
-  organism = 'Mouse',
+  metabolite_table = 'databases/metabolite_masses.csv',
+  pathway_table = 'databases/pathways.csv',
+  pathway_classification = 'databases/pathway_classification.csv',
   adducts = c("M-H [1-]"),
   ion_mode = "Negative",
   ppm = 10,
@@ -136,8 +137,9 @@ create_smew_app(
   intensity_csv = system.file("extdata", "bleo_sub_intensity.csv", package  = "smew"),
   metadata_csv = system.file("extdata", "bleo_sub_meta.csv", package = "smew"),
   output_dir = "test_app",
-  organism = 'Mouse',
-  anno = annotations
+  anno = annotations,
+  pathway_table = "path/to/pathway_table.csv",
+  pathway_classification = "path/to/pathway_classification.csv"
 )
 ```
 
@@ -151,21 +153,21 @@ create_smew_app(
   intensity_csv = system.file("extdata", "bleo_sub_intensity.csv", package = "smew"),
   metadata_csv = system.file("extdata", "bleo_sub_meta.csv", package = "smew"),
   output_dir = "test_app",
-  organism = 'Mouse',
   run_autocorrelation = TRUE,
   top_autocorrelated_peaks = 10,
   n_cores = 4
 )
 ```
 
-Setting `run_pixel_enrichment = TRUE` will enable the pixel-level enrichment step and create the 'Spatial enrichment' tab in the app. In order for this to be created you must also run the annotation steps or provide your own annotations with KEGG IDs. For the pixel-level enrichment step, you need to specify the samples to use as controls for the enrichment analysis using the `enrichment_controls` parameter, which should be a character vector of sample names corresponding to the "Sample" column in your metadata and the samples to test against these controls using the `enrichment_comparisons` parameter, which should also be a character vector of sample names.
+Setting `run_pixel_enrichment = TRUE` will enable the pixel-level enrichment step and create the 'Spatial enrichment' tab in the app. In order for this to run, you must provide annotation with valid `metabolite_id` values (either via `anno` or internal annotation with `metabolite_table`) and also provide a `pathway_table`. For the pixel-level enrichment step, you need to specify the samples to use as controls for the enrichment analysis using the `enrichment_controls` parameter, which should be a character vector of sample names corresponding to the "Sample" column in your metadata and the samples to test against these controls using the `enrichment_comparisons` parameter, which should also be a character vector of sample names.
 
 ```{r create_app_pixel_enrichment, eval = F}
 create_smew_app(
   intensity_csv = system.file("extdata", "bleo_sub_intensity.csv", package = "smew"),
   metadata_csv = system.file("extdata", "bleo_sub_meta.csv", package = "smew"),
   output_dir = "test_app",
-  organism = 'Mouse',
+  metabolite_table = "path/to/metabolite_table.csv",
+  pathway_table = "path/to/pathway_table.csv",
   adducts = c("M-H [1-]"),
   ion_mode = "Negative",
   ppm = 10,
@@ -176,7 +178,7 @@ create_smew_app(
 )
 ```
 
-Additional options for app creation include `histology_images_dir` which allows you to provide a directory of histology images corresponding to your samples to be used in the 'Manual region selection' tab of the app and `multi_modal_path` identifying bulk-level data from a different modality which can be integrated through the 'Multi-modal covariation network inference' tab. For more details on all the parameters of the `create_smew_app()` function, please refer to the documentation and to the [multimodal vignette](multimodal.html) and [histology integration](histology.html) vignettes.
+Additional options for app creation include `histology_images_dir` which allows you to provide a directory of histology images corresponding to your samples to be used in the 'Manual region selection' tab of the app, `multi_modal_path` identifying bulk-level data from a different modality which can be integrated through the 'Multi-modal covariation network inference' tab, and `pathway_classification` for adding pathway category overlays in ORA visualisations. For more details on all the parameters of the `create_smew_app()` function, please refer to the documentation and to the [custom database vignette](databases.html), [multimodal vignette](multimodal.html), and [histology integration](histology.html) vignettes.
 
 ## Using your created SMEW app
 
@@ -253,13 +255,13 @@ The results of the differential analysis can be visualised through heatmaps and 
 
 #### Pathway enrichment analysis (ORA)
 
-Differentially abundant metabolite peaks can be linked to biological pathways through over-representation analysis (ORA) using KEGG pathways. Parameters supplied by users during app creation are used, including the organism, and only annotated peaks can be used for this purpose. The results of the ORA analysis can be explored through an interactive table and through visualisation of significant pathways in a volcano plot.
+Differentially abundant metabolite peaks can be linked to biological pathways through over-representation analysis (ORA) using a user-supplied pathway table. Only annotated peaks with valid metabolite IDs can be used for this purpose. The results of the ORA analysis can be explored through an interactive table and through visualisation of significant pathways in a volcano plot.
 
 ![ORA tab](figures/BulkPanel_ORA_Table.png)
 
-Significant pathways can then be divided by KEGG categories and visualised in a network where nodes represent pathways and edges represent shared annotated peaks between pathways. This allows users to explore the relationships between significant pathways and identify clusters of related pathways that may be relevant to their biological question.
+Significant pathways can then be divided by pathway categories (if a pathway classification table is supplied) and visualised in a network where nodes represent pathways and edges represent shared annotated peaks between pathways. This allows users to explore the relationships between significant pathways and identify clusters of related pathways that may be relevant to their biological question.
 
-![ORA tab - KEGG categories](figures/BulkPanel_ORA_Category.png)
+![ORA tab - pathway categories](figures/BulkPanel_ORA_Category.png)
 
 #### Covariation network inference
 
@@ -368,6 +370,8 @@ Different clustering or region identification methods can be compared to underst
 Finally, the element centric similarity score between different sets of regions can be calculated, which is a pixel-centric clustering similarity metric as described in [ClustAssess](https://github.com/Core-Bioinformatics/ClustAssess). You can view the distribution of similarity scores spatially to understand which regions are most similar and different between sets of regions.
 
 ![Region comparison - ECS](figures/RegionPanel_Comparison_ECS.png)
+
+Identified clusters and regions that have been added to the object can be downloaded as CSV files for further analysis outside of the app using the "Download Updated Metadata" button.
 
 #### Region differential analysis
 

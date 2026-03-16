@@ -8,3 +8,11 @@
 ^README.html
 ^doc$
 ^Meta$
+^vignettes/databases/ChEBI2Reactome.txt$
+^vignettes/databases/hmdb_metabolites.xml$
+^vignettes/databases/kegg_hierarchy.txt$
+^vignettes/databases/LMSD.zip$
+^vignettes/databases/structures.sdf$
+^vignettes/databases/wikipathways$
+^vignettes/test_app$
+^vignettes/articles$

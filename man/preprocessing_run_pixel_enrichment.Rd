@@ -20,7 +20,7 @@ preprocessing_run_pixel_enrichment(
   ora_pvalue_cutoff = 1.01,
   min_pathway_hits = 2,
   ncores = 1,
-  organism = "Human"
+  pathway_table
 )
 }
 \arguments{
@@ -54,7 +54,7 @@ preprocessing_run_pixel_enrichment(
 
 \item{ncores}{Integer; number of cores for parallel execution.}
 
-\item{organism}{Character; organism code for pathway lookup.}
+\item{pathway_table}{Data frame of pathway definitions with columns PathwayID, PathwayName, and MetaboliteIDs.}
 }
 \value{
 Named list where each element is a data frame of ORA results for a sample.

@@ -85,6 +85,15 @@ RegionPanel_ComparisonTabUI <- function(id, show = TRUE) {
       ),
       open = NULL
     ),
+    shiny::tags$div(
+      style = "margin: 1rem 0 1.5rem 0;",
+      shiny::downloadButton(
+        outputId = ns('downloadSharedData'),
+        label = 'Download Updated Metadata (CSV)',
+        class = 'btn btn-primary btn-lg',
+        style = 'width: 100%; font-weight: 700; padding: 14px 20px;'
+      )
+    ),
     shiny::tags$h4("Compare region proportions per sample across sample-level metadata"),
     # --- New section: Cluster vs sample-level metadata ---
     bslib::card(
@@ -355,6 +364,16 @@ RegionPanel_ComparisonTabServer <- function(id, shared_data, bulk.metadata) {
       width_func = function() input[['clusterMetaProportionWidth']],
       height_func = function() input[['clusterMetaProportionHeight']]
     )
+
+      output[['downloadSharedData']] <- shiny::downloadHandler(
+        filename = function() {
+          'updated_metadata.csv'
+        },
+        content = function(file) {
+          shiny::req(!is.null(shared_data$updated.metadata))
+          utils::write.csv(shared_data$updated.metadata, file, row.names = FALSE)
+        }
+      )
   })
 }
 

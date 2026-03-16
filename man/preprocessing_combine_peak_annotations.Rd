@@ -8,20 +8,17 @@ preprocessing_combine_peak_annotations(
   peak_list,
   anno_table,
   fields = c("adduct", "compound_name", "compound_id"),
-  sep = ", ",
-  organism = "Human"
+  sep = ", "
 )
 }
 \arguments{
 \item{peak_list}{Numeric vector of original peaks (order preserved).}
 
-\item{anno_table}{Data frame from preprocessing_map_peaks_to_kegg.}
+\item{anno_table}{Data frame from preprocessing_map_peaks_to_ids.}
 
 \item{fields}{Character vector of annotation columns to combine (default: c('adduct','compound_name','compound_id')).}
 
 \item{sep}{Separator for multiple annotations (default: ', ').}
-
-\item{organism}{Character; organism for pathway filtering ('Human', 'Mouse', 'Rat').}
 }
 \value{
 Data frame with one row per peak, columns for each annotation field, and display_name.

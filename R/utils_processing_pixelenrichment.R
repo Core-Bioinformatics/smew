@@ -28,8 +28,38 @@ preprocessing_get_differential_peaks <- function(x_tf, y_tf, intensity.per.sampl
       abs(metadata.per.sample$x_tf - x_tf) <= 1 &
         abs(metadata.per.sample$y_tf - y_tf) <= 1,
     ]
+
+    # Match comparison features to the annotated feature universe used for control.matrix.
+    annotated_features <- unique(anno$m_z[!is.na(anno$name)])
+    annotated_features <- annotated_features[!is.na(annotated_features) & annotated_features != ""]
+    if (length(annotated_features) == 0) {
+      return(NULL)
+    }
+    if (!is.null(colnames(intensity.sub))) {
+      keep_features <- intersect(colnames(intensity.sub), annotated_features)
+      if (length(keep_features) == 0) {
+        return(NULL)
+      }
+      intensity.sub <- intensity.sub[, keep_features, drop = FALSE]
+    }
+
     rownames(intensity.sub) <- paste0('comparison_', 1:nrow(intensity.sub))
     intensity.sub <- t(intensity.sub)
+
+    if (nrow(control.matrix) != nrow(intensity.sub)) {
+      control_features <- rownames(control.matrix)
+      comparison_features <- rownames(intensity.sub)
+      # Align both matrices on common feature IDs before combining.
+      if (!is.null(control_features) && !is.null(comparison_features)) {
+        shared_features <- intersect(control_features, comparison_features)
+        if (length(shared_features) == 0) {
+          return(NULL)
+        }
+        control.matrix <- control.matrix[shared_features, , drop = FALSE]
+        intensity.sub <- intensity.sub[shared_features, , drop = FALSE]
+      }
+    }
+
     comparison.matrix <- cbind(control.matrix, intensity.sub)
     de.table <- bulk_utils_DA(
       intensity_matrix = comparison.matrix,
@@ -62,7 +92,7 @@ preprocessing_get_differential_peaks <- function(x_tf, y_tf, intensity.per.sampl
 ##' @param min_pathway_hits Integer; minimum pathway hits.
 ##' @param gap Numeric; neighbourhood gap used to build the comparison set.
 ##' @param anno Data frame; annotation data used by ORA/DE.
-##' @param organism Character or code used by pathway DB lookup.
+##' @param pathway_table Data frame of pathway definitions with columns PathwayID, PathwayName, and MetaboliteIDs.
 ##' @return Data frame of ORA results annotated with x and y coordinates, or NULL if no pathways found.
 ##' @keywords internal
 preprocessing_get_enriched_pathways_perpixel <- function(
@@ -77,9 +107,9 @@ preprocessing_get_enriched_pathways_perpixel <- function(
     background = NULL,
     min_path_size = 3,
     ora_pvalue_cutoff = 1.01,
-    min_pathway_hits = 2, gap,
+    min_pathway_hits = 2, gap = NULL,
     anno,
-    organism
+    pathway_table
 ) {
   de.table <- preprocessing_get_differential_peaks(
     metadata.per.sample[row, 'x_tf'],
@@ -97,14 +127,10 @@ preprocessing_get_enriched_pathways_perpixel <- function(
   if (!is.null(de.table)) {
     ora <- bulk_utils_execute_ora(
       de_peaks = de.table,
-      path_dict = NULL,
-      background = background,
-      min_path_size = min_path_size,
-      ora_pvalue_cutoff = ora_pvalue_cutoff,
-      min_pathway_hits = min_pathway_hits,
-      organism = organism,
       anno = anno,
-      kegg_db = kegg_db
+      pathway_db = pathway_table,
+      min_path_size = min_path_size,
+      min_pathway_hits = min_pathway_hits
     )
     if (!is.null(ora)) {
       if (nrow(ora) != 0) {
@@ -140,7 +166,7 @@ preprocessing_get_enriched_pathways_perpixel <- function(
 ##' @param comparison.samples Character vector of sample IDs to use as comparison samples.
 ##' @param min_pathway_hits Integer; minimum pathway hits required.
 ##' @param ncores Integer; number of cores for parallel execution.
-##' @param organism Character; organism code for pathway lookup.
+##' @param pathway_table Data frame of pathway definitions with columns PathwayID, PathwayName, and MetaboliteIDs.
 ##' @return Named list where each element is a data frame of ORA results for a sample.
 ##' @keywords internal
 preprocessing_run_pixel_enrichment <- function(
@@ -159,8 +185,13 @@ preprocessing_run_pixel_enrichment <- function(
   ora_pvalue_cutoff = 1.01,
   min_pathway_hits = 2,
   ncores = 1,
-  organism = 'Human'
+  pathway_table
 ) {
+
+  required_path_cols <- c('PathwayID', 'PathwayName', 'MetaboliteIDs')
+  if (is.null(pathway_table) || !is.data.frame(pathway_table) || !all(required_path_cols %in% colnames(pathway_table))) {
+    stop("pathway_table must be a data.frame containing PathwayID, PathwayName, and MetaboliteIDs.")
+  }
 
   anno_sub = anno[!is.na(anno$name),]
   control.matrix <- bulk.intensity.matrix[anno_sub$m_z, control.samples, drop = FALSE]
@@ -179,7 +210,7 @@ for (sample in comparison.samples) {
         cl,
         c(
           "preprocessing_get_differential_peaks", "bulk_utils_execute_ora", "metadata.sub", "control.matrix", "bulk_utils_DA",
-          "preprocessing_get_enriched_pathways_perpixel", "anno", "organism", "bulk_utils_run_ORA","kegg_db", "intensity.sub"
+          "preprocessing_get_enriched_pathways_perpixel", "anno", "bulk_utils_run_ORA", "pathway_table", "intensity.sub"
         ),
         envir = environment()
       )
@@ -199,7 +230,7 @@ for (sample in comparison.samples) {
           ora_pvalue_cutoff = 1.01,
           min_pathway_hits = 2,
           anno = anno,
-          organism = organism
+          pathway_table = pathway_table
         ),
         cl = cl
       )
@@ -227,7 +258,7 @@ for (sample in comparison.samples) {
                 ora_pvalue_cutoff = 1.01,
                 min_pathway_hits = 2,
                 anno = anno,
-                organism = organism
+                pathway_table = pathway_table
               )
             )
             names(outlist) <- metadata.sub$pixel_id
