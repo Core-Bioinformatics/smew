@@ -313,8 +313,8 @@ preprocessing_denoise.intensity <- function(metadata, intensity.matrix, sample, 
   # Spatial distance matrix
   distance.matrix <- as.matrix(stats::dist(current.metadata[, c('x_tf', 'y_tf')] ))
 
-  # Weight matrix
-  w <- cor.matrix * distance.matrix
+  # Weight matrix (correlation * exponential decay of distance)
+  w <- cor.matrix * exp(-distance.matrix)
 
   # Denoise by neighbourhood
 
@@ -337,7 +337,7 @@ preprocessing_denoise.intensity <- function(metadata, intensity.matrix, sample, 
 ##' @param distance.matrix Spatial distance matrix between pixels.
 ##' @param current.intensity Intensity matrix for current sample.
 ##' @param gcd Numeric; grid spacing value for the sample.
-##' @param w Weight matrix (correlation * distance).
+##' @param w Weight matrix (correlation * exponential decay of distance).
 ##' @return Numeric vector of denoised intensities for pixel i.
 ##' @keywords internal
 preprocessing_pick.neighbours.per.pixel <- function(i,cor.matrix,distance.matrix,current.intensity,gcd,w){
