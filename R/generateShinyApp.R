@@ -313,12 +313,12 @@ create_smew_app <- function(intensity_csv, metadata_csv, output_dir, denoise = F
     if (is.null(adducts) || is.null(ion_mode)) {
       message("adducts or ion_mode is NULL; skipping annotation. anno will have NA names.")
       peak_list <- intensity_header
-      anno <- data.frame(exp_peak = peak_list, adduct = NA, name = NA, metabolite_id = NA, display_name = peak_list)
+      anno <- data.frame(m_z = peak_list, adduct = NA, name = NA, metabolite_id = NA, display_name = peak_list)
       enrichment_possible <- FALSE
     } else if (any(is.na(peak_list))) {
       message("Intensity header is not in expected format 'mz_<number>', using as is.")
       peak_list <- intensity_header
-      anno <- data.frame(exp_peak = peak_list, adduct = NA, name = NA, metabolite_id = NA, display_name = peak_list)
+      anno <- data.frame(m_z = peak_list, adduct = NA, name = NA, metabolite_id = NA, display_name = peak_list)
       enrichment_possible <- FALSE
     } else {
       message("Intensity header is in expected format, proceeding with m/z mapping.")

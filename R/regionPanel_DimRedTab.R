@@ -115,11 +115,11 @@ RegionPanel_DimRedTabUI <- function(id, bulk.metadata, full.metadata, full.inten
             ),
             shiny::fluidRow(
               shiny::column(6,
-                shiny::tags$strong("Cluster metadataboxplot"),
-                shiny::textInput(ns('clusterBoxFileName'), 'File name', value ='ClusterBoxplot.png'),
-                shiny::numericInput(ns('clusterBoxWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
-                shiny::numericInput(ns('clusterBoxHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
-                shiny::downloadButton(ns('downloadClusterBox'), 'Download cluster boxplot')
+                shiny::tags$strong("Cluster metadata bar plot"),
+                shiny::textInput(ns('clusterBarFileName'), 'File name', value ='ClusterBarplot.png'),
+                shiny::numericInput(ns('clusterBarWidth'),value = 8,label = 'Width (in)',min = 1,max = 50,step = 1),
+                shiny::numericInput(ns('clusterBarHeight'),value = 6,label = 'Height (in)',min = 1,max = 50,step = 1),
+                shiny::downloadButton(ns('downloadClusterBar'), 'Download cluster barplot')
               )
             )
           )
@@ -226,7 +226,7 @@ RegionPanel_DimRedTabUI <- function(id, bulk.metadata, full.metadata, full.inten
               shiny::selectInput(ns('clusterComponent'),label = 'Cluster component',choices = c()),
               shiny::sliderInput(ns('thresholdHigh'),label = 'Percentage of data to categorise as high intensity',value = 25,min = 1,max = 49,step = 1),
               shiny::sliderInput(ns('thresholdLow'),label = 'Percentage of data to categorise as low intensity',value = 25,min = 1,max = 49,step = 1),
-              shiny::selectInput(ns('clusterBoxColour'),label = 'Metadata to split clusters on',choices = colnames(full.metadata)[!(colnames(full.metadata)%in%c('pixel_id','x','y','x_tf','y_tf'))],selected = colnames(full.metadata)[!(colnames(full.metadata)%in%c('pixel_id','x','y','x_tf','y_tf'))][1]),
+              shiny::selectInput(ns('clusterBarColour'),label = 'Metadata to split clusters on',choices = colnames(full.metadata)[!(colnames(full.metadata)%in%c('pixel_id','x','y','x_tf','y_tf'))],selected = colnames(full.metadata)[!(colnames(full.metadata)%in%c('pixel_id','x','y','x_tf','y_tf'))][1]),
               shiny::textInput(ns('clusterName'),label = 'Name for clusters'),
               shiny::actionButton(ns('lock_cluster'),'Add clusters to object')
             ),
@@ -234,7 +234,7 @@ RegionPanel_DimRedTabUI <- function(id, bulk.metadata, full.metadata, full.inten
               shiny::tags$h4("Cluster Plot"),
               shiny::plotOutput(ns('clusterPlot')),
               shiny::tags$h4("Cluster Boxplot"),
-              shiny::plotOutput(ns('clusterBoxPlot'))
+              shiny::plotOutput(ns('clusterBarPlot'))
             )
           )
         )
@@ -731,11 +731,12 @@ RegionPanel_DimRedTabServer <- function(id, full.intensity.matrix, full.metadata
       quantiles <- stats::quantile(my_component_level, prob = c(input[['thresholdLow']] / 100, (100 - input[['thresholdHigh']]) / 100), type = 1)
       clusterdf$cluster <- ifelse(my_component_level <= quantiles[1], 'Low',
                      ifelse(my_component_level >= quantiles[2], 'High', 'Medium'))
-        return(clusterdf)
+      return(clusterdf)
       })
 
     cluster_plot <- shiny::reactive({
       clusterdf = get_clusters()
+      clusterdf$cluster = factor(clusterdf$cluster,levels=c('Low','Medium','High'))
       ggplot2::ggplot(clusterdf,ggplot2::aes(x=.data$x_tf,y=.data$y_tf,fill=.data$cluster,color=.data$cluster)) +
         ggplot2::geom_tile() +
         ggplot2::facet_wrap(ggplot2::vars(clusterdf$Sample),
@@ -755,7 +756,8 @@ RegionPanel_DimRedTabServer <- function(id, full.intensity.matrix, full.metadata
 
     cluster_boxplot <- shiny::reactive({
       clusterdf = get_clusters()
-      ggplot2::ggplot(clusterdf,ggplot2::aes(x=.data[[input$clusterBoxColour]],fill=.data$cluster))+
+      clusterdf$cluster = factor(clusterdf$cluster,levels=c('Low','Medium','High'))
+      ggplot2::ggplot(clusterdf,ggplot2::aes(x=.data[[input$clusterBarColour]],fill=.data$cluster))+
         ggplot2::geom_bar(position='fill') + ggplot2::theme_classic()
 
     })
@@ -767,7 +769,7 @@ RegionPanel_DimRedTabServer <- function(id, full.intensity.matrix, full.metadata
       cluster_plot()
     })
 
-    output[['clusterBoxPlot']] <- shiny::renderPlot({
+    output[['clusterBarPlot']] <- shiny::renderPlot({
       cluster_boxplot()
     })
 
@@ -868,9 +870,9 @@ RegionPanel_DimRedTabServer <- function(id, full.intensity.matrix, full.metadata
     )
     output[['downloadClusterBox']] <- utils_create_download_plot_handler(
       plot_func = cluster_boxplot,
-      filename_func = function() input[['clusterBoxFileName']],
-      width_func = function() input[['clusterBoxWidth']],
-      height_func = function() input[['clusterBoxHeight']]
+      filename_func = function() input[['clusterBarFileName']],
+      width_func = function() input[['clusterBarWidth']],
+      height_func = function() input[['clusterBarHeight']]
     )
 
   })
