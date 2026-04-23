@@ -623,7 +623,7 @@ RegionPanel_DimRedTabServer <- function(id, full.intensity.matrix, full.metadata
         current.metadata$selectedPeak = current.metadata[,input[['colourUMAP']]]
         colour.function = ggplot2::scale_color_discrete(name=input[['colourUMAP']])
       }
-      return(list('SpatialView'=ggplot2::ggplot(current.metadata,ggplot2::aes(x=.data$x_tf,y=.data$y_tf, color=.data$my.color,fill=.data$my.color))+
+      return(list('SpatialView'=ggplot2::ggplot(current.metadata,ggplot2::aes(x=.data$x_tf,y=.data$y_tf, color=.data$my.colour,fill=.data$my.colour))+
                     ggplot2::geom_tile()+
                     ggplot2::theme_classic() +
                     ggplot2::scale_color_identity() +

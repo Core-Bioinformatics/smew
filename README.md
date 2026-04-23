@@ -107,9 +107,6 @@ You can optionally also include multi-modal data at bulk-level with features (e.
 | gene_6 | 54.4       | 30.9 | 46.0 |
 | | ...  | ...  | ...  | 
 
-
-[Add stuff about using your own annotations here]
-
 ## App creation
 
 Once your data is in the format described above, you can create an app in just 1 line of code. In this case, suppose you have data from mouse in negative ion mode. In this case we only want to include peaks which can be annotated as known metabolites.
@@ -136,7 +133,7 @@ By default, the longer preprocessing steps for pixel-level enrichment and pixel-
 
 ## App structure
 
-Here we describe the structure of a SMEW app and the components of each section. For more details, see [name of vignette].
+Here we describe the structure of a SMEW app and the components of each section. For more details, see [our documentation](https://core-bioinformatics.github.io/smew/articles/smew.html).
 
 ![SMEW graphical abstract](man/figures/SMEW_workflow.png)
 
