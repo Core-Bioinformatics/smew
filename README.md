@@ -28,7 +28,6 @@ To use *smew*, you need R >= 4.0. *smew* will be made available on CRAN in due c
 * ggrepel
 * ggVennDiagram
 * ggrastr
-* grDevices
 * harmony
 * heatmaply
 * htmlwidgets
@@ -36,8 +35,6 @@ To use *smew*, you need R >= 4.0. *smew* will be made available on CRAN in due c
 * jpeg
 * Matrix
 * matrixStats
-* methods
-* parallel
 * patchwork
 * pbapply
 * plotly
@@ -49,12 +46,10 @@ To use *smew*, you need R >= 4.0. *smew* will be made available on CRAN in due c
 * shinyjqui
 * shinyjs
 * shinyWidgets
-* stats
 * stringr
 * tibble
 * tidyr
 * UpSetR
-* utils
 * viridis
 * visNetwork
 

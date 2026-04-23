@@ -35,12 +35,12 @@ The required CRAN packages can be installed using the following code:
 ```{r cran_install, eval = FALSE}
 packages.cran <- c("bsicons", "bslib", "ClustAssess", "data.table", "dendextend", 
                    "dplyr", "dunn.test", "DT", "ggplot2", "ggplotify", "ggnewscale", 
-                   "ggrepel", "ggVennDiagram", "ggrastr", "grDevices", "harmony", 
+                   "ggrepel", "ggVennDiagram", "ggrastr", "harmony", 
                    "heatmaply", "htmlwidgets", "igraph", "jpeg", "Matrix", "matrixStats", 
-                   "methods", "parallel", "patchwork", "pbapply", "plotly", "RColorBrewer", 
+                   "patchwork", "pbapply", "plotly", "RColorBrewer", 
                    "RcppML", "reshape2", "scales", "shiny", "shinyjqui", "shinyjs", 
-                   "shinyWidgets", "stats", "stringr", "tibble", "tidyr", "UpSetR", 
-                   "utils", "viridis", "visNetwork")
+                   "shinyWidgets", "stringr", "tibble", "tidyr", "UpSetR", 
+                   "viridis", "visNetwork")
 install.packages(packages.cran)
 ``` 
 
