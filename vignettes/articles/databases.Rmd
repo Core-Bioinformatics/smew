@@ -71,15 +71,15 @@ As an example, here is what the first few rows of each table might look like bas
 
 ```{r, example_tables, echo = TRUE}
 # Example metabolite_table
-metabolite_table <- read.csv('databases/metabolite_masses.csv')
+metabolite_table <- read.csv('../databases/metabolite_masses.csv')
 print(head(metabolite_table))
 
 # Example pathway_table
-pathway_table <- read.csv('databases/pathways.csv')
+pathway_table <- read.csv('../databases/pathways.csv')
 print(head(pathway_table))
 
 # Example pathway_classification
-pathway_classification <- read.csv('databases/pathway_classification.csv')
+pathway_classification <- read.csv('../databases/pathway_classification.csv')
 print(head(pathway_classification))
 ```
 
@@ -273,7 +273,7 @@ parse_kegg_hierarchy <- function(file){
   bind_rows(out)
 }
 # download.file("https://rest.kegg.jp/get/br:br08901",destfile = 'databases/kegg_hierarchy.txt')
-pathway_classification <- parse_kegg_hierarchy("databases/kegg_hierarchy.txt")
+pathway_classification <- parse_kegg_hierarchy("../databases/kegg_hierarchy.txt")
 print(head(pathway_classification))
 ```
 
@@ -298,7 +298,7 @@ library(xml2)
 library(data.table)
 library(purrr)
 
-doc <- read_xml("databases/hmdb_metabolites.xml")
+doc <- read_xml("../databases/hmdb_metabolites.xml")
 doc <- xml_ns_strip(doc)
 metabolites <- xml_find_all(doc, "//d1:metabolite")
 
@@ -334,14 +334,14 @@ LipidMaps is a valuable resource for lipid annotation. You can download the rele
 ```{r, lipidmaps_download, eval=F}
 download.file(
   "https://www.lipidmaps.org/files/?file=LMSD&ext=sdf.zip",
-  "databases/LMSD.zip"
+  "../databases/LMSD.zip"
 )
-unzip("databases/LMSD.zip",exdir = 'databases/')
+unzip("../databases/LMSD.zip",exdir = '../databases/')
 ```
 
 You can then read the .sdf file and extract the relevant information to build the `metabolite_table.csv` as follows:
 ```{r, lipidmaps_processing}
-lines <- readLines("databases/structures.sdf")
+lines <- readLines("../databases/structures.sdf")
 records <- split(lines, cumsum(lines == "$$$$"))
 records <- records[lengths(records) > 1]
 
@@ -370,13 +370,13 @@ Use this when you want curated pathway graphs for a specific organism.
 The WikiPathways database is another valuable resource for pathway information. You can download the relevant pathway data for your organism from [https://data.wikipathways.org/current/gpml/](https://data.wikipathways.org/current/gpml/), selecting your organism of interest. You can use steps like the following to download the data:
 
 ```{r, wikipathways_download, eval=F}
-dir.create("databases/wikipathways", recursive = TRUE, showWarnings = FALSE)
+dir.create("../databases/wikipathways", recursive = TRUE, showWarnings = FALSE)
 download.file(
   "https://data.wikipathways.org/current/gpml/wikipathways-20260310-gpml-Mus_musculus.zip",
-  "databases/wikipathways/mouse_gpml.zip",
+  "../databases/wikipathways/mouse_gpml.zip",
   mode = "wb"
 )
-unzip("databases/wikipathways/mouse_gpml.zip", exdir = "databases/wikipathways/gpml")
+unzip("../databases/wikipathways/mouse_gpml.zip", exdir = "../databases/wikipathways/gpml")
 ```
 
 To then create a pathway table for SMEW you can do the following:
@@ -406,7 +406,7 @@ parse_wikipathway <- function(file){
   )
 }
 
-files <- list.files("databases/wikipathways/gpml", full.names = TRUE)
+files <- list.files("../databases/wikipathways/gpml", full.names = TRUE)
 pb <- progress_bar$new(total = length(files))
 metabolite_pathways <- map_dfr(files, function(f){
   pb$tick()
@@ -451,17 +451,17 @@ Use this when your metabolite IDs are ChEBI and you want organism-specific pathw
 The Reactome database can be used to link ChEBI IDs to pathways. You can download the [https://reactome.org/download/current/ChEBI2Reactome.txt](https://reactome.org/download/current/ChEBI2Reactome.txt) table and then process it into the required format for SMEW as follows:
 
 ```{r, reactome_download, eval=F}
-dir.create("databases/reactome", recursive = TRUE, showWarnings = FALSE)
+dir.create("../databases/reactome", recursive = TRUE, showWarnings = FALSE)
 download.file(
   "https://reactome.org/download/current/ChEBI2Reactome.txt",
-  "databases/reactome/ChEBI2Reactome.txt",
+  "../databases/reactome/ChEBI2Reactome.txt",
   mode = "wb"
 )
 ```
 
 ```{r, reactome_processing}
 reactome <- read.delim(
-  "databases/ChEBI2Reactome.txt",
+  "../databases/ChEBI2Reactome.txt",
   header = FALSE,
   sep = "\t",
   stringsAsFactors = FALSE

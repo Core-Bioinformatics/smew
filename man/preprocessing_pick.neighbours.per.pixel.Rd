@@ -24,7 +24,7 @@ preprocessing_pick.neighbours.per.pixel(
 
 \item{gcd}{Numeric; grid spacing value for the sample.}
 
-\item{w}{Weight matrix (correlation * distance).}
+\item{w}{Weight matrix (correlation * exponential decay of distance).}
 }
 \value{
 Numeric vector of denoised intensities for pixel i.
