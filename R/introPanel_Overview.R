@@ -1,11 +1,11 @@
 #' Overviews the structure and features of the SMEW app
 #'
-#' @description UI and server logic for the SMEW app overview tab, with placeholders for manuscript and GitHub links.
+#' @description UI and server logic for the SMEW app overview tab, including links to documentation and GitHub.
 #'
 #' @details
 #' \itemize{
 #'  \item{Provides a high-level overview of the SMEW application structure and features.}
-#'  \item{Includes links to documentation, GitHub, and manuscript (placeholders).}
+#'  \item{Includes links to documentation and GitHub.}
 #'  \item{Describes the app's modular analysis workflow and available panels.}
 #'}
 #' @name IntroPanel_OverviewTab
@@ -68,14 +68,31 @@ IntroPanel_OverviewTabUI <- function(id, show = TRUE) {
           )
         ),
       ),
-      # Right column: Documentation and Manuscript
+      # Right column: External resources and manuscript
       shiny::div(
         style = "flex: 1 1 260px; min-width: 260px; display: flex; flex-direction: column; gap: 24px;",
         shiny::div(
           style = "background: #fff3e0; border-radius: 10px; padding: 20px 32px; border: 1px solid #ffb74d;",
           shiny::h3("Links to Documentation and GitHub"),
-          shiny::p("Links to the documentation and GitHub repository will be added here when public."),
-          shiny::tags$div(id = ns("github-link-placeholder"), style = "margin-top: 10px;", "[GitHub link placeholder]")
+          shiny::p("Use the links below to view the source code and full package documentation."),
+          shiny::tags$ul(
+            shiny::tags$li(
+              shiny::tags$a(
+                href = "https://github.com/Core-Bioinformatics/smew",
+                target = "_blank",
+                rel = "noopener noreferrer",
+                "SMEW GitHub Repository"
+              )
+            ),
+            shiny::tags$li(
+              shiny::tags$a(
+                href = "https://core-bioinformatics.github.io/smew/",
+                target = "_blank",
+                rel = "noopener noreferrer",
+                "SMEW Documentation"
+              )
+            )
+          )
         ),
         shiny::div(
           style = "background: #e8f5e9; border-radius: 10px; padding: 20px 32px; border: 1px solid #81c784;",
@@ -95,7 +112,7 @@ IntroPanel_OverviewTabUI <- function(id, show = TRUE) {
 #' @export
 IntroPanel_OverviewTabServer <- function(id) {
   shiny::moduleServer(id, function(input, output, session) {
-    
+
     output$overview_logo <- shiny::renderImage({
       list(
         src = file.path("figures", "logo_banner.png"),
@@ -105,6 +122,6 @@ IntroPanel_OverviewTabServer <- function(id) {
         alt = "SMEW Logo"
       )
     }, deleteFile = FALSE)
-    
+
   })
 }

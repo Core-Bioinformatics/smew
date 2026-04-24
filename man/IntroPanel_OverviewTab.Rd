@@ -19,12 +19,12 @@ IntroPanel_OverviewTabServer(id)
 A shiny::tabPanel object for the overview tab
 }
 \description{
-UI and server logic for the SMEW app overview tab, with placeholders for manuscript and GitHub links.
+UI and server logic for the SMEW app overview tab, including links to documentation and GitHub.
 }
 \details{
 \itemize{
  \item{Provides a high-level overview of the SMEW application structure and features.}
- \item{Includes links to documentation, GitHub, and manuscript (placeholders).}
+ \item{Includes links to documentation and GitHub.}
  \item{Describes the app's modular analysis workflow and available panels.}
 }
 }

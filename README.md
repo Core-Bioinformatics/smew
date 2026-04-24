@@ -129,7 +129,7 @@ create_smew_app(
 shiny::runApp('test_app/smew_app)
 ```
 
-By default, the longer preprocessing steps for pixel-level enrichment and pixel-level autocorrelation steps will not be run but these can be triggered using the *run_pixel_enrichment* and *run_autocorrelation* parameters. More details about these processes is given in [name of vignette].
+By default, the longer preprocessing steps for pixel-level enrichment and pixel-level autocorrelation steps will not be run but these can be triggered using the *run_pixel_enrichment* and *run_autocorrelation* parameters. More details about these processes is given in [our documentation](https://core-bioinformatics.github.io/smew/articles/smew.html).
 
 ## App structure
 
