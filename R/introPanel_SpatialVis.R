@@ -337,9 +337,31 @@ IntroPanel_SpatialVisTabServer <- function(id, bulk.metadata, full.metadata, ful
         caps = c(red.caps,green.caps,blue.caps)
         minima = c(min(current.metadata$red),min(current.metadata$green),min(current.metadata$blue))
         maxima = c(max(current.metadata$red),max(current.metadata$green),max(current.metadata$blue))
-        current.metadata$red = (current.metadata$red-min(current.metadata$red))/(max(current.metadata$red)-min(current.metadata$red))
-        current.metadata$green = (current.metadata$green-min(current.metadata$green))/(max(current.metadata$green)-min(current.metadata$green))
-        current.metadata$blue = (current.metadata$blue-min(current.metadata$blue))/(max(current.metadata$blue)-min(current.metadata$blue))
+        
+        # Normalize each channel, handling constant intensity (min == max) by setting to 0
+        red_min <- min(current.metadata$red)
+        red_max <- max(current.metadata$red)
+        current.metadata$red <- if (red_max > red_min) {
+          (current.metadata$red - red_min) / (red_max - red_min)
+        } else {
+          rep(0, nrow(current.metadata))
+        }
+        
+        green_min <- min(current.metadata$green)
+        green_max <- max(current.metadata$green)
+        current.metadata$green <- if (green_max > green_min) {
+          (current.metadata$green - green_min) / (green_max - green_min)
+        } else {
+          rep(0, nrow(current.metadata))
+        }
+        
+        blue_min <- min(current.metadata$blue)
+        blue_max <- max(current.metadata$blue)
+        current.metadata$blue <- if (blue_max > blue_min) {
+          (current.metadata$blue - blue_min) / (blue_max - blue_min)
+        } else {
+          rep(0, nrow(current.metadata))
+        }
         upper.lims = c(max(current.metadata$red),max(current.metadata$green),max(current.metadata$blue))
         current.metadata$rgb_hex <- grDevices::rgb(
           red = pmin(pmax(current.metadata$red, 0), 1),
