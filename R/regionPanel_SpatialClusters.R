@@ -186,7 +186,7 @@ RegionPanel_SpatialClustersTabServer <- function(id, full.intensity.matrix, full
 
           # BayesSpace clustering only
           colData <- metadata.sub[, c('x_tf','y_tf')]
-          colnames(colData)[1:2] <- c('col', 'row')
+          colnames(colData)[1:2] <- c('array_col', 'array_row')
           shiny::incProgress(0.2 / n_samples)
 
           anno_df <- data.frame(anno)
