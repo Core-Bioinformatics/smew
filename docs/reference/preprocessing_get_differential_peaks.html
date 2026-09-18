@@ -17,12 +17,7 @@
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/smew.html">Get started</a></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="nav-item dropdown">
-  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/databases.html">Building custom metabolite and pathway databases for SMEW</a></li>
-    <li><a class="dropdown-item" href="../articles/histology.html">Aligning histology images with MSI data for use in SMEW</a></li>
-    <li><a class="dropdown-item" href="../articles/multimodal.html">Incorporating multimodal data into SMEW</a></li>
-  </ul></li>
+<li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/Core-Bioinformatics/smew/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -64,27 +59,27 @@
 
 
 <dl><dt id="arg-x-tf">x_tf<a class="anchor" aria-label="anchor" href="#arg-x-tf"></a></dt>
-<dd><p>Numeric; x_tf-coordinate of the target spot.</p></dd>
+<dd><p>Numeric; x_tf-coordinate of the target pixel.</p></dd>
 
 
 <dt id="arg-y-tf">y_tf<a class="anchor" aria-label="anchor" href="#arg-y-tf"></a></dt>
-<dd><p>Numeric; y_tf-coordinate of the target spot.</p></dd>
+<dd><p>Numeric; y_tf-coordinate of the target pixel.</p></dd>
 
 
 <dt id="arg-intensity-per-sample">intensity.per.sample<a class="anchor" aria-label="anchor" href="#arg-intensity-per-sample"></a></dt>
-<dd><p>Matrix or data frame of intensities (spots x features) for the sample.</p></dd>
+<dd><p>Matrix or data frame of intensities (pixels x features) for the sample.</p></dd>
 
 
 <dt id="arg-metadata-per-sample">metadata.per.sample<a class="anchor" aria-label="anchor" href="#arg-metadata-per-sample"></a></dt>
-<dd><p>Data frame of spot metadata with x_tf, y_tf and spot_id columns.</p></dd>
+<dd><p>Data frame of pixel metadata with x_tf, y_tf and pixel_id columns.</p></dd>
 
 
 <dt id="arg-control-matrix">control.matrix<a class="anchor" aria-label="anchor" href="#arg-control-matrix"></a></dt>
-<dd><p>Matrix of control sample intensities (features x control spots).</p></dd>
+<dd><p>Matrix of control sample intensities (features x control pixels).</p></dd>
 
 
 <dt id="arg-min-neighbours">min.neighbours<a class="anchor" aria-label="anchor" href="#arg-min-neighbours"></a></dt>
-<dd><p>Integer; minimum number of neighbouring spots required (default 3).</p></dd>
+<dd><p>Integer; minimum number of neighbouring pixels required (default 3).</p></dd>
 
 
 <dt id="arg-pvalue-cutoff">pvalue.cutoff<a class="anchor" aria-label="anchor" href="#arg-pvalue-cutoff"></a></dt>

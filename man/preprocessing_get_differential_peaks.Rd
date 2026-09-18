@@ -18,17 +18,17 @@ preprocessing_get_differential_peaks(
 )
 }
 \arguments{
-\item{x_tf}{Numeric; x_tf-coordinate of the target spot.}
+\item{x_tf}{Numeric; x_tf-coordinate of the target pixel.}
 
-\item{y_tf}{Numeric; y_tf-coordinate of the target spot.}
+\item{y_tf}{Numeric; y_tf-coordinate of the target pixel.}
 
-\item{intensity.per.sample}{Matrix or data frame of intensities (spots x features) for the sample.}
+\item{intensity.per.sample}{Matrix or data frame of intensities (pixels x features) for the sample.}
 
-\item{metadata.per.sample}{Data frame of spot metadata with x_tf, y_tf and spot_id columns.}
+\item{metadata.per.sample}{Data frame of pixel metadata with x_tf, y_tf and pixel_id columns.}
 
-\item{control.matrix}{Matrix of control sample intensities (features x control spots).}
+\item{control.matrix}{Matrix of control sample intensities (features x control pixels).}
 
-\item{min.neighbours}{Integer; minimum number of neighbouring spots required (default 3).}
+\item{min.neighbours}{Integer; minimum number of neighbouring pixels required (default 3).}
 
 \item{pvalue.cutoff}{Numeric; adjusted p-value cutoff for significance.}
 

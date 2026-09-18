@@ -7,7 +7,7 @@
 preprocessing_spatial_autocorrelation_pipeline(intensity, metadata)
 }
 \arguments{
-\item{intensity}{Matrix (spots x features), rownames = pixel_id.}
+\item{intensity}{Matrix (pixels x features), rownames = pixel_id.}
 
 \item{metadata}{Data frame with pixel_id, x_tf, y_tf, Sample.}
 }

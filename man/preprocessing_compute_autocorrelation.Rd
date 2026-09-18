@@ -7,9 +7,9 @@
 preprocessing_compute_autocorrelation(intensity, lag_mat)
 }
 \arguments{
-\item{intensity}{Matrix (spots x features).}
+\item{intensity}{Matrix (pixels x features).}
 
-\item{lag_mat}{Matrix (spots x features).}
+\item{lag_mat}{Matrix (pixels x features).}
 }
 \value{
 Named vector of autocorrelation per feature.

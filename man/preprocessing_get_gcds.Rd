@@ -7,7 +7,7 @@
 preprocessing_get_gcds(metadata)
 }
 \arguments{
-\item{metadata}{Data frame with 'Sample', 'spot_id', 'x', and 'y' columns.}
+\item{metadata}{Data frame with 'Sample', 'pixel_id', 'x', and 'y' columns.}
 }
 \value{
 Numeric; unique GCD value for the grid spacing.

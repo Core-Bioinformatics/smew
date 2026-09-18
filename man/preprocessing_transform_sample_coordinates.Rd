@@ -7,7 +7,7 @@
 preprocessing_transform_sample_coordinates(metadata)
 }
 \arguments{
-\item{metadata}{Data frame with columns Sample, x, y, and spot_id.}
+\item{metadata}{Data frame with columns Sample, x, y, and pixel_id.}
 }
 \value{
 Data frame with new columns x_tf and y_tf, normalized per sample.

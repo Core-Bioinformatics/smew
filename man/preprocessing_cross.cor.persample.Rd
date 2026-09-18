@@ -20,7 +20,7 @@ preprocessing_cross.cor.persample(
 
 \item{sample}{Name or ID of the sample to process}
 
-\item{intensity.matrix}{Matrix of intensities (rows = spots/pixels, columns = features)}
+\item{intensity.matrix}{Matrix of intensities (rows = pixels, columns = features)}
 
 \item{metadata}{Data frame with pixel_id, x_tf, y_tf, Sample, etc.}
 

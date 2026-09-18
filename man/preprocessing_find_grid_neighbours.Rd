@@ -10,12 +10,12 @@ preprocessing_find_grid_neighbours(metadata)
 \item{metadata}{Data frame with columns: pixel_id, x_tf, y_tf, Sample.}
 }
 \value{
-List of neighbour indices per spot (named by pixel_id).
+List of neighbour indices per pixel (named by pixel_id).
 }
 \description{
 Computes spatial autocorrelation for features using grid-based neighbours (gcd 1). No external neighbour-finding packages required; based on the semla spatial lag concept.
 }
 \details{
-Find grid neighbours for each spot
+Find grid neighbours for each pixel
 }
 \keyword{internal}

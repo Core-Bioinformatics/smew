@@ -2,19 +2,19 @@
 % Please edit documentation in R/utils_processing_autocorrelation.R
 \name{preprocessing_compute_spatial_lag}
 \alias{preprocessing_compute_spatial_lag}
-\title{Compute spatial lag for each spot}
+\title{Compute spatial lag for each pixel}
 \usage{
 preprocessing_compute_spatial_lag(intensity, neighbour_list)
 }
 \arguments{
-\item{intensity}{Matrix (spots x features), rownames = spot_id.}
+\item{intensity}{Matrix (pixels x features), rownames = pixel_id.}
 
-\item{neighbour_list}{List of neighbour spot_ids per spot.}
+\item{neighbour_list}{List of neighbour pixel_ids per pixel.}
 }
 \value{
-Matrix of spatial lags (spots x features).
+Matrix of spatial lags (pixels x features).
 }
 \description{
-Compute spatial lag for each spot
+Compute spatial lag for each pixel
 }
 \keyword{internal}

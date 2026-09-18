@@ -3,13 +3,13 @@
 ##' Computes spatial autocorrelation for features using grid-based neighbours (gcd 1). No external neighbour-finding packages required; based on the semla spatial lag concept.
 ##'
 
-##' Find grid neighbours for each spot
+##' Find grid neighbours for each pixel
 ##'
 ##' @param metadata Data frame with columns: pixel_id, x_tf, y_tf, Sample.
-##' @return List of neighbour indices per spot (named by pixel_id).
+##' @return List of neighbour indices per pixel (named by pixel_id).
 ##' @keywords internal
 preprocessing_find_grid_neighbours <- function(metadata) {
-  spots <- metadata$pixel_id
+  pixels <- metadata$pixel_id
   coords <- metadata[, c('x_tf', 'y_tf')]
   neighbour_list <- lapply(seq_len(nrow(coords)), function(i) {
     xi <- coords$x_tf[i]
@@ -19,17 +19,17 @@ preprocessing_find_grid_neighbours <- function(metadata) {
       abs(coords$y_tf - yi) <= 1 &
       !(coords$x_tf == xi & coords$y_tf == yi)
     )
-    spots[neighbours]
+    pixels[neighbours]
   })
-  names(neighbour_list) <- spots
+  names(neighbour_list) <- pixels
   neighbour_list
 }
 
-##' Compute spatial lag for each spot
+##' Compute spatial lag for each pixel
 ##'
-##' @param intensity Matrix (spots x features), rownames = spot_id.
-##' @param neighbour_list List of neighbour spot_ids per spot.
-##' @return Matrix of spatial lags (spots x features).
+##' @param intensity Matrix (pixels x features), rownames = pixel_id.
+##' @param neighbour_list List of neighbour pixel_ids per pixel.
+##' @return Matrix of spatial lags (pixels x features).
 ##' @keywords internal
 preprocessing_compute_spatial_lag <- function(intensity, neighbour_list) {
   lag_mat <- matrix(NA, nrow = nrow(intensity), ncol = ncol(intensity),
@@ -47,15 +47,18 @@ preprocessing_compute_spatial_lag <- function(intensity, neighbour_list) {
 
 ##' Compute spatial autocorrelation (correlation between feature and spatial lag)
 ##'
-##' @param intensity Matrix (spots x features).
-##' @param lag_mat Matrix (spots x features).
+##' @param intensity Matrix (pixels x features).
+##' @param lag_mat Matrix (pixels x features).
 ##' @return Named vector of autocorrelation per feature.
 ##' @keywords internal
 preprocessing_compute_autocorrelation <- function(intensity, lag_mat) {
   n <- ncol(intensity)
   cors <- numeric(n)
   for (i in seq_len(n)) {
-    cors[i] <- stats::cor(intensity[, i], lag_mat[, i], use = 'everything', method = 'pearson')
+    comp_vec1 <- intensity[, i]
+    comp_vec2 <- lag_mat[, i]
+    idx = which(!is.na(comp_vec1) & !is.na(comp_vec2))
+    cors[i] <- stats::cor(intensity[idx, i], lag_mat[idx, i], use = 'everything', method = 'pearson')
   }
   names(cors) <- colnames(intensity)
   cors
@@ -63,7 +66,7 @@ preprocessing_compute_autocorrelation <- function(intensity, lag_mat) {
 
 ##' Main pipeline for spatial autocorrelation
 ##'
-##' @param intensity Matrix (spots x features), rownames = pixel_id.
+##' @param intensity Matrix (pixels x features), rownames = pixel_id.
 ##' @param metadata Data frame with pixel_id, x_tf, y_tf, Sample.
 ##' @return Named list of autocorrelation vectors per Sample.
 ##' @keywords internal
@@ -89,7 +92,7 @@ preprocessing_spatial_autocorrelation_pipeline <- function(intensity, metadata) 
 ##' @param feature1 Name of the first feature (column) to correlate
 ##' @param feature2 Name of the second feature (column) to correlate
 ##' @param sample Name or ID of the sample to process
-##' @param intensity.matrix Matrix of intensities (rows = spots/pixels, columns = features)
+##' @param intensity.matrix Matrix of intensities (rows = pixels, columns = features)
 ##' @param metadata Data frame with pixel_id, x_tf, y_tf, Sample, etc.
 ##' @param list.of.adjacency List of adjacency matrices (one per sample), each a sparse matrix
 ##' @keywords internal
@@ -159,13 +162,13 @@ preprocessing_spatial_cross_cor <- function(top.peaks, intensity.matrix, metadat
     message("Creating grid-based adjacency matrices:")
     for (sample in unique(metadata$Sample)) {
     pos <- metadata[metadata$Sample == sample, c('x_tf', 'y_tf')]
-    spot_ids <- rownames(pos)
-    n_spots <- nrow(pos)
+    pixel_ids <- rownames(pos)
+    n_pixels <- nrow(pos)
     # Prepare i, j, x for sparseMatrix
     i_idx <- integer()
     j_idx <- integer()
     x_val <- numeric()
-    for (i in seq_len(n_spots)) {
+    for (i in seq_len(n_pixels)) {
         xi <- pos$x_tf[i]
         yi <- pos$y_tf[i]
         neighbours <- which(
@@ -180,12 +183,12 @@ preprocessing_spatial_cross_cor <- function(top.peaks, intensity.matrix, metadat
         }
     }
     if (length(i_idx) > 0) {
-        adj_mat <- Matrix::sparseMatrix(i = i_idx, j = j_idx, x = x_val, dims = c(n_spots, n_spots), dimnames = list(spot_ids, spot_ids))
+        adj_mat <- Matrix::sparseMatrix(i = i_idx, j = j_idx, x = x_val, dims = c(n_pixels, n_pixels), dimnames = list(pixel_ids, pixel_ids))
         rs <- Matrix::rowSums(adj_mat)
         rs[rs == 0] <- 1
         adj_mat <- adj_mat / rs
     } else {
-        adj_mat <- Matrix::sparseMatrix(i = integer(0), j = integer(0), x = numeric(0), dims = c(n_spots, n_spots), dimnames = list(spot_ids, spot_ids))
+        adj_mat <- Matrix::sparseMatrix(i = integer(0), j = integer(0), x = numeric(0), dims = c(n_pixels, n_pixels), dimnames = list(pixel_ids, pixel_ids))
     }
     list.of.adjacency[[sample]] <- adj_mat
     W = W + sum(adj_mat)

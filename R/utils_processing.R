@@ -5,7 +5,7 @@ utils::globalVariables(c("complete_compound_mass", "mw", "exp_peak", "allowed_to
 ##' For each sample, shifts x and y so the minimum is 0 and scales so the grid cell distance (gcd) is 1.
 ##' Adds x_tf and y_tf columns to the metadata.
 ##'
-##' @param metadata Data frame with columns Sample, x, y, and spot_id.
+##' @param metadata Data frame with columns Sample, x, y, and pixel_id.
 ##' @return Data frame with new columns x_tf and y_tf, normalized per sample.
 ##' @keywords internal
 preprocessing_transform_sample_coordinates <- function(metadata) {
@@ -248,7 +248,7 @@ preprocessing_calculate_gcd <- function(x) {
 ##'
 ##' Calculates the grid spacing (GCD) for each sample in the metadata, ensuring consistency across samples.
 ##'
-##' @param metadata Data frame with 'Sample', 'spot_id', 'x', and 'y' columns.
+##' @param metadata Data frame with 'Sample', 'pixel_id', 'x', and 'y' columns.
 ##' @return Numeric; unique GCD value for the grid spacing.
 ##' @keywords internal
 preprocessing_get_gcds <- function(metadata){
@@ -256,8 +256,8 @@ preprocessing_get_gcds <- function(metadata){
   for (sample in unique(metadata$Sample)){
     metadata.sub = metadata |> dplyr::filter(Sample==sample)
     pos <- metadata.sub[,c('x','y')]
-    rownames(pos)=metadata.sub$spot_id
-    rownames(metadata.sub)=metadata.sub$spot_id
+    rownames(pos)=metadata.sub$pixel_id
+    rownames(metadata.sub)=metadata.sub$pixel_id
     # calculating spacing between points
     min.x = min(pos$x)
     min.y = min(pos$y)

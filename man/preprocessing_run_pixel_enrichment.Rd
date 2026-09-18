@@ -24,11 +24,11 @@ preprocessing_run_pixel_enrichment(
 )
 }
 \arguments{
-\item{intensity.matrix}{Spot-by-feature intensity matrix (all samples concatenated).}
+\item{intensity.matrix}{Pixel-by-feature intensity matrix (all samples concatenated).}
 
 \item{bulk.intensity.matrix}{Feature-by-sample matrix used to build control sets.}
 
-\item{metadata}{Data frame of per-spot metadata containing Sample and spot_id columns.}
+\item{metadata}{Data frame of per-pixel metadata containing Sample and pixel_id columns.}
 
 \item{anno}{Data frame; annotation data for features used by bulk_utils_DA.}
 
@@ -60,6 +60,6 @@ preprocessing_run_pixel_enrichment(
 Named list where each element is a data frame of ORA results for a sample.
 }
 \description{
-Iterates over samples and computes per-spot ORA results in parallel. Returns a named list of per-sample ORA result data frames.
+Iterates over samples and computes per-pixel ORA results in parallel. Returns a named list of per-sample ORA result data frames.
 }
 \keyword{internal}
