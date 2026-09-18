@@ -208,7 +208,7 @@ shiny::shinyApp(ui, server)
 #' The generated app supports interactive analysis at multiple levels, including quality control, differential analysis, pathway enrichment, network inference, clustering, spatial visualisation, and more. See the package documentation and vignette for a full description of the app features and input requirements.
 #'
 #' @return Invisibly returns the path to the generated app.R file. All processed data and app files are saved in the output directory.
-#' @examples 
+#' @examples
 #' create_smew_app(
 #'   intensity_csv = system.file("extdata", "bleo_sub_intensity.csv", package = "smew"),
 #'   metadata_csv = system.file("extdata", "bleo_sub_meta.csv", package = "smew"),
@@ -245,6 +245,12 @@ create_smew_app <- function(intensity_csv, metadata_csv, output_dir, denoise = F
   # 3. Check required columns
   message("Checking required columns in input files...")
   if (!"Sample" %in% colnames(metadata)) stop("Metadata CSV must contain a 'Sample' column.")
+
+  is_any_numeric <- function(vec) {
+    !all(is.na(suppressWarnings(as.numeric(vec))))
+  }
+  if (is_any_numeric(metadata$Sample)){stop("Sample names should not be numeric, please use non-numeric names.")}
+
   if (!"pixel_id" %in% colnames(metadata)) stop("Metadata CSV must contain a 'pixel_id' column.")
   if (!setequal(first_col_intensity, metadata$pixel_id)) stop("Intensity matrix rownames must match metadata pixel_id.")
 
@@ -292,7 +298,7 @@ create_smew_app <- function(intensity_csv, metadata_csv, output_dir, denoise = F
     }
     missing_cols <- setdiff(required_anno_cols, colnames(anno))
     if (length(missing_cols) > 0) {
-      stop(paste0("The supplied annotation table is missing required column(s): ", paste(missing_cols, collapse=", "))) 
+      stop(paste0("The supplied annotation table is missing required column(s): ", paste(missing_cols, collapse=", ")))
     }
     # Optionally filter to only annotated ones if wanted
     # Check that metabolite IDs are valid (non-empty, non-NA) for enrichment

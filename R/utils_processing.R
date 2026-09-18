@@ -268,10 +268,10 @@ preprocessing_get_gcds <- function(metadata){
     if (gcd.x!=gcd.y){
       message('Mismatching gap!')
     } else {
-      gcd.values[[sample]]<-gcd.x
+      gcd.values[[as.character(sample)]]<-gcd.x
     }
   }
-  if (length(unique(gcd.values))!=1){
+  if (length(unique(unlist(gcd.values)))!=1){
     stop('Mismatching gap across samples!')
   }
   return(unique(unlist(gcd.values)))
