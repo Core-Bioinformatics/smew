@@ -137,9 +137,9 @@ RegionPanel_ClusterTabUI <- function(id, bulk.metadata, full.metadata, full.inte
 #' @return None; called for side effects in Shiny module
 #' @export
 RegionPanel_ClusterTabServer <- function(id, full.intensity.matrix, full.metadata, bulk.metadata, anno, shared_data) {
-  
+
   shiny::moduleServer(id, function(input, output, session) {
-    
+
     get_subset_exp <- shiny::reactive({
       idx <- full.metadata$Sample %in% input[["samplesToFactor"]]
       current.intensity.matrix <- full.intensity.matrix[idx, ]
@@ -151,7 +151,7 @@ RegionPanel_ClusterTabServer <- function(id, full.intensity.matrix, full.metadat
         meta = full.metadata[idx, ]
       )
     })
-    
+
     # --- Preprocessing step (only runs on button press) ---
       preproc_obj <- shiny::reactive({
         shiny::withProgress(message = 'Running pre-processing...', value = 0, {
@@ -196,10 +196,10 @@ RegionPanel_ClusterTabServer <- function(id, full.intensity.matrix, full.metadat
           input$run_harmony,
           input$harmony_meta
         ) |> shiny::bindEvent(input$run_preprocessing)
-    
+
     # cache to safely store latest clustering result (nonreactive)
     cluster_cache <- shiny::reactiveVal(NULL)
-    
+
     # --- Clustering step (same as before) ---
       clustering_obj <- shiny::reactive({
         shiny::withProgress(message = 'Running clustering...', value = 0, {
@@ -228,14 +228,14 @@ RegionPanel_ClusterTabServer <- function(id, full.intensity.matrix, full.metadat
           current.metadata
         })
       }) |> shiny::bindEvent(input$run_preprocessing, input$run_clustering)
-    
+
     # --- Plot output ---
     output$clusterPlot <- shiny::renderPlot({
       df <- clustering_obj()
       ggplot2::ggplot(df, ggplot2::aes(x = .data$x_tf, y = .data$y_tf, fill = .data$cluster, color = .data$cluster)) +
         ggplot2::geom_tile() +
         ggplot2::theme_classic() +
-        ggplot2::facet_wrap(~.data$Sample, nrow = max(1, floor(sqrt(length(unique(df$Sample)) / 2)))) +
+        ggplot2::facet_wrap(~.data$Sample, nrow = max(1, floor(sqrt(length(unique(df$Sample)) / 2))),scales = 'free') +
         ggplot2::theme_void() +
         ggplot2::theme(aspect.ratio = 1)
     })
@@ -245,7 +245,7 @@ RegionPanel_ClusterTabServer <- function(id, full.intensity.matrix, full.metadat
         ggplot2::ggplot(df, ggplot2::aes(x = .data$x_tf, y = .data$y_tf, fill = .data$cluster, color = .data$cluster)) +
           ggplot2::geom_tile() +
           ggplot2::theme_classic() +
-          ggplot2::facet_wrap(~.data$Sample, nrow = max(1, floor(sqrt(length(unique(df$Sample)) / 2)))) +
+          ggplot2::facet_wrap(~.data$Sample, nrow = max(1, floor(sqrt(length(unique(df$Sample)) / 2))),scales = 'free') +
           ggplot2::theme_void() +
           ggplot2::theme(aspect.ratio = 1)
       },
@@ -253,24 +253,24 @@ RegionPanel_ClusterTabServer <- function(id, full.intensity.matrix, full.metadat
       width_func = function() input[['clusterPlotWidth']],
       height_func = function() input[['clusterPlotHeight']]
     )
-    
+
     # --- Lock cluster (read from cache, NOT reactive) ---
     shiny::observeEvent(input$lock_cluster, {
       meta <- shared_data$updated.metadata
       clusterdf <- shiny::isolate(cluster_cache())  # << isolate to break dependency
       shiny::req(clusterdf)
-      
+
       if (!input$clusterName %in% base::colnames(meta)) {
         meta[[input$clusterName]] <- NA
       }
-      
+
       idx <- base::match(meta$pixel_id, clusterdf$pixel_id)
       to_update <- !base::is.na(idx)
       meta[[input$clusterName]][to_update] <- clusterdf$cluster[idx[to_update]]
-      
+
       shared_data$updated.metadata <- meta
     })
-    
+
   })
 }
 
