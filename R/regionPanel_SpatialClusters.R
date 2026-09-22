@@ -166,7 +166,6 @@ RegionPanel_SpatialClustersTabServer <- function(id, full.intensity.matrix, full
     pseudobulk_result <- shiny::reactiveVal(NULL)
 
     shiny::observeEvent(input$run_clustering, {
-      sample_col <- colnames(bulk.metadata)[1]
       sample_ids <- input$sampleToCluster
       all_results <- list()
       all_pseudobulk <- list()
@@ -174,9 +173,9 @@ RegionPanel_SpatialClustersTabServer <- function(id, full.intensity.matrix, full
       shiny::withProgress(message = 'Running BayesSpace clustering...', value = 0, {
         for (i in seq_along(sample_ids)) {
           sample_id <- sample_ids[i]
-          intensity.sub <- full.intensity.matrix[full.metadata[, sample_col] == sample_id, ]
-          metadata.sub <- full.metadata[full.metadata[, sample_col] == sample_id, ]
-          metadata.sub$Sample <- metadata.sub[, sample_col]
+          intensity.sub <- full.intensity.matrix[full.metadata$Sample == sample_id, ]
+          metadata.sub <- full.metadata[full.metadata$Sample == sample_id, ]
+          metadata.sub$Sample <- metadata.sub$Sample
           pos <- metadata.sub[, c('x', 'y')]
           rownames(pos) <- metadata.sub$pixel_id
           rownames(intensity.sub) <- metadata.sub$pixel_id
@@ -328,16 +327,15 @@ RegionPanel_SpatialClustersTabServer <- function(id, full.intensity.matrix, full
       if (!is.null(shared_data)) {
         shared_data$updated.metadata <- shiny::isolate({
           m <- shared_data$updated.metadata
-          sample_col <- colnames(bulk.metadata)[1]
           # Handle both single and multi-sample cases
           if (is.list(meta)) {
             for (sid in names(meta)) {
-              mask <- m[, sample_col] == sid
+              mask <- m[, 'Sample'] == sid
               if (!cluster_name %in% colnames(m)) m[[cluster_name]] <- NA
               m[[cluster_name]][mask] <- as.character(meta[[sid]]$cluster)
             }
           } else {
-            mask <- m[, sample_col] == meta$Sample
+            mask <- m[, 'Sample'] == meta$Sample
             if (!cluster_name %in% colnames(m)) m[[cluster_name]] <- NA
             m[[cluster_name]][mask] <- as.character(meta$cluster)
           }
@@ -356,7 +354,6 @@ RegionPanel_SpatialClustersTabServer <- function(id, full.intensity.matrix, full
       if (!is.null(shared_data)) {
         shared_data$updated.metadata <- shiny::isolate({
           m <- shared_data$updated.metadata
-          sample_col <- colnames(bulk.metadata)[1]
           pb_mat <- do.call(cbind, pb_list)
           cluster_names <- colnames(pb_mat)
           comb_map <- stats::setNames(comb, cluster_names)
@@ -366,12 +363,12 @@ RegionPanel_SpatialClustersTabServer <- function(id, full.intensity.matrix, full
           if (is.list(meta)) {
             for (sid in names(meta)) {
               spot_cluster_names <- paste0(sid, ":C", as.character(meta[[sid]]$cluster))
-              mask <- m[, sample_col] == sid
+              mask <- m[, 'Sample'] == sid
               m[[comb_colname]][mask] <- as.character(comb_map[spot_cluster_names])
             }
           } else {
             spot_cluster_names <- paste0(meta$Sample, ":C", as.character(meta$cluster))
-            mask <- m[, sample_col] == meta$Sample
+            mask <- m[, 'Sample'] == meta$Sample
             m[[comb_colname]][mask] <- as.character(comb_map[spot_cluster_names])
           }
           m
@@ -521,7 +518,7 @@ RegionPanel_SpatialClustersTabServer <- function(id, full.intensity.matrix, full
       width_func = function() { input[['spatialPlotWidth']] },
       height_func = function() { input[['spatialPlotHeight']] }
     )
-        
+
     # PCA download
     output[['downloadPCA']] <- utils_create_download_plot_handler(
       plot_func = pseudobulk_preproc_pca,

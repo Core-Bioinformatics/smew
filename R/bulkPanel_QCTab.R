@@ -60,7 +60,7 @@ BulkPanel_QCTabUI <- function(id, bulk.metadata, show = TRUE){
             )
           ),
             shiny::radioButtons(ns('pca.annotation'), label = "Group by",
-              choices = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata)]), selected = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata)])[1]),
+              choices = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata), drop = FALSE]), selected = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata), drop = FALSE])[1]),
           shiny::checkboxInput(ns('pca.show.confidence.ellipses'),label = "Show 95% confidence ellipses around groups",value=TRUE),
           shiny::numericInput(ns('pca.comp'),label = "PCA's contributions to show",min=1,max=2,step = 1,value = 1)
         ),
@@ -107,9 +107,9 @@ BulkPanel_QCTabUI <- function(id, bulk.metadata, show = TRUE){
             )
           ),
             shiny::radioButtons(ns('plsda.separator'), label = "Condition to run PLS-DA on",
-              choices = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata)]), selected = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata)])[1]),
+              choices = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata), drop = FALSE]), selected = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata), drop = FALSE])[1]),
             shiny::radioButtons(ns('plsda.annotation'), label = "Condition to color PLS-DA plot by",
-                  choices = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata)]), selected = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata)])[1]),
+                  choices = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata), drop = FALSE]), selected = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata), drop = FALSE])[1]),
           shiny::checkboxInput(ns('plsda.show.confidence.ellipses'),label = "Show 95% confidence ellipses around groups",value=TRUE),
           shiny::numericInput(ns('plsda.comp'),label = "PLS-DA component's contributions to show",min=1,max=2,step = 1,value = 1),
 
@@ -152,7 +152,7 @@ BulkPanel_QCTabUI <- function(id, bulk.metadata, show = TRUE){
           ),
           shiny::selectInput(ns("barPeakName"), "Peaks to include:", multiple = TRUE, choices = character(0)),
           shiny::radioButtons(ns('peak.barplot.colour'), label = "Group by",
-                      choices = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata)]), selected = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata)])[1]),
+                      choices = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata), drop = FALSE]), selected = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata), drop = FALSE])[1]),
 
         ),
         shiny::mainPanel(
@@ -190,7 +190,7 @@ BulkPanel_QCTabUI <- function(id, bulk.metadata, show = TRUE){
           ),
           shiny::selectInput(ns("boxPeakName"), "Peaks to include:", multiple = TRUE, choices = character(0)),
           shiny::radioButtons(ns('boxplot.metadata'), label = "Group by",
-                      choices = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata)]), selected = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata)])[1]),
+                      choices = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata), drop = FALSE]), selected = colnames(bulk.metadata[,sapply(bulk.metadata,dplyr::n_distinct)!=nrow(bulk.metadata), drop = FALSE])[1]),
 
         ),
         shiny::mainPanel(

@@ -54,8 +54,8 @@ BulkPanel_DATabUI <- function(id, bulk.metadata, show = TRUE) {
         # Metadata column selection
         shiny::selectInput(
           ns('condition'), 'Metadata column to use:',
-          choices = colnames(bulk.metadata[, sapply(bulk.metadata, dplyr::n_distinct) != nrow(bulk.metadata)]),
-          selected = colnames(bulk.metadata[, sapply(bulk.metadata, dplyr::n_distinct) != nrow(bulk.metadata)])[1]
+          choices = colnames(bulk.metadata[, sapply(bulk.metadata, dplyr::n_distinct) != nrow(bulk.metadata), drop = FALSE]),
+          selected = colnames(bulk.metadata[, sapply(bulk.metadata, dplyr::n_distinct) != nrow(bulk.metadata), drop = FALSE])[1]
         ),
 
         # Condition group selection
